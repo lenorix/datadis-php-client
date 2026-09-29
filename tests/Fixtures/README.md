@@ -19,3 +19,5 @@ Identifiers are fictitious: CUPS `ES0031300000000001JN0F` (22 chars) and `ES0031
 | `v2/distributor-error-only.json` | SPEC | Partial failure inside an HTTP 200. |
 | `v2/distributors.json`, `v1/distributors.json` | SPEC | Both envelope shapes. |
 | DST day payloads | SYNTHETIC values, VERIFIED shape | Built in `tests/Support/Payloads.php`: 25 rows with `03:00` twice, 23 rows without `03:00`. |
+| `v1/list-authorization.json` | SPEC | Field names from the manual only; no real capture exists. Mixed id and date types on purpose. |
+| `public/search.json` | SYNTHETIC | Public API shape is unknown: no source has a success body. Field names follow the documented sort fields and the `mi1`..`mi25` hourly totals. |

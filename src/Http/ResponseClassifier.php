@@ -37,11 +37,7 @@ final class ResponseClassifier
     public static function decode(ResponseInterface $response, string $endpoint): array
     {
         $status = $response->getStatusCode();
-        $body = self::readBody($response);
-
-        if ($status < 200 || $status >= 300) {
-            throw self::failure($status, $body, $endpoint);
-        }
+        $body = self::assertSuccessful($response, $endpoint);
 
         if ($status === 204 || trim($body) === '') {
             throw new NoDataException("{$endpoint}: Datadis answered without a body.", $status, '', $endpoint);
@@ -69,6 +65,24 @@ final class ResponseClassifier
         }
 
         return $decoded;
+    }
+
+    /**
+     * The body of a 2xx answer as text (possibly empty), or the exception that describes the failure.
+     * For endpoints whose success body is not JSON or is not documented.
+     *
+     * @throws DatadisException
+     */
+    public static function assertSuccessful(ResponseInterface $response, string $endpoint): string
+    {
+        $status = $response->getStatusCode();
+        $body = self::readBody($response);
+
+        if ($status < 200 || $status >= 300) {
+            throw self::failure($status, $body, $endpoint);
+        }
+
+        return $body;
     }
 
     private static function failure(int $status, string $body, string $endpoint): DatadisException

@@ -131,3 +131,11 @@ it('never lets the password or the token reach an exception message', function (
 
     throw new LogicException('Expected an exception.');
 });
+
+it('returns the raw text of an answer that is allowed to be empty', function () {
+    $stack = new Stack;
+    $stack->http->queue($stack->loginOk(), Responses::text('', 401), $stack->loginOk(), Responses::empty(200));
+
+    expect($stack->caller->getText('/api-private/api/cancel-authorization', [], 'cancel-authorization'))->toBe('')
+        ->and($stack->http->requests())->toHaveCount(4);
+});

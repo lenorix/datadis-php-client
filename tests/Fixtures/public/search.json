@@ -1,0 +1,21 @@
+[
+    {
+        "dataDate": "2026/01/01",
+        "community": "13",
+        "province": "28",
+        "municipality": "079",
+        "postalCode": "28001",
+        "fare": "2T",
+        "measurePointType": "05",
+        "tension": "E0",
+        "economicSector": "1",
+        "timeDiscrimination": "E3",
+        "distributor": "0021",
+        "sumEnergy": 1234.567,
+        "sumContracts": 42,
+        "mi1": 10.5, "mi2": 9.75, "mi3": 9, "mi4": 8, "mi5": 8, "mi6": 8, "mi7": 9, "mi8": 11,
+        "mi9": 12, "mi10": 12, "mi11": 12, "mi12": 12, "mi13": 12, "mi14": 12, "mi15": 12, "mi16": 12,
+        "mi17": 12, "mi18": 12, "mi19": 12, "mi20": 12, "mi21": 12, "mi22": 12, "mi23": 12, "mi24": 11,
+        "mi25": null
+    }
+]

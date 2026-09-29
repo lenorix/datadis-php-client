@@ -92,3 +92,27 @@ The list can be transiently empty or truncated for very large accounts, and a ne
 ## Distributor codes (Datadis-specific, unrelated to CNMC's 4-digit codes)
 
 `1` Viesgo, `2` E-distribución, `3` E-redes, `4` ASEME, `5` UFD, `6` EOSA, `7` CIDE, `8` i-DE. Consistent across several implementations and real responses, but treat codes as **opaque strings**: one library had to relax its own validation.
+
+## v1-only functionality (UNVERIFIED)
+
+Implemented because v2 has no equivalent. Everything below comes from the manual and a captured request specification; **no real answer has been captured**, so the client reads answers tolerantly and keeps them raw.
+
+### Authorizations (private, authenticated, GET)
+
+| Endpoint | Parameters | Answer |
+|----------|------------|--------|
+| `/api-private/api/new-authorization` | `authorizedNif` (required), `startDate`, `endDate`, `cups` (list, empty = every supply) | undocumented; returned as raw text |
+| `/api-private/api/cancel-authorization` | `authorizedNif` (required), `cups` (list) | undocumented; returned as raw text |
+| `/api-private/api/list-authorization` | `ownerNif` (optional) | `[{id, ownerDocument, requesterDocument, status, validityDateStart, validityDateEnd, distributorCodeFather}]` |
+
+Assumptions: dates are sent as `YYYY/MM/DD`; a list is sent by repeating the key (`cups=A&cups=B`, the usual binding of array parameters). Both are isolated in one place each so they can be changed once verified. Authorizing the account itself is refused locally.
+
+### Public API (no authentication, GET)
+
+`/api-public/api-search`, `api-sum-search`, `api-search-auto`, `api-sum-search-auto`.
+
+- Common: `startDate`, `endDate` (`YYYY/MM/DD`, required), `page` (from 0, required), `pageSize` (1-2000, required), `community` (required, one or two of `01`..`19`), `distributor` (CNMC 4 digit codes), `sort` (`dataDate`, `community`, `province`, `municipality`, `postalCode`, `fare`, `measurePointType`, `tension`, `economicSector`, `timeDiscrimination`, `distributor`, `sumEnergy`, `sumContracts`; `-` prefix for descending).
+- `api-search` / `api-sum-search`: `measurementType` (required, `01`..`05`), `fare`, `provinceMunicipality` (2 or 5 digits), `postalCode`, `economicSector` (`1`..`4`), `tension` (`E0`..`E6`), `timeDiscrimination` (`G0`, `E1`, `E2`, `E3`).
+- `api-search-auto` / `api-sum-search-auto`: `selfConsumption` (modality codes 31-33, 41-43, 51-58, 61-64, 71-74, 77), `province` (2 digits).
+- Several values in one parameter are comma-separated.
+- Answer: unknown. Rows are expected to carry the sort fields plus `sumEnergy`, `sumContracts` and hourly totals `mi1`..`mi25` (the 25th for the extra autumn hour). The client accepts a bare list, a list under `content`/`data`/`results`/`items`, or a single object.

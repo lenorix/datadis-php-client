@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient;
 
 use DateTimeImmutable;
+use DateTimeInterface;
 use DateTimeZone;
 use GuzzleHttp\Psr7\HttpFactory;
 use Lenorix\DatadisClient\Auth\SystemClock;
 use Lenorix\DatadisClient\Auth\TokenProvider;
 use Lenorix\DatadisClient\Data\ApiResult;
+use Lenorix\DatadisClient\Data\Authorization;
 use Lenorix\DatadisClient\Data\ConsumptionReading;
 use Lenorix\DatadisClient\Data\ContractDetail;
 use Lenorix\DatadisClient\Data\DistributorCodes;
@@ -18,6 +20,7 @@ use Lenorix\DatadisClient\Data\MaxPowerReading;
 use Lenorix\DatadisClient\Data\ReactiveEnergy;
 use Lenorix\DatadisClient\Data\Supply;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
+use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
 use Lenorix\DatadisClient\Http\ApiCaller;
 use Lenorix\DatadisClient\Http\GuzzleClientFactory;
@@ -217,7 +220,7 @@ final class DatadisClient
         $object = $decoded['reactiveEnergy'] ?? [];
 
         if (! is_array($object)) {
-            throw new Exceptions\UninterpretableResponseException("{$endpoint}: \"reactiveEnergy\" is not an object.", endpoint: $endpoint);
+            throw new UninterpretableResponseException("{$endpoint}: \"reactiveEnergy\" is not an object.", endpoint: $endpoint);
         }
 
         $reactive = ReactiveEnergy::fromRow($object);
@@ -226,7 +229,60 @@ final class DatadisClient
     }
 
     /**
-     * @param  array<string, string|int|null>  $query
+     * Authorizes a third party to read the account's supplies (all of them when no CUPS is given).
+     *
+     * This endpoint exists only in v1 and is used whatever the configured version. UNVERIFIED: it
+     * comes from the manual only; the date format (assumed `YYYY/MM/DD`) and the way the list of
+     * CUPS is sent (the key repeated per CUPS) are not documented. Returns the raw answer text.
+     */
+    public function newAuthorization(
+        Nif $authorizedNif,
+        ?DateTimeInterface $from = null,
+        ?DateTimeInterface $to = null,
+        Cups ...$cups,
+    ): string {
+        $this->assertThirdParty($authorizedNif);
+
+        if ($from !== null && $to !== null && $from->format('Y-m-d') > $to->format('Y-m-d')) {
+            throw new InvalidRequestException('The authorization must not end before it starts.');
+        }
+
+        return $this->caller->getText(self::API.'new-authorization', [
+            'authorizedNif' => $authorizedNif->value(),
+            'startDate' => $from?->format('Y/m/d'),
+            'endDate' => $to?->format('Y/m/d'),
+            'cups' => $this->cupsList($cups),
+        ], 'new-authorization');
+    }
+
+    /**
+     * Cancels a third party's authorization (for every supply when no CUPS is given).
+     * v1 only and UNVERIFIED, like newAuthorization(). Returns the raw answer text.
+     */
+    public function cancelAuthorization(Nif $authorizedNif, Cups ...$cups): string
+    {
+        $this->assertThirdParty($authorizedNif);
+
+        return $this->caller->getText(self::API.'cancel-authorization', [
+            'authorizedNif' => $authorizedNif->value(),
+            'cups' => $this->cupsList($cups),
+        ], 'cancel-authorization');
+    }
+
+    /**
+     * The authorizations of the account, or of the given owner. v1 only and UNVERIFIED.
+     *
+     * @return ApiResult<Authorization>
+     */
+    public function authorizations(?Nif $ownerNif = null): ApiResult
+    {
+        $decoded = $this->caller->get(self::API.'list-authorization', ['ownerNif' => $ownerNif?->value()], 'list-authorization');
+
+        return Envelope::build($decoded, 'authorizations', 'list-authorization', fn (array $row) => Authorization::fromRow($row, $this->timeZone));
+    }
+
+    /**
+     * @param  array<string, string|int|list<string>|null>  $query
      * @return array<array-key, mixed>
      */
     private function get(string $name, array $query): array
@@ -243,6 +299,28 @@ final class DatadisClient
     private function authorized(?Nif $nif): ?string
     {
         return $nif === null || $nif->value() === $this->config->username ? null : $nif->value();
+    }
+
+    private function assertThirdParty(Nif $nif): void
+    {
+        if ($nif->value() === $this->config->username) {
+            throw new InvalidRequestException('An authorization is for a third party, not for the account itself.');
+        }
+    }
+
+    /**
+     * @param  array<Cups>  $cups
+     * @return list<string>
+     */
+    private function cupsList(array $cups): array
+    {
+        $values = array_values(array_map(static fn (Cups $c): string => $c->value(), $cups));
+
+        if (count(array_unique($values)) !== count($values)) {
+            throw new InvalidRequestException('The same CUPS is listed more than once.');
+        }
+
+        return $values;
     }
 
     private function assertDistributorCode(string $code): void

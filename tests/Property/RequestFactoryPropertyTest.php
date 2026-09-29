@@ -38,3 +38,21 @@ it('never puts the password in the login url or headers', function () {
             }
         });
 });
+
+it('repeats the key once per list item and keeps every item intact', function () {
+    $factory = new HttpFactory;
+    $requests = new RequestFactory(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), $factory, $factory);
+
+    $this->limitTo(pbtIterations())
+        ->forAll(Generators::seq(Generators::string()))
+        ->then(function (array $items) use ($requests) {
+            $query = $requests->get('/x', ['cups' => array_values($items)], 'token')->getUri()->getQuery();
+            $pairs = $query === '' ? [] : explode('&', $query);
+
+            expect($pairs)->toHaveCount(count($items));
+            foreach ($pairs as $i => $pair) {
+                [$key, $value] = explode('=', $pair, 2);
+                expect($key)->toBe('cups')->and(rawurldecode($value))->toBe($items[$i]);
+            }
+        });
+});

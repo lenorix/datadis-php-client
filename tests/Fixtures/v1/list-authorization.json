@@ -1,0 +1,20 @@
+[
+    {
+        "id": 1234,
+        "ownerDocument": "12345678Z",
+        "requesterDocument": "87654321X",
+        "status": "ACTIVE",
+        "validityDateStart": "2026/01/01",
+        "validityDateEnd": "2027/12/31",
+        "distributorCodeFather": "2"
+    },
+    {
+        "id": "1235",
+        "ownerDocument": "12345678Z",
+        "requesterDocument": "X1234567L",
+        "status": "CANCELLED",
+        "validityDateStart": "2024-05-01",
+        "validityDateEnd": "",
+        "distributorCodeFather": null
+    }
+]

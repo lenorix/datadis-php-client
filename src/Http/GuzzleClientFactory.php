@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Http;
 
 use GuzzleHttp\Client;
+use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisConfig;
 use Psr\Http\Client\ClientInterface;
 
@@ -17,8 +18,10 @@ use Psr\Http\Client\ClientInterface;
 final class GuzzleClientFactory
 {
     /** @param array<string, mixed> $options extra Guzzle options, they win over the defaults (a proxy, a custom handler) */
-    public static function create(DatadisConfig $config, array $options = []): ClientInterface
+    public static function create(DatadisConfig|ConnectionSettings $config, array $options = []): ClientInterface
     {
+        $config = $config instanceof DatadisConfig ? $config->connection() : $config;
+
         return new Client(array_replace([
             'timeout' => $config->timeout,
             'connect_timeout' => $config->connectTimeout,

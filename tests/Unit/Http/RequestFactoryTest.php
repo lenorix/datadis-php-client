@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use GuzzleHttp\Psr7\HttpFactory;
+use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Http\RequestFactory;
 
@@ -65,3 +66,38 @@ it('omits the question mark when there is no query', function () {
 it('refuses a token that could inject headers', function (string $token) {
     requests()->get('/x', [], $token);
 })->with(["a\r\nX-Evil: 1", 'has space', '', "tab\tsep"])->throws(InvalidArgumentException::class);
+
+it('repeats the key for list values, which is how array parameters are bound', function () {
+    $request = requests()->get('/api-private/api/new-authorization', [
+        'authorizedNif' => '87654321X',
+        'cups' => ['ES0031300000000001JN0F', 'ES0031300000000002JN'],
+    ], 't');
+
+    expect($request->getUri()->getQuery())->toBe('authorizedNif=87654321X&cups=ES0031300000000001JN0F&cups=ES0031300000000002JN');
+});
+
+it('drops an empty list', function () {
+    expect(requests()->get('/x', ['cups' => []], 't')->getUri()->getQuery())->toBe('');
+});
+
+it('refuses list values that are not strings', function () {
+    requests()->get('/x', ['cups' => [1, null]], 't');
+})->throws(InvalidArgumentException::class);
+
+it('builds unauthenticated requests for the public API', function () {
+    $factory = new HttpFactory;
+    $requests = new RequestFactory(new ConnectionSettings(baseUrl: 'https://datadis.test'), $factory, $factory);
+
+    $request = $requests->publicGet('/api-public/api-search', ['page' => 0, 'community' => '01,13']);
+
+    expect($request->hasHeader('Authorization'))->toBeFalse()
+        ->and($request->getHeaderLine('Accept'))->toBe('application/json')
+        ->and($request->getHeaderLine('Accept-Encoding'))->toBe('identity')
+        ->and((string) $request->getUri())->toBe('https://datadis.test/api-public/api-search?page=0&community=01%2C13');
+});
+
+it('cannot log in without credentials', function () {
+    $factory = new HttpFactory;
+
+    (new RequestFactory(new ConnectionSettings, $factory, $factory))->login();
+})->throws(LogicException::class);

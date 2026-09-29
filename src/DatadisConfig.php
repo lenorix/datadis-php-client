@@ -30,6 +30,14 @@ final readonly class DatadisConfig
     /** Without a trailing slash. Always HTTPS. */
     public string $baseUrl;
 
+    public float $timeout;
+
+    public float $connectTimeout;
+
+    public string $userAgent;
+
+    private ConnectionSettings $connection;
+
     private Closure $password;
 
     /**
@@ -39,9 +47,9 @@ final readonly class DatadisConfig
         string $username,
         #[SensitiveParameter] string $password,
         string $baseUrl = self::DEFAULT_BASE_URL,
-        public float $timeout = 120.0,
-        public float $connectTimeout = 10.0,
-        public string $userAgent = self::DEFAULT_USER_AGENT,
+        float $timeout = 120.0,
+        float $connectTimeout = 10.0,
+        string $userAgent = self::DEFAULT_USER_AGENT,
     ) {
         $username = strtoupper(trim($username));
 
@@ -53,17 +61,18 @@ final readonly class DatadisConfig
             throw new ConfigurationException('The Datadis password is empty.');
         }
 
-        if ($timeout <= 0 || $connectTimeout <= 0) {
-            throw new ConfigurationException('Timeouts must be greater than zero.');
-        }
-
-        if ($userAgent === '' || preg_match('/[\x00-\x1f\x7f]/', $userAgent) === 1) {
-            throw new ConfigurationException('The user agent must be a non-empty single line.');
-        }
-
+        $this->connection = new ConnectionSettings($baseUrl, $timeout, $connectTimeout, $userAgent);
         $this->username = $username;
-        $this->baseUrl = self::normaliseBaseUrl($baseUrl);
+        $this->baseUrl = $this->connection->baseUrl;
+        $this->timeout = $this->connection->timeout;
+        $this->connectTimeout = $this->connection->connectTimeout;
+        $this->userAgent = $this->connection->userAgent;
         $this->password = static fn (): string => $password;
+    }
+
+    public function connection(): ConnectionSettings
+    {
+        return $this->connection;
     }
 
     /** Only the request factory should call this. */
@@ -89,20 +98,5 @@ final readonly class DatadisConfig
     public function __serialize(): array
     {
         throw new LogicException('DatadisConfig holds a password and must not be serialised.');
-    }
-
-    private static function normaliseBaseUrl(string $baseUrl): string
-    {
-        $parts = parse_url(trim($baseUrl));
-
-        if ($parts === false
-            || ($parts['scheme'] ?? '') !== 'https'
-            || ($parts['host'] ?? '') === ''
-            || isset($parts['user']) || isset($parts['pass'])
-            || isset($parts['query']) || isset($parts['fragment'])) {
-            throw new ConfigurationException('The base URL must be an https URL without credentials, query or fragment.');
-        }
-
-        return rtrim(trim($baseUrl), '/');
     }
 }

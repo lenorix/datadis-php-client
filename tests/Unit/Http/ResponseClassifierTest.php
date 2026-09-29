@@ -140,3 +140,13 @@ it('caps the detail excerpt', function () {
 
     throw new LogicException('Expected an exception.');
 });
+
+it('returns the text of a successful answer, empty or not', function () {
+    expect(ResponseClassifier::assertSuccessful(Responses::empty(200), ENDPOINT))->toBe('')
+        ->and(ResponseClassifier::assertSuccessful(Responses::empty(204), ENDPOINT))->toBe('')
+        ->and(ResponseClassifier::assertSuccessful(Responses::text('OK'), ENDPOINT))->toBe('OK');
+});
+
+it('fails an unsuccessful answer the same way decode does', function () {
+    ResponseClassifier::assertSuccessful(Responses::text('no', 403), ENDPOINT);
+})->throws(AuthorizationException::class);

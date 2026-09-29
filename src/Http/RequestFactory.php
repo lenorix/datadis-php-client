@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Http;
 
 use InvalidArgumentException;
+use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisConfig;
+use LogicException;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -21,27 +23,39 @@ final class RequestFactory
 {
     public const string LOGIN_PATH = '/nikola-auth/tokens/login';
 
+    private readonly ConnectionSettings $settings;
+
+    private readonly ?DatadisConfig $credentials;
+
     public function __construct(
-        private readonly DatadisConfig $config,
+        DatadisConfig|ConnectionSettings $settings,
         private readonly RequestFactoryInterface $requests,
         private readonly StreamFactoryInterface $streams,
-    ) {}
+    ) {
+        $this->credentials = $settings instanceof DatadisConfig ? $settings : null;
+        $this->settings = $settings instanceof DatadisConfig ? $settings->connection() : $settings;
+    }
 
     public function login(): RequestInterface
     {
+        if ($this->credentials === null) {
+            throw new LogicException('This request factory has no credentials: build it from a DatadisConfig.');
+        }
+
         $body = http_build_query([
-            'username' => $this->config->username,
-            'password' => $this->config->password(),
+            'username' => $this->credentials->username,
+            'password' => $this->credentials->password(),
         ], '', '&', PHP_QUERY_RFC1738);
 
-        return $this->common($this->requests->createRequest('POST', $this->config->baseUrl.self::LOGIN_PATH))
+        return $this->common($this->requests->createRequest('POST', $this->settings->baseUrl.self::LOGIN_PATH))
             ->withHeader('Accept', 'text/plain, */*;q=0.8')
             ->withHeader('Content-Type', 'application/x-www-form-urlencoded')
             ->withBody($this->streams->createStream($body));
     }
 
     /**
-     * @param  array<string, string|int|null>  $query  null values are dropped
+     * @param  array<string, string|int|list<string>|null>  $query  null values and empty lists are dropped;
+     *                                                              a list repeats the key once per item
      */
     public function get(string $path, array $query, string $token): RequestInterface
     {
@@ -49,31 +63,56 @@ final class RequestFactory
             throw new InvalidArgumentException('The token contains characters that are not allowed in a header.');
         }
 
-        $params = [];
-        foreach ($query as $name => $value) {
-            if ($value === null) {
-                continue;
-            }
+        return $this->publicGet($path, $query)->withHeader('Authorization', 'Bearer '.$token);
+    }
 
-            if (! is_string($value) && ! is_int($value)) {
-                throw new InvalidArgumentException("Query parameter {$name} must be a string, an int or null.");
-            }
-
-            $params[$name] = $value;
-        }
-
-        $queryString = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
-        $uri = $this->config->baseUrl.$path.($queryString === '' ? '' : '?'.$queryString);
+    /**
+     * An unauthenticated GET, for the public API.
+     *
+     * @param  array<string, string|int|list<string>|null>  $query
+     */
+    public function publicGet(string $path, array $query): RequestInterface
+    {
+        $queryString = self::queryString($query);
+        $uri = $this->settings->baseUrl.$path.($queryString === '' ? '' : '?'.$queryString);
 
         return $this->common($this->requests->createRequest('GET', $uri))
-            ->withHeader('Accept', 'application/json')
-            ->withHeader('Authorization', 'Bearer '.$token);
+            ->withHeader('Accept', 'application/json');
+    }
+
+    /** @param  array<string, mixed>  $query */
+    private static function queryString(array $query): string
+    {
+        $pairs = [];
+
+        foreach ($query as $name => $value) {
+            $items = match (true) {
+                $value === null => [],
+                is_array($value) => $value,
+                is_string($value), is_int($value) => [$value],
+                default => throw new InvalidArgumentException("Query parameter {$name} must be a string, an int, a list of strings or null."),
+            };
+
+            if (is_array($value) && ! array_is_list($value)) {
+                throw new InvalidArgumentException("Query parameter {$name} must be a list.");
+            }
+
+            foreach ($items as $item) {
+                if (is_array($value) && ! is_string($item)) {
+                    throw new InvalidArgumentException("Every item of query parameter {$name} must be a string.");
+                }
+
+                $pairs[] = rawurlencode($name).'='.rawurlencode((string) $item);
+            }
+        }
+
+        return implode('&', $pairs);
     }
 
     private function common(RequestInterface $request): RequestInterface
     {
         return $request
             ->withHeader('Accept-Encoding', 'identity')
-            ->withHeader('User-Agent', $this->config->userAgent);
+            ->withHeader('User-Agent', $this->settings->userAgent);
     }
 }

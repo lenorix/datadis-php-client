@@ -76,7 +76,7 @@ Commit per two or three endpoints, or one commit for the milestone if the diff s
 ## M4b v1-only endpoints (UNVERIFIED, synthetic fixtures)
 
 - Authorization: `newAuthorization(Nif $authorizedNif, ?Month $from, ?Month $to, Cups ...$cups)`, `cancelAuthorization(Nif, Cups ...)`, `listAuthorizations(Nif $owner)` returning `Authorization` DTOs (`id`, `ownerDocument`, `requesterDocument`, `status`, `validityDateStart`, `validityDateEnd`, `distributorCodeFather`). Array parameters are sent as repeated `cups` keys or `cups[]`: the wire form is unknown, so it is one small isolated encoder.
-- Public API: `PublicApi` class (no token) with `search`, `sumSearch`, `searchAuto`, `sumSearchAuto`; typed query object (dates `YYYY/MM/DD`, `page` from 0, `pageSize` up to 2000, mandatory `community`, code lists as enums or validated strings); responses decoded tolerantly (`mi1`..`mi25` kept as raw plus a typed accessor) because the shape is unknown.
+- Public API: `PublicApi` class (no token, built from `ConnectionSettings`) with `search`, `sumSearch`, `searchSelfConsumption`, `sumSearchSelfConsumption` and paging helpers; typed query object (dates `YYYY/MM/DD`, `page` from 0, `pageSize` up to 2000, mandatory `community`, code lists as enums or validated strings); responses decoded tolerantly (`mi1`..`mi25` kept as raw plus a typed accessor) because the shape is unknown.
 - Every method documents that its behaviour is unverified.
 
 Commit: "Add v1-only authorization and public API endpoints".
