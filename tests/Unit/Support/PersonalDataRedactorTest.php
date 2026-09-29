@@ -52,3 +52,14 @@ it('redacts a JWT that an error body might echo', function () {
         ->not->toContain($token)
         ->toBe('Invalid token [redacted] supplied');
 });
+
+it('redacts identifiers written with separators or glued to a label', function (string $text, string $identifierDigits) {
+    expect(PersonalDataRedactor::redact($text))->not->toContain($identifierDigits);
+})->with([
+    ['NIF 12345678-Z rejected', '12345678'],
+    ['NIF 12345678 Z rejected', '12345678'],
+    ['NIE X-1234567-L rejected', '1234567'],
+    ['NIF12345678Z', '12345678'],
+    ['nie:Y1234567L,', '1234567'],
+    ['CUPS=ES0031300000000001JN0Fend', '0031300000000001'],
+]);

@@ -15,9 +15,11 @@ use Lenorix\DatadisClient\Exceptions\TransportException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
+use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 use Lenorix\DatadisClient\Tests\Support\Payloads;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
+use Lenorix\DatadisClient\Tests\Support\Tokens;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
 use Lenorix\DatadisClient\Values\MeasurementType;
@@ -394,4 +396,19 @@ it('keeps a distributor error sent as a single object', function () {
     $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
     expect($result->isEmptyBecauseOfErrors())->toBeTrue()->and($result->distributorErrors[0]->errorCode)->toBe('50');
+});
+
+it('judges the 24 month window by the Madrid calendar even when reading Canary Islands data', function () {
+    $http = new FakeHttpClient;
+    // 23:30 on 30 September in the Canary Islands is already 1 October in Madrid.
+    $clock = new FrozenClock(new DateTimeImmutable('2026-09-30 23:30:00', new DateTimeZone('Atlantic/Canary')));
+    $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, timeZone: new DateTimeZone('Atlantic/Canary'));
+    $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 3600])), Responses::json('{"maxPower":[]}'));
+
+    expect(fn () => $client->maxPower(Cups::fromString(CUPS22), '2', Month::of(2024, 10), Month::of(2024, 10)))->toThrow(InvalidRequestException::class)
+        ->and($http->requests())->toBe([]);
+
+    $client->maxPower(Cups::fromString(CUPS22), '2', Month::of(2026, 10), Month::of(2026, 10));
+
+    expect($http->requests())->toHaveCount(2);
 });

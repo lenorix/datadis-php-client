@@ -19,9 +19,11 @@ final class PersonalDataRedactor
         '/eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/',
         // No boundaries on purpose: over-redacting a CUPS glued to other text is the safe side.
         '/ES\d{16}[A-Z]{2}(?:\d[A-Z])?/i',
-        '/(?<![A-Z0-9])\d{8}[A-Z](?![A-Z0-9])/i',
-        '/(?<![A-Z0-9])[XYZ]\d{7}[A-Z](?![A-Z0-9])/i',
-        '/(?<![A-Z0-9])[A-HJ-NP-SUVW]\d{7}[0-9A-J](?![A-Z0-9])/i',
+        // NIF, NIE and CIF may be written with a dash or a space before the letter, or glued to a
+        // label such as "NIF12345678Z". Only digits around them are ruled out.
+        '/(?<!\d)\d{8}[\s-]?[A-Z](?![0-9])/i',
+        '/(?<!\d)[XYZ][\s-]?\d{7}[\s-]?[A-Z](?![0-9])/i',
+        '/(?<![A-Z0-9])[A-HJ-NP-SUVW][\s-]?\d{7}[\s-]?[0-9A-J](?![0-9])/i',
     ];
 
     public static function redact(string $text): string

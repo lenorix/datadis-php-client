@@ -150,3 +150,13 @@ it('returns the text of a successful answer, empty or not', function () {
 it('fails an unsuccessful answer the same way decode does', function () {
     ResponseClassifier::assertSuccessful(Responses::text('no', 403), ENDPOINT);
 })->throws(AuthorizationException::class);
+
+it('reads a body that is not UTF-8 as Windows-1252 instead of failing it', function () {
+    $decoded = ResponseClassifier::decode(Responses::json("[{\"distributor\":\"EDISTRIBUCI\xD3N\"}]"), ENDPOINT);
+
+    expect($decoded[0]['distributor'])->toBe('EDISTRIBUCIÓN');
+});
+
+it('leaves a valid UTF-8 body untouched', function () {
+    expect(ResponseClassifier::decode(Responses::json('[{"distributor":"EDISTRIBUCIÓN"}]'), ENDPOINT)[0]['distributor'])->toBe('EDISTRIBUCIÓN');
+});

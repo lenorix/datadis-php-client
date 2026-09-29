@@ -44,7 +44,8 @@ use SensitiveParameter;
  *
  * Read docs/quirks-and-rules.md before building anything that repeats calls: Datadis refuses an
  * identical consumption, max power or reactive query for 24 hours, and a rejected request counts.
- * Nothing here retries a request that may have been sent.
+ * The only repeat is one new login and one new call after a 401 (the token was refused, so the
+ * request was not served); nothing else that may have been sent is retried.
  *
  * Every list method returns an ApiResult. An empty result is a normal answer, never zero
  * consumption, and `distributorErrors` carries partial failures reported inside a 200.
@@ -52,6 +53,9 @@ use SensitiveParameter;
 final class DatadisClient
 {
     private const string API = '/api-private/api/';
+
+    /** The zone Datadis is assumed to judge its month window in. */
+    private const string SERVICE_TIME_ZONE = 'Europe/Madrid';
 
     /** The endpoints subject to the 24 hour repetition rule. */
     private const array GUARDED = ['get-consumption-data', 'get-max-power', 'get-reactive-data'];
@@ -392,8 +396,12 @@ final class DatadisClient
         }
     }
 
+    /**
+     * The current moment on the Madrid calendar. Datadis is a Spanish service and is assumed to
+     * judge its month window by the Madrid calendar even for Canary Islands data (UNVERIFIED).
+     */
     private function now(): DateTimeImmutable
     {
-        return $this->clock->now()->setTimezone($this->timeZone);
+        return $this->clock->now()->setTimezone(new DateTimeZone(self::SERVICE_TIME_ZONE));
     }
 }

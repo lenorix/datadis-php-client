@@ -9,11 +9,11 @@ Found by an independent review in M6 (all confirmed by running code unless noted
 5. ~~`searchAll` repeats generator keys~~ fixed.
 6. ~~Unbounded decimal exponents~~ fixed: numeric strings are limited to 64 characters and a three digit exponent; reactive decoding has the same boundary as the other endpoints.
 7. ~~Unexpected shapes become empty results~~ fixed: every known shape of reactive and distributor answers is read (including lists of codes and `reactiveEnergy` as a list), anything else is an `UninterpretableResponseException`, and a single `distributorError` object is kept.
-8. **Window checked in the client zone.** With Atlantic/Canary at 23:30 on the last day of a month, the history window is one month off compared with Madrid time (assuming Datadis evaluates in Madrid time).
+8. ~~Window checked in the client zone~~ fixed: the window is judged on the Madrid calendar (an assumption, marked UNVERIFIED).
 9. ~~CUPS and NIF in stack trace arguments~~ fixed with `#[SensitiveParameter]` on queries, requests and tokens. `Cups` and `Nif` objects still appear as objects in trace arguments.
-10. Nit: redactor misses `12345678-Z`, `X-1234567-L` and NIFs glued to letters.
-11. Nit: one Latin-1 byte makes a whole 200 uninterpretable (consider `JSON_INVALID_UTF8_SUBSTITUTE`).
-12. Nit: docblocks of `ServiceUnavailableException` (login non-token answer) and `DatadisClient` ("nothing retries a request that may have been sent", but a 401 is repeated once by design).
+10. ~~Redactor gaps~~ fixed: separators and labels glued to NIF/NIE/CIF are redacted.
+11. ~~Latin-1 bodies~~ fixed: a body that is not UTF-8 is read as Windows-1252.
+12. ~~Docblocks~~ fixed.
 
 ## Other M6 work left
 

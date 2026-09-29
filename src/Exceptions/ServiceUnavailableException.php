@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Exceptions;
 
 /**
- * Datadis or a distributor failed (5xx), or the login endpoint answered with something other than
- * a token. Only unguarded endpoints may be retried automatically.
+ * Datadis or a distributor failed (5xx, also on login). Only unguarded endpoints may be retried
+ * automatically. A login answer that is not a token is an UninterpretableResponseException.
  */
 class ServiceUnavailableException extends DatadisException {}

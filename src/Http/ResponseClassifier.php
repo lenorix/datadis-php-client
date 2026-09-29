@@ -43,6 +43,12 @@ final class ResponseClassifier
             throw new NoDataException("{$endpoint}: Datadis answered without a body.", $status, '', $endpoint);
         }
 
+        // JSON must be UTF-8. A body that is not is almost certainly Latin-1 or Windows-1252
+        // (accented distributor names), which converts without loss.
+        if (! mb_check_encoding($body, 'UTF-8')) {
+            $body = mb_convert_encoding($body, 'UTF-8', 'Windows-1252');
+        }
+
         try {
             $decoded = json_decode(trim($body), true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
