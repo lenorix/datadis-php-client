@@ -1,0 +1,84 @@
+# Design decisions
+
+Proposed architecture. Each decision states the reason so it can be revisited.
+
+## Dependencies
+
+- Runtime: PHP `^8.4`, `psr/http-client`, `psr/http-factory`, `psr/http-message`, `psr/simple-cache` (optional), `psr/clock` (optional), `brick/math` (decimals, to be confirmed in the plan).
+- Guzzle (`guzzlehttp/guzzle` + `guzzlehttp/psr7`) is the default transport, suggested rather than required if `php-http/discovery` can find any PSR-18 client. Final packaging choice is made in the plan.
+- The client class depends only on `Psr\Http\Client\ClientInterface`, `RequestFactoryInterface`, `StreamFactoryInterface` and friends. Any PSR-18 client works (Symfony HttpClient, a Laravel adapter, a test double).
+- Guzzle specifics live in one small factory: `http_errors => false`, `decode_content => false`, redirects off, explicit timeouts.
+
+## Layers
+
+1. **Transport**: sends PSR-7 requests, adds the mandatory headers, never throws on HTTP status by itself.
+2. **Authentication**: `TokenProvider` obtains and caches the JWT (PSR-16 store optional, in-memory default), reads `exp`, refreshes once on 401.
+3. **Endpoints**: one method per v2 endpoint with parameter objects that validate before any request leaves the machine.
+4. **Decoding**: turns envelopes into immutable DTOs, keeping `raw` and `distributorErrors`. Tolerant reader: accepts a bare list, both `installedCapacity`/`installedCapacityKW`, `accessFare`/`accesFare`, numeric strings, `""` as null.
+5. **Helpers**: pure classes (month, hour label, CUPS, redactor, fingerprint, tariff-shape parser).
+
+## Value objects
+
+- `Month` (`YYYY/MM`): parse, format, arithmetic, chunking, 24-month window check, no-future check.
+- `HourLabel`: `01:00`..`24:00` to index and interval start/end in a given `DateTimeZone`. Rejects other shapes.
+- `Cups`: normalisation and shape check. Matching on the first 20 characters.
+- `MeasurementType`: backed enum (`0` hourly, `1` quarter-hourly).
+- Open values stay open: `pointType` int, `distributorCode` string, `obtainMethod` string with helper predicates.
+- Energy and power values: decimal strings with explicit scale, never floats in derived data. The raw float from JSON is kept in `raw`.
+
+## Results, not silent failures
+
+- Every list endpoint returns a result object: records + `distributorErrors`. "Empty with distributor errors" is distinct from "empty".
+- Decoding problems raise a dedicated exception. Never return an empty result to hide a failure.
+- Rows with `consumptionKWh = null` are dropped individually and counted.
+- Hourly rows keep source order; duplicates on DST days remain.
+
+## Exceptions
+
+Base `DatadisException` (extends `RuntimeException`) carrying: HTTP status (nullable), redacted detail excerpt, endpoint name, and `requestSent`.
+
+`requestSent` is **only `false` for pre-flight failures**: configuration or parameter validation, and a login failure that happens before the data request. PSR-18 cannot tell "never sent" from "sent, no answer": `NetworkExceptionInterface` also covers read timeouts (Guzzle turns curl error 28 into a `ConnectException`), and a slow endpoint hitting a short timeout is the common case, not an edge case. So **any network exception on a data call means the outcome is unknown and is treated as possibly sent**.
+
+| Exception | When | Retry |
+|-----------|------|-------|
+| `ConfigurationException` | missing credentials or base URL | no, thrown before any HTTP call |
+| `AuthenticationException` | login 401/403, or 401 after the one re-login | no |
+| `AuthorizationException` | 403 on a data call | no, the caller's consent or stale codes |
+| `RequestRejectedException` | 400 and other 4xx | never the identical call |
+| `NoDataException` | 404, 204, empty body | caller decides |
+| `RepetitionWindowException` | 429 | never, the window expires in 24 h |
+| `ServiceUnavailableException` | 5xx | only unguarded endpoints |
+| `TransportException` (a `ServiceUnavailableException`) | PSR-18 network exception, outcome unknown, `requestSent = true` | unguarded endpoints only; never automatically on guarded ones |
+| `UninterpretableResponseException` | 200 with unusable body, missing keys, bad dates or numbers | not blindly |
+
+Anything other than a Datadis exception thrown while decoding a 200 body (date parse, decimal parse, type errors) is wrapped in `UninterpretableResponseException` at one boundary, so nothing escapes as a raw `TypeError`.
+
+Redaction happens in the base class (shape-based), so a subclass that interpolates a CUPS still cannot leak it.
+
+## Retries
+
+The client does **not** embed job-level retry policy. It offers an opt-in decorator that, for **unguarded** endpoints only (supplies, distributors, contract detail, login), retries network exceptions and 502/503/504 with exponential backoff and jitter (honouring `Retry-After` clamped to 1 s-1 h if present). It never retries 4xx. On guarded endpoints (consumption, max power, reactive) it never retries automatically once the request may have been sent, including network exceptions. Sleep goes through an injectable callable so tests do not wait.
+
+## The 24 h guard (optional)
+
+`RequestFingerprint` builds a stable key from account, endpoint-agnostic query parameters in fixed order, with `authorizedNif` kept as `null` when omitted (sent and omitted are different calls). An optional `RequestLedger` (PSR-16 backed) registers an attempt **before** sending and **keeps it** after any failure that may have reached Datadis, including network exceptions. It forgets the attempt only for pre-flight failures (validation, login failure before the data request). The HMAC key is supplied by the caller so keys cannot be reversed to a CUPS.
+
+## Time parsing
+
+Every row keeps the raw `time` string. Parsing depends on what was requested:
+
+- Hourly consumption (`measurementType=0`): strict `HourLabel` (`01:00`..`24:00`, end of interval, 1 h wide).
+- Quarter-hourly consumption (`measurementType=1`): assumed end-of-interval, 15 minutes wide, `HH:MM` on a quarter (UNVERIFIED, no source documents the format).
+- Max power: `date` + `time` is an **instant** (for example `09:45`), parsed by a separate instant parser that still understands `24:00`.
+- An unrecognised shape yields a null index/instant and a flag on that row (for example the `00:00` glitch). It never fails the whole response.
+
+## Configuration
+
+Immutable `DatadisConfig`: username, password, base URL (default `https://datadis.es`), user agent, login timeout, data timeout. The password is never logged and is excluded from `__debugInfo`/string conversion.
+
+## Things deliberately not done
+
+- No persistence, queues, scheduling or logging inside the package.
+- No supply-to-distributor mapping beyond exposing codes.
+- No automatic multi-month splitting inside a call; a helper produces a plan of single-month requests and the caller decides.
+- No web-portal endpoints.

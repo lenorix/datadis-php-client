@@ -16,11 +16,19 @@
         }
     ],
     "require": {
-        "php": "^8.4"
+        "php": "^8.4",
+        "brick/math": "^1.0",
+        "guzzlehttp/guzzle": "^8.2",
+        "psr/clock": "^1.0",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.1",
+        "psr/http-message": "^2.0",
+        "psr/simple-cache": "^3.0"
     },
     "require-dev": {
-        "pestphp/pest": "^4.0",
+        "giorgiosironi/eris": "^1.1",
         "laravel/pint": "^1.0",
+        "pestphp/pest": "^4.0",
         "spatie/ray": "^1.28"
     },
     "autoload": {
@@ -35,7 +43,7 @@
     },
     "scripts": {
         "test": "vendor/bin/pest",
-            "test-coverage": "vendor/bin/pest --coverage",
+        "test-coverage": "vendor/bin/pest --coverage",
         "format": "vendor/bin/pint"
     },
     "config": {
