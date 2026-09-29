@@ -39,12 +39,16 @@ final readonly class QuarterHourLabel
         return intdiv($this->minutes, 15) - 1;
     }
 
-    /** @return array{DateTimeImmutable, DateTimeImmutable} */
-    public function interval(DateTimeImmutable $day): array
+    /**
+     * Start and end of the quarter on the given day, or null when the wall clock never showed it.
+     *
+     * @param  int  $occurrence  0 for the first row with this label on the day, 1 for the second
+     * @return array{DateTimeImmutable, DateTimeImmutable}|null
+     */
+    public function interval(DateTimeImmutable $day, int $occurrence = 0): ?array
     {
-        return [
-            WallClock::at($day, $this->minutes - 15),
-            WallClock::at($day, $this->minutes),
-        ];
+        $end = WallClock::instants($day, $this->minutes, true)[$occurrence] ?? null;
+
+        return $end === null ? null : [WallClock::before($end, 900), $end];
     }
 }

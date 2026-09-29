@@ -42,9 +42,9 @@ it('uses the wall clock and ignores the time of day of the given date', function
     expect($start->format('Y-m-d H:i'))->toBe('2025-01-15 02:00');
 });
 
-it('keeps the label of the repeated hour on the autumn change day', function () use ($madrid) {
+it('places the first repeated 03:00 of the autumn day in the first of the two hours', function () use ($madrid) {
     [$start, $end] = HourLabel::parse('03:00')->interval(new DateTimeImmutable('2025-10-26', $madrid));
 
-    expect($start->format('H:i'))->toBe('02:00')
-        ->and($end->format('H:i'))->toBe('03:00');
+    expect($start->setTimezone(new DateTimeZone('UTC'))->format('H:i'))->toBe('00:00')
+        ->and($end->getTimestamp() - $start->getTimestamp())->toBe(3600);
 });

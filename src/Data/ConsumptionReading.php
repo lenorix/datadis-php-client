@@ -42,9 +42,11 @@ final readonly class ConsumptionReading
 
     /**
      * @param  array<array-key, mixed>  $row
+     * @param  int  $occurrence  how many rows with the same date and time came before this one; it
+     *                           tells the two `03:00` rows of the autumn change day apart
      * @return self|null null when the row has no readable date or consumption (Datadis sends null values)
      */
-    public static function fromRow(array $row, DateTimeZone $zone, MeasurementType $type): ?self
+    public static function fromRow(array $row, DateTimeZone $zone, MeasurementType $type, int $occurrence = 0): ?self
     {
         $date = Fields::text($row, 'date');
         $time = Fields::text($row, 'time');
@@ -56,7 +58,7 @@ final readonly class ConsumptionReading
         }
 
         $label = $type === MeasurementType::Hourly ? HourLabel::tryParse($time) : QuarterHourLabel::tryParse($time);
-        $interval = $label?->interval($day);
+        $interval = $label?->interval($day, $occurrence);
 
         return new self(
             Fields::text($row, 'cups'),

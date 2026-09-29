@@ -294,3 +294,38 @@ it('finds the supply of a CUPS', function () {
 it('builds with the default Guzzle transport', function () {
     expect(new DatadisClient(new DatadisConfig('12345678Z', 'secret')))->toBeInstanceOf(DatadisClient::class);
 });
+
+it('gives the readings of both change days consecutive one hour intervals', function (string $date, array $times, int $month, int $year) {
+    [$client, $http] = scenario();
+    $http->queue(Responses::json(Payloads::envelope('timeCurve', Payloads::hourlyRows($date, $times))));
+
+    $readings = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of($year, $month), Month::of($year, $month))->records;
+    $zone = new DateTimeZone('Europe/Madrid');
+    $midnight = new DateTimeImmutable(str_replace('/', '-', $date), $zone);
+
+    expect($readings[0]->start?->getTimestamp())->toBe($midnight->getTimestamp())
+        ->and($readings[array_key_last($readings)]->end?->getTimestamp())->toBe($midnight->modify('+1 day')->getTimestamp());
+
+    foreach ($readings as $i => $reading) {
+        expect($reading->end->getTimestamp() - $reading->start->getTimestamp())->toBe(3600);
+        if ($i > 0) {
+            expect($reading->start->getTimestamp())->toBe($readings[$i - 1]->end->getTimestamp());
+        }
+    }
+})->with([
+    'autumn' => ['2025/10/26', Payloads::autumnDay(), 10, 2025],
+    'spring' => ['2026/03/29', Payloads::springDay(), 3, 2026],
+]);
+
+it('flags a third repetition and a label in the skipped hour instead of inventing an interval', function () {
+    [$client, $http] = scenario();
+    $rows = [
+        ...Payloads::hourlyRows('2025/10/26', ['03:00', '03:00', '03:00']),
+        ...Payloads::hourlyRows('2026/03/29', ['03:00']),
+    ];
+    $http->queue(Responses::json(Payloads::envelope('timeCurve', $rows)));
+
+    $readings = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2025, 10), Month::of(2026, 3))->records;
+
+    expect(array_map(fn ($r) => $r->hasValidTime(), $readings))->toBe([true, true, false, false]);
+});

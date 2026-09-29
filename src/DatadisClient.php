@@ -178,7 +178,16 @@ final class DatadisClient
             'authorizedNif' => $this->authorized($authorizedNif),
         ]);
 
-        return Envelope::build($decoded, 'timeCurve', $this->endpoint('get-consumption-data'), fn (array $row) => ConsumptionReading::fromRow($row, $this->timeZone, $measurementType));
+        // Rows keep their order, so the n-th row with the same date and time is its n-th occurrence.
+        $seen = [];
+        $decode = function (array $row) use (&$seen, $measurementType): ?ConsumptionReading {
+            $key = json_encode([$row['date'] ?? null, $row['time'] ?? null]);
+            $occurrence = $seen[$key] = ($seen[$key] ?? -1) + 1;
+
+            return ConsumptionReading::fromRow($row, $this->timeZone, $measurementType, $occurrence);
+        };
+
+        return Envelope::build($decoded, 'timeCurve', $this->endpoint('get-consumption-data'), $decode);
     }
 
     /**

@@ -51,6 +51,7 @@ Dates and hours are local Spanish civil time with no offset.
 
 - Autumn change (25 hours, e.g. 2025-10-26): 25 rows, labels `01:00`..`24:00` with **`03:00` twice**, both `Real`, different values. No `25:00`, no summer/winter marker.
 - Spring change (23 hours, e.g. 2026-03-29): 23 rows with **`03:00` missing**.
+- How the client places them: a label is the wall clock at the END of the interval read with the offset in effect during that interval, so the first `03:00` of the autumn day ends at 03:00 CEST (01:00 UTC) and the second at 03:00 CET (02:00 UTC). The n-th row with the same date and time is its n-th occurrence. A label in the skipped spring hour, or a third repetition, gets no interval and is flagged. A max power instant in the repeated hour is read as its first occurrence.
 - Consequences: never key readings by `(date, hour)`, never assert 24 rows per day, never add a unique constraint on that pair. Keep source order so duplicates stay distinguishable. Sum both duplicates for energy totals.
 - Zone: Peninsula, Baleares, Ceuta and Melilla use Europe/Madrid. Canarias uses Atlantic/Canary (Datadis' semantics there are unverified). Compute with an explicit zone, never the host default.
 

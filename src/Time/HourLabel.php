@@ -38,15 +38,17 @@ final readonly class HourLabel
     }
 
     /**
-     * Start and end of the interval on the wall clock of the given day (its date and time zone).
+     * Start and end of the interval on the given day (its date and time zone), or null when the
+     * wall clock never showed that hour (the hour skipped by the spring change).
      *
-     * @return array{DateTimeImmutable, DateTimeImmutable}
+     * @param  int  $occurrence  0 for the first row with this label on the day, 1 for the second:
+     *                           on the autumn change day the repeated hour appears twice
+     * @return array{DateTimeImmutable, DateTimeImmutable}|null
      */
-    public function interval(DateTimeImmutable $day): array
+    public function interval(DateTimeImmutable $day, int $occurrence = 0): ?array
     {
-        return [
-            WallClock::at($day, ($this->hour - 1) * 60),
-            WallClock::at($day, $this->hour * 60),
-        ];
+        $end = WallClock::instants($day, $this->hour * 60, true)[$occurrence] ?? null;
+
+        return $end === null ? null : [WallClock::before($end, 3600), $end];
     }
 }

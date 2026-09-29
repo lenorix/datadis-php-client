@@ -4,7 +4,7 @@ Found by an independent review in M6 (all confirmed by running code unless noted
 
 1. ~~Guard keeps a never-sent query~~ fixed: the token store is an optimisation that never breaks a call, poisoned cached tokens are dropped, `Transport` wraps anything the HTTP client throws, and ledger store failures raise `LedgerUnavailableException` before sending.
 2. ~~Guard silently disabled~~ fixed: numeric string timestamps are read, `set()` returning false is an error, and stored timestamps are checked against the clock. Still true and documented: `lastAttempt` + `record` is not atomic across workers.
-3. **Autumn DST intervals are wrong.** `WallClock` gives both `03:00` rows of 2025-10-26 a 120 min interval (hourly) and quarter-hour `03:00` 75 min / -45 min on the change days. Needs a per-day ordinal pass or end-minus-width in UTC. `HourLabelTest` only asserts `H:i`, not offsets or widths.
+3. ~~Autumn DST intervals are wrong~~ fixed: labels resolve to every instant they can name (offset in effect just before the end of the interval) and the client picks by order of appearance; widths use elapsed time. A label in the skipped hour or a third repetition has no interval.
 4. ~~Retry-After date parsed in the host time zone~~ fixed.
 5. ~~`searchAll` repeats generator keys~~ fixed.
 6. **Unbounded decimal exponents.** `Decimal` accepts `"1e99999999999999999999"` (raw `NumberFormatException` from `reactive()`, `PublicRecord`, `AccessTariff`) and `"1e300000000"` (out of memory). Bound the exponent; make `Fields` readers never throw; wrap `ReactiveEnergy::fromRow` like `Envelope` rows.

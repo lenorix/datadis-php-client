@@ -9,7 +9,8 @@ use DateTimeZone;
 
 /**
  * A `date` + `time` pair that names an instant (for example a maximum power reading at `09:45`),
- * as opposed to an interval label. `24:00` is understood as midnight of the next day.
+ * as opposed to an interval label. `24:00` is understood as midnight of the next day. A time in
+ * the repeated autumn hour is read as its first occurrence; one in the skipped spring hour is null.
  */
 final class TimeInstant
 {
@@ -27,6 +28,8 @@ final class TimeInstant
             return null;
         }
 
-        return WallClock::at($day, $hour * 60 + $minute);
+        // A time in the repeated autumn hour is read as its first occurrence; one in the skipped
+        // spring hour never existed.
+        return WallClock::instants($day, $hour * 60 + $minute, false)[0] ?? null;
     }
 }
