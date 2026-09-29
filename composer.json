@@ -3,10 +3,11 @@
     "description": "Datadis client for PHP",
     "keywords": [
         "lenorix",
-        "datadis-client"
+        "datadis",
+        "client"
     ],
     "homepage": "https://github.com/lenorix/datadis-client",
-    "license": "MIT",
+    "license": "Unlicense",
     "authors": [
         {
             "name": "Jesus Hernandez",
