@@ -29,6 +29,7 @@
         "giorgiosironi/eris": "^1.1",
         "laravel/pint": "^1.0",
         "pestphp/pest": "^4.0",
+        "phpstan/phpstan": "^2.2",
         "spatie/ray": "^1.28"
     },
     "autoload": {
@@ -43,8 +44,10 @@
     },
     "scripts": {
         "test": "vendor/bin/pest --fail-on-warning --fail-on-risky",
-        "test-coverage": "vendor/bin/pest --coverage",
-        "format": "vendor/bin/pint"
+        "test-coverage": "@php -d xdebug.mode=coverage vendor/bin/pest --coverage",
+        "format": "vendor/bin/pint",
+        "pint": "vendor/bin/pint",
+        "phpstan": "vendor/bin/phpstan analyse src"
     },
     "config": {
         "sort-packages": true,
