@@ -44,3 +44,11 @@ it('handles empty and multibyte input', function () {
     expect(PersonalDataRedactor::excerpt('', 10))->toBe('')
         ->and(PersonalDataRedactor::excerpt('ñandú EDISTRIBUCIÓN', 8))->toBe('ñandú ED');
 });
+
+it('redacts a JWT that an error body might echo', function () {
+    $token = 'eyJhbGciOiJub25lIn0.eyJzdWIiOiJ1c2VyIn0.signature';
+
+    expect(PersonalDataRedactor::redact("Invalid token {$token} supplied"))
+        ->not->toContain($token)
+        ->toBe('Invalid token [redacted] supplied');
+});

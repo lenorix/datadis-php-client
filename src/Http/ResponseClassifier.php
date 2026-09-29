@@ -88,6 +88,11 @@ final class ResponseClassifier
     }
 
     /** The body as text: inflated when it is gzip whatever its headers claim, without a byte order mark. */
+    public static function text(ResponseInterface $response): string
+    {
+        return self::readBody($response);
+    }
+
     private static function readBody(ResponseInterface $response): string
     {
         $body = (string) $response->getBody();

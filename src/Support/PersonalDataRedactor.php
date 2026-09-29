@@ -15,6 +15,8 @@ final class PersonalDataRedactor
     public const string PLACEHOLDER = '[redacted]';
 
     private const array PATTERNS = [
+        // A JWT (base64url JSON always starts with "eyJ"): a credential that an error body could echo.
+        '/eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/',
         // No boundaries on purpose: over-redacting a CUPS glued to other text is the safe side.
         '/ES\d{16}[A-Z]{2}(?:\d[A-Z])?/i',
         '/(?<![A-Z0-9])\d{8}[A-Z](?![A-Z0-9])/i',
