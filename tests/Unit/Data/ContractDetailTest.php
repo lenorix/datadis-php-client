@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Lenorix\DatadisClient\Data\ContractDetail;
+use Lenorix\DatadisClient\Tariff\AccessTariff;
 
 $zone = new DateTimeZone('Europe/Madrid');
 $row = fn () => json_decode((string) file_get_contents(__DIR__.'/../../Fixtures/v2/contract-detail.json'), true)['contract'][0];
@@ -64,4 +65,21 @@ it('keeps the position of every contracted power because the position is the per
 
 it('rejects a row without a cups', function () use ($zone) {
     expect(ContractDetail::fromRow(['tension' => 'x'], $zone))->toBeNull();
+});
+
+it('resolves the access tariff when the description and the number of powers agree', function (string $fare, array $powers, ?AccessTariff $expected) use ($zone) {
+    $contract = ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'accessFare' => $fare, 'contractedPowerkW' => $powers], $zone);
+
+    expect($contract->tariff())->toBe($expected);
+})->with([
+    '2.0TD with 2 powers' => ['BAJA TENSION y POTENCIA <= 15 kW', [4.6, 4.6], AccessTariff::T20TD],
+    '3.0TD with 6 powers' => ['BAJA TENSION Y POTENCIA  > 15 kW', [20, 20, 20, 20, 20, 25], AccessTariff::T30TD],
+    '2.0TD band with 6 powers' => ['BAJA TENSION y POTENCIA <= 15 kW', [1, 1, 1, 1, 1, 1], null],
+    '3.0TD with 2 powers' => ['BAJA TENSION Y POTENCIA > 15 kW', [20, 20], null],
+    'no powers' => ['BAJA TENSION y POTENCIA <= 15 kW', [], null],
+    'unknown description' => ['TARIFA RARA', [4.6, 4.6], null],
+]);
+
+it('has no tariff without a description', function () use ($zone) {
+    expect(ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'contractedPowerkW' => [4.6, 4.6]], $zone)->tariff())->toBeNull();
 });

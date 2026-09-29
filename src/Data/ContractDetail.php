@@ -7,6 +7,8 @@ namespace Lenorix\DatadisClient\Data;
 use DateTimeImmutable;
 use DateTimeZone;
 use Lenorix\DatadisClient\Support\Decimal;
+use Lenorix\DatadisClient\Tariff\AccessFareParser;
+use Lenorix\DatadisClient\Tariff\AccessTariff;
 use Lenorix\DatadisClient\Time\DatadisDate;
 
 /**
@@ -92,6 +94,17 @@ final readonly class ContractDetail
             Fields::decimal($row, 3, 'maxPowerInstall'),
             $row,
         );
+    }
+
+    /**
+     * The access tariff, when the `accessFare` description and the number of contracted powers agree
+     * (2 for 2.0TD, 6 for the others). Null means it could not be told apart safely.
+     */
+    public function tariff(): ?AccessTariff
+    {
+        $tariff = $this->accessFare === null ? null : AccessFareParser::parse($this->accessFare);
+
+        return $tariff !== null && count($this->contractedPowerKw) === $tariff->powerPeriods() ? $tariff : null;
     }
 
     /** `endDate` was empty or null: the contract has no end. */
