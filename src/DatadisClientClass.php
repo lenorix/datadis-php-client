@@ -2,6 +2,4 @@
 
 namespace Lenorix\DatadisClient;
 
-class DatadisClientClass
-{
-}
+class DatadisClientClass {}
