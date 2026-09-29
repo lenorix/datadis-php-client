@@ -1,0 +1,16 @@
+[
+    {
+        "address": "CALLE EJEMPLO 1",
+        "cups": "ES0031300000000001JN0F",
+        "postalCode": "28001",
+        "province": "MADRID",
+        "provinceCode": "28",
+        "municipality": "MADRID",
+        "municipioCode": "001",
+        "distributor": "EDISTRIBUCIÓN",
+        "validDateFrom": "2022/01/01",
+        "validDateTo": "",
+        "pointType": 5,
+        "distributorCode": "2"
+    }
+]

@@ -1,0 +1,10 @@
+{
+    "timeCurve": [
+        {"cups": "ES0031300000000001JN0F", "date": "2026/01/01", "time": "01:00", "consumptionKWh": 0.323, "obtainMethod": "Real", "surplusEnergyKWh": 0, "generationEnergyKWh": null, "selfConsumptionEnergyKWh": null},
+        {"cups": "ES0031300000000001JN0F", "date": "2026/01/01", "time": "02:00", "consumptionKWh": 0.301, "obtainMethod": "Real", "surplusEnergyKWh": 0},
+        {"cups": "ES0031300000000001JN0F", "date": "2026/01/01", "time": "24:00", "consumptionKWh": 1.5, "obtainMethod": "Estimada"},
+        {"cups": "ES0031300000000001JN0F", "date": "2026/01/02", "time": "01:00", "consumptionKWh": null, "obtainMethod": ""},
+        {"cups": "ES0031300000000001JN0F", "date": "2026/01/02", "time": "02:00", "obtainMethod": "Real"}
+    ],
+    "distributorError": []
+}

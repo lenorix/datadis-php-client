@@ -1,0 +1,31 @@
+{
+    "contract": [
+        {
+            "cups": "ES0031300000000001JN0F",
+            "distributor": "EDISTRIBUCIÓN REDES DIGITALES",
+            "marketer": "COMERCIALIZADORA EJEMPLO",
+            "tension": "Baja tensión",
+            "accessFare": "BAJA TENSION y POTENCIA <= 15 kW",
+            "province": "MADRID",
+            "municipality": "MADRID",
+            "postalCode": "28001",
+            "contractedPowerkW": [4.6, 4.6],
+            "timeDiscrimination": "",
+            "modePowerControl": "ICP",
+            "startDate": "2022/01/01",
+            "endDate": "",
+            "codeFare": "2T",
+            "selfConsumptionTypeCode": null,
+            "selfConsumptionTypeDesc": null,
+            "section": null,
+            "subsection": null,
+            "partitionCoefficient": 0,
+            "cau": null,
+            "installedCapacityKW": 3.6,
+            "dateOwner": [{"startDate": "2022-01-01", "endDate": ""}],
+            "lastMarketerDate": "2022/01/01",
+            "maxPowerInstall": "5.5"
+        }
+    ],
+    "distributorError": []
+}

@@ -1,0 +1,29 @@
+{
+    "supplies": [
+        {
+            "address": "CALLE EJEMPLO 1",
+            "cups": "ES0031300000000001JN0F",
+            "postalCode": "28001",
+            "province": "MADRID",
+            "municipality": "MADRID",
+            "distributor": "EDISTRIBUCIÓN REDES DIGITALES",
+            "validDateFrom": "2022/01/01",
+            "validDateTo": "",
+            "pointType": 5,
+            "distributorCode": "2"
+        },
+        {
+            "address": "-",
+            "cups": "ES0031300000000002JN",
+            "postalCode": "28002",
+            "province": "MADRID",
+            "municipality": "MADRID",
+            "distributor": "EDISTRIBUCIÓN REDES DIGITALES",
+            "validDateFrom": "2019/05/10",
+            "validDateTo": "2021/12/31",
+            "pointType": 5,
+            "distributorCode": "2"
+        }
+    ],
+    "distributorError": []
+}

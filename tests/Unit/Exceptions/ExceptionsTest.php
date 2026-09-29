@@ -6,6 +6,7 @@ use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\AuthorizationException;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
+use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
@@ -23,6 +24,7 @@ it('extends DatadisException, which is a RuntimeException', function (string $cl
     AuthenticationException::class,
     AuthorizationException::class,
     ConfigurationException::class,
+    InvalidRequestException::class,
     NoDataException::class,
     RepetitionWindowException::class,
     RequestRejectedException::class,
@@ -40,6 +42,7 @@ it('assumes the request was sent unless it is a pre-flight failure', function ()
     expect((new RequestRejectedException('x'))->requestSent)->toBeTrue()
         ->and((new TransportException('x'))->requestSent)->toBeTrue()
         ->and((new ConfigurationException('x'))->requestSent)->toBeFalse()
+        ->and((new InvalidRequestException('x'))->requestSent)->toBeFalse()
         ->and((new UnsupportedOperationException('x'))->requestSent)->toBeFalse()
         ->and((new AuthenticationException('x', requestSent: false))->requestSent)->toBeFalse();
 });
