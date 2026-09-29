@@ -381,6 +381,8 @@ it('reads distributor codes in every shape seen and refuses unknown ones', funct
 
     expect($client->distributors()->records)->toBe($codes);
 })->with([
+    'empty answer' => ['[]', []],
+    'only distributor errors' => ['{"distributorError":[{"errorCode":"1"}]}', []],
     'bare list of codes' => ['["2","5"]', ['2', '5']],
     'numbers' => ['[2,5]', ['2', '5']],
     'list under distExistenceUser' => ['{"distExistenceUser":["2","5"]}', ['2', '5']],
@@ -411,4 +413,13 @@ it('judges the 24 month window by the Madrid calendar even when reading Canary I
     $client->maxPower(Cups::fromString(CUPS22), '2', Month::of(2026, 10), Month::of(2026, 10));
 
     expect($http->requests())->toHaveCount(2);
+});
+
+it('skips reactive entries that are not objects', function () {
+    [$client, $http] = scenario();
+    $http->queue(Responses::json('{"reactiveEnergy":[1,{"cups":"x"}]}'));
+
+    $result = $client->reactive(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
+
+    expect($result->records)->toHaveCount(1)->and($result->skippedRows)->toBe(1);
 });

@@ -156,7 +156,7 @@ final class PublicApi
     private static function rows(array $decoded, string $endpoint): array
     {
         if ($decoded === [] || array_is_list($decoded)) {
-            return array_values($decoded);
+            return $decoded;
         }
 
         foreach (self::LIST_KEYS as $key) {

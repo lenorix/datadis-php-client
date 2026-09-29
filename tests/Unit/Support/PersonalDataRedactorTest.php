@@ -63,3 +63,15 @@ it('redacts identifiers written with separators or glued to a label', function (
     ['nie:Y1234567L,', '1234567'],
     ['CUPS=ES0031300000000001JN0Fend', '0031300000000001'],
 ]);
+
+it('redacts everything when the pattern engine gives up, rather than leak', function () {
+    $previous = ini_set('pcre.backtrack_limit', '1');
+    $previousJit = ini_set('pcre.jit', '0');
+
+    try {
+        expect(PersonalDataRedactor::redact('value ES0031300000000001JN0F and 12345678Z'))->toBe(PersonalDataRedactor::PLACEHOLDER);
+    } finally {
+        ini_set('pcre.backtrack_limit', (string) $previous);
+        ini_set('pcre.jit', (string) $previousJit);
+    }
+});

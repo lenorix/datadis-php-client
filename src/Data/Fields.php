@@ -41,14 +41,18 @@ final class Fields
             }
 
             if (is_float($value) && is_finite($value)) {
-                return json_encode($value);
+                return json_encode($value, JSON_THROW_ON_ERROR);
             }
         }
 
         return null;
     }
 
-    /** Like text() but an empty string counts as absent. @param  array<array-key, mixed>  $row */
+    /**
+     * Like text() but an empty string counts as absent.
+     *
+     * @param  array<array-key, mixed>  $row
+     */
     public static function nonEmptyText(array $row, string ...$keys): ?string
     {
         $text = self::text($row, ...$keys);
@@ -87,7 +91,11 @@ final class Fields
         };
     }
 
-    /** A `YYYY/MM/DD` date at midnight, or null when empty (open ended) or unparseable. @param  array<array-key, mixed>  $row */
+    /**
+     * A `YYYY/MM/DD` date at midnight, or null when empty (open ended) or unparseable.
+     *
+     * @param  array<array-key, mixed>  $row
+     */
     public static function date(array $row, DateTimeZone $zone, string $key): ?DateTimeImmutable
     {
         $text = self::nonEmptyText($row, $key);

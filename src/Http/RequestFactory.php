@@ -87,27 +87,39 @@ final class RequestFactory
         $pairs = [];
 
         foreach ($query as $name => $value) {
-            $items = match (true) {
-                $value === null => [],
-                is_array($value) => $value,
-                is_string($value), is_int($value) => [$value],
-                default => throw new InvalidArgumentException("Query parameter {$name} must be a string, an int, a list of strings or null."),
-            };
-
-            if (is_array($value) && ! array_is_list($value)) {
-                throw new InvalidArgumentException("Query parameter {$name} must be a list.");
-            }
-
-            foreach ($items as $item) {
-                if (is_array($value) && ! is_string($item)) {
-                    throw new InvalidArgumentException("Every item of query parameter {$name} must be a string.");
-                }
-
-                $pairs[] = rawurlencode($name).'='.rawurlencode((string) $item);
+            foreach (self::items($name, $value) as $item) {
+                $pairs[] = rawurlencode($name).'='.rawurlencode($item);
             }
         }
 
         return implode('&', $pairs);
+    }
+
+    /** @return list<string> */
+    private static function items(string $name, mixed $value): array
+    {
+        if ($value === null) {
+            return [];
+        }
+
+        if (is_string($value) || is_int($value)) {
+            return [(string) $value];
+        }
+
+        if (! is_array($value) || ! array_is_list($value)) {
+            throw new InvalidArgumentException("Query parameter {$name} must be a string, an int, a list of strings or null.");
+        }
+
+        $items = [];
+        foreach ($value as $item) {
+            if (! is_string($item)) {
+                throw new InvalidArgumentException("Every item of query parameter {$name} must be a string.");
+            }
+
+            $items[] = $item;
+        }
+
+        return $items;
     }
 
     private function common(RequestInterface $request): RequestInterface

@@ -44,7 +44,7 @@
     },
     "scripts": {
         "test": "vendor/bin/pest --fail-on-warning --fail-on-risky",
-        "test-coverage": "@php -d xdebug.mode=coverage vendor/bin/pest --coverage",
+        "test-coverage": "@php -d xdebug.mode=coverage vendor/bin/pest --coverage --min=98",
         "format": "vendor/bin/pint",
         "pint": "vendor/bin/pint",
         "phpstan": "vendor/bin/phpstan analyse src"

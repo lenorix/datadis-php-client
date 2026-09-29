@@ -17,9 +17,11 @@ use Throwable;
 final class Envelope
 {
     /**
+     * @template T of object|string
+     *
      * @param  array<array-key, mixed>  $decoded
-     * @param  callable(array<array-key, mixed>): mixed  $decodeRow  returns the record, or null for an unusable row
-     * @return ApiResult<mixed>
+     * @param  callable(array<array-key, mixed>): (T|null)  $decodeRow  returns the record, or null for an unusable row
+     * @return ApiResult<T>
      *
      * @throws UninterpretableResponseException
      */
@@ -109,8 +111,16 @@ final class Envelope
         return $errors;
     }
 
-    /** @param  array<array-key, mixed>  $row */
-    private static function decodeRow(callable $decodeRow, array $row, string $endpoint): mixed
+    /**
+     * Runs a row decoder so that nothing but a DatadisException can escape it.
+     *
+     * @template T
+     *
+     * @param  callable(array<array-key, mixed>): T  $decodeRow
+     * @param  array<array-key, mixed>  $row
+     * @return T
+     */
+    public static function decodeRow(callable $decodeRow, array $row, string $endpoint): mixed
     {
         try {
             return $decodeRow($row);

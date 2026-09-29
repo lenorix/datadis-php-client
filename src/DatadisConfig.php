@@ -38,6 +38,7 @@ final readonly class DatadisConfig
 
     private ConnectionSettings $connection;
 
+    /** @var Closure(): string */
     private Closure $password;
 
     /**

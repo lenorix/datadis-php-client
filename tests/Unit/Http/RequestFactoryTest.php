@@ -101,3 +101,7 @@ it('cannot log in without credentials', function () {
 
     (new RequestFactory(new ConnectionSettings, $factory, $factory))->login();
 })->throws(LogicException::class);
+
+it('refuses query values of other types and maps instead of lists', function (mixed $value) {
+    requests()->get('/x', ['v' => $value], 't');
+})->with([[1.5], [true], [['a' => 'b']]])->throws(InvalidArgumentException::class);

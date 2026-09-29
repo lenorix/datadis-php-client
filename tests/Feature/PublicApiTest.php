@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Lenorix\DatadisClient\ConnectionSettings;
+use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\PublicApi\Community;
@@ -127,3 +128,20 @@ it('yields unique keys across pages so iterator_to_array keeps every record', fu
 
     expect(iterator_to_array(publicApi($http)->searchAll($query)))->toHaveCount(5);
 });
+
+it('walks every page of the self-consumption search', function () {
+    $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},{"a":2}]'), Responses::json('[{"a":3}]'));
+    $query = new SelfConsumptionSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], pageSize: 2);
+
+    $records = iterator_to_array(publicApi($http)->searchSelfConsumptionAll($query));
+
+    parse_str($http->requests()[1]->getUri()->getQuery(), $second);
+
+    expect($records)->toHaveCount(3)->and($second['page'])->toBe('1')->and($http->lastRequest()->getUri()->getPath())->toBe('/api-public/api-search-auto');
+});
+
+it('reports a 404 of the public API as no data', function () {
+    $http = (new FakeHttpClient)->queue(Responses::text('Not Found', 404));
+
+    publicApi($http)->search(searchQuery());
+})->throws(NoDataException::class);

@@ -7,6 +7,7 @@ use GuzzleHttp\Psr7\Request;
 use Lenorix\DatadisClient\Auth\InMemoryCache;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\DatadisConfig;
+use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
@@ -173,4 +174,14 @@ it('does not keep a query blocked when the token store fails before sending', fu
     $consumption($client);
 
     expect($http->requests())->toHaveCount(2);
+});
+
+it('keeps the original failure when the ledger cannot forget an unsent query', function () use ($consumption) {
+    $http = new FakeHttpClient;
+    $clock = new FrozenClock;
+    $ledger = new RequestLedger(new QuirkyCache(throwOnDelete: true), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+    $http->queue(Responses::text('bad credentials', 401));
+
+    expect(fn () => $consumption($client))->toThrow(AuthenticationException::class);
 });

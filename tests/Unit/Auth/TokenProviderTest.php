@@ -8,6 +8,7 @@ use Lenorix\DatadisClient\Auth\InMemoryCache;
 use Lenorix\DatadisClient\Auth\TokenProvider;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
+use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
 use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\TransportException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
@@ -209,3 +210,26 @@ it('drops a cached value that is not a usable token and logs in again', function
 
     expect($token)->toMatch('/^[A-Za-z0-9._~+\/=-]+$/')->and($stack->http->requests())->toHaveCount(2);
 })->with([['Bearer abc'], ["abc\r\nX: y"], [''], [123], [['x']]]);
+
+it('ignores a token store that fails to forget', function () {
+    $stack = new Stack(cache: new QuirkyCache(throwOnDelete: true));
+
+    $stack->tokens->invalidate();
+
+    expect($stack->http->requests())->toBe([]);
+});
+
+it('reports any other refused login as a rejected request that was not sent', function () {
+    $stack = new Stack;
+    $stack->http->queue(Responses::text('bad request', 400));
+
+    try {
+        $stack->tokens->token();
+    } catch (RequestRejectedException $e) {
+        expect($e->requestSent)->toBeFalse()->and($e->httpStatus)->toBe(400);
+
+        return;
+    }
+
+    throw new LogicException('Expected a RequestRejectedException.');
+});

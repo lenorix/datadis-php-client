@@ -44,7 +44,7 @@ final class QueryRules
      *
      * @param  array<Community>  $communities
      */
-    public static function communities(array $communities): ?string
+    public static function communities(array $communities): string
     {
         $codes = array_values(array_map(static fn (Community $c): string => $c->value, $communities));
 
@@ -58,7 +58,7 @@ final class QueryRules
     /**
      * Joins the values with commas after checking each one against $pattern. Null when there are none.
      *
-     * @param  array<string>  $values
+     * @param  array<mixed>  $values  checked at runtime: callers may pass anything
      */
     public static function list(string $name, array $values, string $pattern, bool $required = false): ?string
     {
@@ -79,7 +79,7 @@ final class QueryRules
         return implode(',', $values);
     }
 
-    /** @param array<string> $fields */
+    /** @param array<mixed> $fields checked at runtime: callers may pass anything */
     public static function sort(array $fields): ?string
     {
         foreach ($fields as $field) {

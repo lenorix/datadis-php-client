@@ -37,3 +37,7 @@ it('still accepts every exponent a float can have', function () {
         ->and(Decimal::of('-1.5E-10', 3))->toBe('0.000')
         ->and(Decimal::of(PHP_FLOAT_MAX, 0))->toStartWith('1797');
 });
+
+it('refuses a negative scale', function () {
+    Decimal::of(1.5, -1);
+})->throws(InvalidArgumentException::class);

@@ -197,3 +197,10 @@ it('reads a Retry-After date as GMT whatever the default time zone', function ()
         date_default_timezone_set($previous);
     }
 });
+
+it('really waits with the default sleeper and randomness', function () {
+    $http = (new FakeHttpClient)->queue(Responses::empty(503), Responses::json('[]'));
+    $client = new RetryingClient($http, 1, baseDelayMs: 1, maxDelayMs: 2);
+
+    expect($client->sendRequest(get(SAFE))->getStatusCode())->toBe(200)->and($http->requests())->toHaveCount(2);
+});

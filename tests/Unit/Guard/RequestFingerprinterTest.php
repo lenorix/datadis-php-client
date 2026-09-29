@@ -71,3 +71,11 @@ it('refuses a short key', function () {
 it('does not reveal the key when dumped', function () {
     expect(print_r(new RequestFingerprinter(KEY), true))->not->toContain(KEY);
 });
+
+it('fingerprints a list value by its items', function () use ($query) {
+    $fingerprinter = new RequestFingerprinter(KEY);
+
+    expect($fingerprinter->fingerprint('12345678Z', ['cups' => ['A', 'B']] + $query))
+        ->not->toBe($fingerprinter->fingerprint('12345678Z', ['cups' => ['A']] + $query))
+        ->toBe($fingerprinter->fingerprint('12345678Z', ['cups' => ['A', 'B']] + $query));
+});

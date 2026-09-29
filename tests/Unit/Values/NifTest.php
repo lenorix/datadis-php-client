@@ -20,3 +20,7 @@ it('compares after normalisation', function () {
     expect(Nif::fromString('12345678Z')->sameAs(Nif::fromString(' 12345678z')))->toBeTrue()
         ->and(Nif::fromString('12345678Z')->sameAs(Nif::fromString('87654321X')))->toBeFalse();
 });
+
+it('converts to its normalised string', function () {
+    expect((string) Nif::fromString(' 12345678z'))->toBe('12345678Z');
+});

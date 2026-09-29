@@ -19,6 +19,10 @@ final class Decimal
 
     public static function of(mixed $value, int $scale): string
     {
+        if ($scale < 0) {
+            throw new InvalidArgumentException('The scale must not be negative.');
+        }
+
         return BigDecimal::of(self::literal($value))->toScale($scale, RoundingMode::HalfUp)->toString();
     }
 

@@ -59,6 +59,8 @@ final class WallClock
         $transitions = $zone->getTransitions($around - 2 * 86400, $around + 2 * 86400);
         $offsets = [self::offsetAt($zone, $around)];
 
+        // A fixed offset zone answers false, whatever the signature says.
+        // @phpstan-ignore function.alreadyNarrowedType
         if (is_array($transitions)) {
             foreach ($transitions as $transition) {
                 $offsets[] = (int) $transition['offset'];

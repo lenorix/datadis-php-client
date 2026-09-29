@@ -17,6 +17,6 @@ Found by an independent review in M6 (all confirmed by running code unless noted
 
 ## Other M6 work left
 
-- Coverage target: at least 98 %, ideally 99-100 % (maintainer requirement). Measured at 96.3 % before these fixes; gaps in `InMemoryCache`, `SystemClock`, `DistributorCodes`, `SelfConsumptionSearchQuery::withPage`, `RequestFactory`, `Envelope`, `PublicApi`, `RetryingClient`, `Nif`, `PersonalDataRedactor`. Then enforce it with `--coverage --min=98` in CI.
+- ~~Coverage target~~ done: 100 % lines, enforced at 98 % minimum by `composer test-coverage` and in CI (pcov). PHPStan runs at level max in CI through `phpstan.neon.dist`.
 - Pest mutation testing reported 100 % in parallel mode; that result looks unreliable and must be rechecked per class without `--parallel` (it is slow: run it in the background).
 - README (usage, custom PSR-18 client, errors, the 24 h rule, unverified parts), CHANGELOG.

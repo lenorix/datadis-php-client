@@ -22,6 +22,7 @@ final class GuzzleClientFactory
     {
         $config = $config instanceof DatadisConfig ? $config->connection() : $config;
 
+        // @phpstan-ignore argument.type (the options are Guzzle's own, passed through as given)
         return new Client(array_replace([
             'timeout' => $config->timeout,
             'connect_timeout' => $config->connectTimeout,

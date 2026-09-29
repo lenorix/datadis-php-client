@@ -92,3 +92,17 @@ it('reports the endpoint in the failure', function () use ($decoder) {
 
     throw new LogicException('Expected an exception.');
 });
+
+it('lets a DatadisException from a row decoder through untouched', function () {
+    $original = new UninterpretableResponseException('mine', endpoint: 'x');
+
+    try {
+        Envelope::build(['timeCurve' => [['a' => 1]]], 'timeCurve', 'endpoint', fn () => throw $original);
+    } catch (UninterpretableResponseException $e) {
+        expect($e)->toBe($original);
+
+        return;
+    }
+
+    throw new LogicException('Expected the original exception.');
+});

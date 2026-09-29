@@ -41,7 +41,7 @@ final class RequestLedger
      * The stored timestamp is checked against the clock too, so a store that ignores TTLs does
      * not block a query forever, and numeric strings are accepted because some stores return them.
      *
-     * @param  array<string, mixed>  $query
+     * @param  array<string, string|int|list<string>|null>  $query
      *
      * @throws LedgerUnavailableException when the store cannot be read
      */
@@ -65,7 +65,7 @@ final class RequestLedger
     }
 
     /**
-     * @param  array<string, mixed>  $query
+     * @param  array<string, string|int|list<string>|null>  $query
      *
      * @throws LedgerUnavailableException when the store cannot keep the record
      */
@@ -82,13 +82,13 @@ final class RequestLedger
         }
     }
 
-    /** @param array<string, mixed> $query */
+    /** @param array<string, string|int|list<string>|null> $query */
     public function forget(string $account, #[SensitiveParameter] array $query): void
     {
         $this->cache->delete($this->key($account, $query));
     }
 
-    /** @param array<string, mixed> $query */
+    /** @param array<string, string|int|list<string>|null> $query */
     private function key(string $account, #[SensitiveParameter] array $query): string
     {
         // PSR-16 keys allow only [A-Za-z0-9_.] and 64 characters.

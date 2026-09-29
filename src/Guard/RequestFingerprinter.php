@@ -34,13 +34,17 @@ final readonly class RequestFingerprinter
         $this->key = static fn (): string => $key;
     }
 
-    /** @param array<string, mixed> $query the query as sent, null for omitted parameters */
+    /** @param array<string, string|int|list<string>|null> $query the query as sent, null for omitted parameters */
     public function fingerprint(string $account, #[SensitiveParameter] array $query): string
     {
         $values = [];
         foreach (self::PARAMETERS as $name) {
             $value = $query[$name] ?? null;
-            $values[] = $value === null ? null : (string) $value;
+            $values[] = match (true) {
+                $value === null => null,
+                is_array($value) => array_map(strval(...), $value),
+                default => (string) $value,
+            };
         }
 
         // Versioned and domain separated, so the format can change without collisions.

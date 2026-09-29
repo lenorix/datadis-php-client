@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Data;
 
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
-use Throwable;
 
 /**
  * The reactive energy answer (v2 only). Least verified response of the API: the field names come
@@ -94,11 +93,7 @@ final readonly class ReactiveEnergy
         $skipped = 0;
 
         foreach ($objects as $object) {
-            try {
-                $record = is_array($object) ? self::fromRow($object) : null;
-            } catch (Throwable $e) {
-                throw new UninterpretableResponseException("{$endpoint}: reactive energy could not be decoded (".$e::class.').', endpoint: $endpoint, previous: $e);
-            }
+            $record = is_array($object) ? Envelope::decodeRow(self::fromRow(...), $object, $endpoint) : null;
 
             if ($record === null) {
                 $skipped++;

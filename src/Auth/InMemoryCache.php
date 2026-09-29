@@ -60,10 +60,11 @@ final class InMemoryCache implements CacheInterface
         return $values;
     }
 
+    /** @param iterable<string, mixed> $values */
     public function setMultiple(iterable $values, DateInterval|int|null $ttl = null): bool
     {
         foreach ($values as $key => $value) {
-            $this->set((string) $key, $value, $ttl);
+            $this->set($key, $value, $ttl);
         }
 
         return true;
