@@ -5,6 +5,7 @@ declare(strict_types=1);
 use GuzzleHttp\Psr7\Response;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\AuthorizationException;
+use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
@@ -159,4 +160,59 @@ it('reads a body that is not UTF-8 as Windows-1252 instead of failing it', funct
 
 it('leaves a valid UTF-8 body untouched', function () {
     expect(ResponseClassifier::decode(Responses::json('[{"distributor":"EDISTRIBUCIÓN"}]'), ENDPOINT)[0]['distributor'])->toBe('EDISTRIBUCIÓN');
+});
+
+it('draws the success range exactly between 200 and 299', function (int $status, bool $success) {
+    $call = fn () => ResponseClassifier::decode(Responses::json('[1]', $status), ENDPOINT);
+
+    $success ? expect($call())->toBe([1]) : expect($call)->toThrow(DatadisException::class);
+})->with([[199, false], [200, true], [299, true], [300, false]]);
+
+it('maps the edges of the error ranges', function (int $status, string $class) {
+    expect(fn () => ResponseClassifier::decode(Responses::text('x', $status), ENDPOINT))->toThrow($class);
+})->with([
+    [399, UninterpretableResponseException::class],
+    [400, RequestRejectedException::class],
+    [499, RequestRejectedException::class],
+    [500, ServiceUnavailableException::class],
+    [599, ServiceUnavailableException::class],
+]);
+
+it('treats a 204 as no data even if it carries a body', function () {
+    ResponseClassifier::decode(Responses::text('ignored', 204), ENDPOINT);
+})->throws(NoDataException::class);
+
+it('writes the message with and without a detail', function () {
+    expect(fn () => ResponseClassifier::decode(Responses::empty(500), ENDPOINT))->toThrow(ServiceUnavailableException::class, ENDPOINT.': Datadis answered HTTP 500.')
+        ->and(fn () => ResponseClassifier::decode(Responses::text('boom', 500), ENDPOINT))->toThrow(ServiceUnavailableException::class, ENDPOINT.': Datadis answered HTTP 500 · boom');
+});
+
+it('extracts the message of a JSON error body and keeps anything else as text', function (string $body, string $detail) {
+    try {
+        ResponseClassifier::decode(Responses::text($body, 400), ENDPOINT);
+    } catch (RequestRejectedException $e) {
+        expect($e->detail)->toBe($detail);
+
+        return;
+    }
+
+    throw new LogicException('Expected an exception.');
+})->with([
+    'message' => ['{"message":"Date range not allowed"}', 'Date range not allowed'],
+    'message with spaces around' => ["  {\"message\":\"m\"}\n", 'm'],
+    'message is not text' => ['{"message":5}', '{"message":5}'],
+    'no message' => ['{"error":"x"}', '{"error":"x"}'],
+    'broken JSON' => ['{"message":', '{"message":'],
+    'a list' => ['["message"]', '["message"]'],
+]);
+
+it('leaves no PHP error behind when a gzip-looking body is not gzip', function () {
+    error_clear_last();
+
+    try {
+        ResponseClassifier::decode(Responses::json("\x1f\x8bnot really gzip"), ENDPOINT);
+    } catch (UninterpretableResponseException) {
+    }
+
+    expect(error_get_last())->toBeNull();
 });

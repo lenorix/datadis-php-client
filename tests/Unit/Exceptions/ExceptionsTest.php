@@ -78,3 +78,7 @@ it('keeps the previous exception', function () {
 
     expect((new TransportException('x', previous: $previous))->getPrevious())->toBe($previous);
 });
+
+it('has no error code of its own', function () {
+    expect((new RequestRejectedException('x'))->getCode())->toBe(0);
+});

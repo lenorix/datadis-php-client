@@ -59,3 +59,16 @@ it('never shows the password when dumped', function () {
 it('cannot be serialised with the password', function () {
     serialize(new DatadisConfig('12345678Z', 'super-secret-password'));
 })->throws(LogicException::class);
+
+it('shows every setting but the password when debugged', function () {
+    $config = new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test', timeout: 30.0, connectTimeout: 3.0, userAgent: 'agent');
+
+    expect($config->__debugInfo())->toBe([
+        'username' => '12345678Z',
+        'baseUrl' => 'https://datadis.test',
+        'password' => '[hidden]',
+        'timeout' => 30.0,
+        'connectTimeout' => 3.0,
+        'userAgent' => 'agent',
+    ]);
+});

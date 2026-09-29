@@ -75,3 +75,13 @@ it('redacts everything when the pattern engine gives up, rather than leak', func
         ini_set('pcre.jit', (string) $previousJit);
     }
 });
+
+it('keeps redacting until nothing identifier-shaped is left', function () {
+    expect(PersonalDataRedactor::redact('12345678Z12345678Z'))->toBe('[redacted][redacted]');
+});
+
+it('writes excerpts of 300 characters by default, trimmed, and nothing for a negative length', function () {
+    expect(mb_strlen(PersonalDataRedactor::excerpt(str_repeat('x', 400))))->toBe(300)
+        ->and(PersonalDataRedactor::excerpt("  x  \n"))->toBe('x')
+        ->and(PersonalDataRedactor::excerpt('abc', -5))->toBe('');
+});

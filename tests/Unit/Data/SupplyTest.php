@@ -52,3 +52,7 @@ it('turns unparseable dates into null while keeping the raw row', function () us
 
     expect($supply->validFrom)->toBeNull()->and($supply->validTo)->toBeNull()->and($supply->raw['validDateFrom'])->toBe('yesterday');
 });
+
+it('needs both codes to be queryable', function (array $row) use ($zone) {
+    expect(Supply::fromRow(['cups' => 'ES0031300000000001JN'] + $row, $zone)->isQueryable())->toBeFalse();
+})->with([[['distributorCode' => '2']], [['pointType' => 5]]]);

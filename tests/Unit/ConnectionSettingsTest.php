@@ -34,3 +34,13 @@ it('is what the private configuration exposes', function () {
         ->and($settings->connectTimeout)->toBe(3.0)
         ->and($settings->userAgent)->toBe('agent');
 });
+
+it('accepts short timeouts and a base URL with spaces around it', function () {
+    $settings = new ConnectionSettings(baseUrl: '  https://datadis.test/  ', timeout: 0.5, connectTimeout: 0.5);
+
+    expect($settings->baseUrl)->toBe('https://datadis.test')->and($settings->timeout)->toBe(0.5);
+});
+
+it('refuses URLs without a host', function (string $url) {
+    new ConnectionSettings(baseUrl: $url);
+})->with(['https://', 'https:///path', '/relative', ''])->throws(ConfigurationException::class);

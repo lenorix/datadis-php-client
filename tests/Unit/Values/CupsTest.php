@@ -36,3 +36,7 @@ it('exposes the 20 character base and matches on it', function () {
 it('converts to string', function () {
     expect((string) Cups::fromString('es0031300000000001jn'))->toBe('ES0031300000000001JN');
 });
+
+it('says a well formed CUPS is valid', function () {
+    expect(Cups::isValid(' es0031300000000001jn0f '))->toBeTrue();
+});

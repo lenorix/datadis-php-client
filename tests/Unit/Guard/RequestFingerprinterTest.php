@@ -79,3 +79,16 @@ it('fingerprints a list value by its items', function () use ($query) {
         ->not->toBe($fingerprinter->fingerprint('12345678Z', ['cups' => ['A']] + $query))
         ->toBe($fingerprinter->fingerprint('12345678Z', ['cups' => ['A', 'B']] + $query));
 });
+
+it('keeps the same fingerprint across versions, since fingerprints live in shared stores', function () use ($query) {
+    expect((new RequestFingerprinter(KEY))->fingerprint('12345678Z', $query))
+        ->toBe(hash_hmac('sha256', '["datadis-query","v1","12345678Z",["ES0031300000000001JN0F","2","2026/01","2026/01","0","5",null]]', KEY));
+});
+
+it('accepts a key of exactly the minimum length', function () {
+    expect(new RequestFingerprinter(str_repeat('k', RequestFingerprinter::MIN_KEY_BYTES)))->toBeInstanceOf(RequestFingerprinter::class);
+});
+
+it('shows the key as hidden when debugged', function () {
+    expect((new RequestFingerprinter(KEY))->__debugInfo())->toBe(['key' => '[hidden]']);
+});

@@ -83,3 +83,22 @@ it('resolves the access tariff when the description and the number of powers agr
 it('has no tariff without a description', function () use ($zone) {
     expect(ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'contractedPowerkW' => [4.6, 4.6]], $zone)->tariff())->toBeNull();
 });
+
+it('reads powers sent as an object, an empty power as missing', function () use ($zone) {
+    $contract = ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'contractedPowerkW' => ['1' => 4.6, '2' => '']], $zone);
+
+    expect($contract->contractedPowerKw)->toBe(['4.60', null]);
+});
+
+it('reads ownership periods with an end, spaces, slashes or no usable date', function () use ($zone) {
+    $contract = ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'dateOwner' => [
+        ['startDate' => ' 2020-01-01 ', 'endDate' => '2021/12/31'],
+        ['startDate' => 5, 'endDate' => '  '],
+        'not a period',
+    ]], $zone);
+
+    expect($contract->ownerPeriods)->toHaveCount(2)
+        ->and($contract->ownerPeriods[0]['start']?->format('Y-m-d'))->toBe('2020-01-01')
+        ->and($contract->ownerPeriods[0]['end']?->format('Y-m-d'))->toBe('2021-12-31')
+        ->and($contract->ownerPeriods[1])->toBe(['start' => null, 'end' => null]);
+});

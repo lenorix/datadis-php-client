@@ -90,3 +90,15 @@ it('keeps the 25 hour day in source order with the repeated label', function () 
 it('has no reading for the skipped hour of the 23 hour day', function () {
     expect(Payloads::springDay())->toHaveCount(23)->not->toContain('03:00');
 });
+
+it('reads the obtain method with spaces and knows every spelling of an estimate', function (string $method, bool $real, bool $estimated) {
+    $reading = ConsumptionReading::fromRow(['date' => '2026/01/01', 'time' => '01:00', 'consumptionKWh' => 1, 'obtainMethod' => $method], new DateTimeZone('Europe/Madrid'), MeasurementType::Hourly);
+
+    expect($reading->isReal())->toBe($real)->and($reading->isEstimated())->toBe($estimated);
+})->with([[' Real ', true, false], ['Estimada', false, true], ['Estimated', false, true], ['estimate', false, true], ['', false, false]]);
+
+it('reads the self-consumption values with three decimals', function () {
+    $reading = ConsumptionReading::fromRow(['date' => '2026/01/01', 'time' => '01:00', 'consumptionKWh' => 1, 'generationEnergyKWh' => 0.12345, 'selfConsumptionEnergyKWh' => 2], new DateTimeZone('Europe/Madrid'), MeasurementType::Hourly);
+
+    expect($reading->generationKWh)->toBe('0.123')->and($reading->selfConsumptionKWh)->toBe('2.000');
+});

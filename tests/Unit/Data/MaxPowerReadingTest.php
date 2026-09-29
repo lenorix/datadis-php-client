@@ -44,3 +44,7 @@ it('drops rows without a usable value or date', function (array $row) use ($madr
     [['time' => '09:45', 'maxPower' => 1]],
     [['date' => '2022/01/11', 'maxPower' => 1]],
 ]);
+
+it('reads a period with spaces around it', function () use ($madrid) {
+    expect(MaxPowerReading::fromRow(['date' => '2022/01/11', 'time' => '09:45', 'maxPower' => 1, 'period' => ' 3 '], $madrid)->periodNumber())->toBe(3);
+});

@@ -29,3 +29,14 @@ it('recognises the tariff by the shape of the description', function (string $ac
     'baja tension without a power band' => ['Baja tensión', null],
     'empty' => ['', null],
 ]);
+
+it('needs low voltage for the 15 kW band and places the kV bounds exactly', function (string $text, ?AccessTariff $expected) {
+    expect(AccessFareParser::parse($text))->toBe($expected);
+})->with([
+    'band without low voltage' => ['POTENCIA <= 15 kW', null],
+    'below 1 kV' => ['>= 0,9 kV', null],
+    'just below 30' => ['>= 29,9 kV', AccessTariff::T61TD],
+    'just below 72.5' => ['>= 72,4 kV', AccessTariff::T62TD],
+    '72.5 with a comma' => ['>= 72,5 kV', AccessTariff::T63TD],
+    'just below 145' => ['>= 144,9 kV', AccessTariff::T63TD],
+]);

@@ -423,3 +423,12 @@ it('skips reactive entries that are not objects', function () {
 
     expect($result->records)->toHaveCount(1)->and($result->skippedRows)->toBe(1);
 });
+
+it('counts unusable distributor codes and keeps reading after them', function () {
+    [$client, $http] = scenario();
+    $http->queue(Responses::json('[{"distributorCodes":["2",null,"",5]}, "8"]'));
+
+    $result = $client->distributors();
+
+    expect($result->records)->toBe(['2', '5', '8'])->and($result->skippedRows)->toBe(2);
+});

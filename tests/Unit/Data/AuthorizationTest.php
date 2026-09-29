@@ -31,3 +31,11 @@ it('accepts dashed dates, string ids and open ends', function () use ($zone, $ro
 it('rejects a row without any identifying field', function () use ($zone) {
     expect(Authorization::fromRow(['status' => 'x'], $zone))->toBeNull();
 });
+
+it('accepts a row identified by any one of its fields', function (array $row) use ($zone) {
+    expect(Authorization::fromRow($row, $zone))->not->toBeNull();
+})->with([[['id' => 1]], [['ownerDocument' => '12345678Z']], [['requesterDocument' => '87654321X']]]);
+
+it('reads dates with surrounding spaces', function () use ($zone) {
+    expect(Authorization::fromRow(['id' => 1, 'validityDateStart' => ' 2026/01/01 '], $zone)->validFrom?->format('Y-m-d'))->toBe('2026-01-01');
+});

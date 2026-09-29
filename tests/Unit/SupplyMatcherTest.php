@@ -53,3 +53,27 @@ it('keeps the first of several open-ended rows', function () use ($supply) {
 it('normalises the CUPS of the supplies it compares with', function () use ($supply) {
     expect(SupplyMatcher::pick([$supply(['cups' => ' es0031300000000001jn0f '])], Cups::fromString('ES0031300000000001JN')))->not->toBeNull();
 });
+
+it('keeps looking after a supply of another CUPS', function () use ($supply) {
+    $supplies = [$supply(['cups' => 'ES0031300000000002JN']), $supply(['cups' => 'ES0031300000000001JN', 'distributorCode' => '7'])];
+
+    expect(SupplyMatcher::pick($supplies, Cups::fromString('ES0031300000000001JN'))?->distributorCode)->toBe('7');
+});
+
+it('prefers the open contract even when a closed one started later', function () use ($supply) {
+    $supplies = [
+        $supply(['cups' => 'ES0031300000000001JN', 'validDateFrom' => '2020/01/01', 'validDateTo' => '', 'distributorCode' => 'open']),
+        $supply(['cups' => 'ES0031300000000001JN', 'validDateFrom' => '2022/01/01', 'validDateTo' => '2023/01/01', 'distributorCode' => 'closed']),
+    ];
+
+    expect(SupplyMatcher::pick($supplies, Cups::fromString('ES0031300000000001JN'))?->distributorCode)->toBe('open');
+});
+
+it('copes with a best candidate that has no start date', function () use ($supply) {
+    $supplies = [
+        $supply(['cups' => 'ES0031300000000001JN', 'validDateTo' => '2019/01/01', 'distributorCode' => 'undated']),
+        $supply(['cups' => 'ES0031300000000001JN', 'validDateFrom' => '2018/01/01', 'validDateTo' => '2019/01/01', 'distributorCode' => 'dated']),
+    ];
+
+    expect(SupplyMatcher::pick($supplies, Cups::fromString('ES0031300000000001JN'))?->distributorCode)->toBe('dated');
+});

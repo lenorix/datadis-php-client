@@ -233,3 +233,123 @@ it('reports any other refused login as a rejected request that was not sent', fu
 
     throw new LogicException('Expected a RequestRejectedException.');
 });
+
+it('does not share tokens between base URLs of the same account', function () {
+    $cache = new InMemoryCache(new FrozenClock);
+    $one = new Stack(cache: $cache);
+    $one->http->queue($one->loginOk());
+    $one->tokens->token();
+
+    $other = new Stack(cache: $cache, config: new DatadisConfig('12345678Z', 'pw', baseUrl: 'https://other.test'));
+    $other->http->queue($other->loginOk());
+    $other->tokens->token();
+
+    expect($other->http->requests())->toHaveCount(1);
+});
+
+it('stores the token under a valid PSR-16 key', function () {
+    $cache = new QuirkyCache;
+    $stack = new Stack(cache: $cache);
+    $stack->http->queue($stack->loginOk());
+    $stack->tokens->token();
+
+    expect(array_keys($cache->items))->toHaveCount(1)
+        ->and(array_keys($cache->items)[0])->toMatch('/^[A-Za-z0-9_.]{1,64}$/');
+});
+
+it('does not store a token that would expire within the safety margin', function () {
+    $cache = new QuirkyCache;
+    $stack = new Stack(cache: $cache);
+    $stack->http->queue($stack->loginOk(TokenProvider::SKEW_SECONDS));
+    $stack->tokens->token();
+
+    expect($cache->items)->toBe([]);
+});
+
+it('removes a poisoned token from the store even if saving the new one fails', function () {
+    $cache = new QuirkyCache;
+    $stack = new Stack(cache: $cache);
+    $stack->http->queue($stack->loginOk());
+    $stack->tokens->token();
+    $key = array_key_first($cache->items);
+    $cache->items[$key] = 'Bearer poisoned';
+    $cache->failSet = true;
+    $stack->http->queue($stack->loginOk());
+
+    $stack->tokens->token();
+
+    expect($cache->items)->not->toHaveKey($key);
+});
+
+it('scrubs an echoed username that is not shaped like a NIF', function () {
+    $stack = new Stack(config: new DatadisConfig('partner-account', Stack::PASSWORD, baseUrl: 'https://datadis.test'));
+    $stack->http->queue(Responses::text('unknown user PARTNER-ACCOUNT', 401));
+
+    try {
+        $stack->tokens->token();
+    } catch (AuthenticationException $e) {
+        expect($e->detail)->toBe('unknown user [redacted]')
+            ->and($e->getMessage())->toBe('login: Datadis answered HTTP 401 · unknown user [redacted]');
+
+        return;
+    }
+
+    throw new LogicException('Expected an AuthenticationException.');
+});
+
+it('classifies the edges of the login status ranges', function (int $status, ?string $class) {
+    $stack = new Stack;
+    $stack->http->queue($status === 299 ? Responses::text('abc.def.ghi', 299) : Responses::text('', $status));
+
+    if ($class === null) {
+        expect($stack->tokens->token())->toBe('abc.def.ghi');
+
+        return;
+    }
+
+    expect(fn () => $stack->tokens->token())->toThrow($class, "login: Datadis answered HTTP {$status}.");
+})->with([
+    [199, RequestRejectedException::class],
+    [299, null],
+    [300, RequestRejectedException::class],
+    [499, RequestRejectedException::class],
+    [500, ServiceUnavailableException::class],
+]);
+
+it('says a non-token login answer was not sent and carries no detail', function () {
+    $stack = new Stack;
+    $stack->http->queue(Responses::text('<html>'));
+
+    try {
+        $stack->tokens->token();
+    } catch (UninterpretableResponseException $e) {
+        expect($e->requestSent)->toBeFalse()->and($e->detail)->toBe('')->and($e->getMessage())->toBe('login: the login answer is not a token.');
+
+        return;
+    }
+
+    throw new LogicException('Expected an UninterpretableResponseException.');
+});
+
+it('cleans spaces inside the quotes of a token', function () {
+    $stack = new Stack;
+    $stack->http->queue(Responses::text('" abc.def.ghi "'));
+
+    expect($stack->tokens->token())->toBe('abc.def.ghi');
+});
+
+it('stores a token that stays valid one second beyond the safety margin', function () {
+    $cache = new QuirkyCache;
+    $stack = new Stack(cache: $cache);
+    $stack->http->queue($stack->loginOk(TokenProvider::SKEW_SECONDS + 1));
+    $stack->tokens->token();
+
+    expect($cache->items)->toHaveCount(1);
+});
+
+it('cleans a quoted token followed by a newline', function () {
+    $stack = new Stack;
+    $stack->http->queue(Responses::text("\"abc.def.ghi\"\n"));
+
+    expect($stack->tokens->token())->toBe('abc.def.ghi');
+});

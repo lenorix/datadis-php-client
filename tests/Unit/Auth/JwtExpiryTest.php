@@ -34,3 +34,11 @@ it('does not need base64 padding', function () {
         expect(JwtExpiry::read(Tokens::jwt(['exp' => 1_800_000_000, 'pad' => str_repeat('x', $i)])))->toBe(1_800_000_000);
     }
 });
+
+it('refuses an expiry too far away to be a date', function () {
+    expect(JwtExpiry::read(Tokens::jwt(['exp' => PHP_INT_MAX])))->toBeNull();
+});
+
+it('returns an integer for a fractional expiry', function () {
+    expect(JwtExpiry::read(Tokens::jwt(['exp' => 1_800_000_000.7])))->toBe(1_800_000_000);
+});

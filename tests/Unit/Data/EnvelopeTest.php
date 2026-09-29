@@ -106,3 +106,7 @@ it('lets a DatadisException from a row decoder through untouched', function () {
 
     throw new LogicException('Expected the original exception.');
 });
+
+it('refuses rows sent as an object even when every row is usable', function () use ($decoder) {
+    Envelope::build(['timeCurve' => ['first' => ['ok' => 1], 'second' => ['ok' => 2]]], 'timeCurve', 'endpoint', $decoder);
+})->throws(UninterpretableResponseException::class);

@@ -105,3 +105,10 @@ it('fails loudly when the store cannot be read or written', function (QuirkyCach
     'set throws' => [fn () => new QuirkyCache(throwOnSet: true), fn ($l, $q) => $l->record('12345678Z', $q)],
     'set refuses' => [fn () => new QuirkyCache(failSet: true), fn ($l, $q) => $l->record('12345678Z', $q)],
 ]);
+
+it('stores attempts under valid PSR-16 keys', function () use ($query) {
+    $cache = new QuirkyCache;
+    (new RequestLedger($cache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), new FrozenClock))->record('12345678Z', $query);
+
+    expect(array_keys($cache->items)[0])->toMatch('/^[A-Za-z0-9_.]{1,64}$/');
+});

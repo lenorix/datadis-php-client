@@ -39,3 +39,15 @@ it('moves to another page without changing the filters', function () use ($from,
 
     expect($next->toQuery())->toEqual(['page' => 4] + $query->toQuery())->and($query->page)->toBe(0);
 });
+
+it('builds the minimal query without empty filters', function () use ($from, $to) {
+    expect((new SelfConsumptionSearchQuery($from, $to, [Community::Madrid]))->toQuery())
+        ->toBe(['startDate' => '2026/01/01', 'endDate' => '2026/01/31', 'page' => 0, 'pageSize' => 2000, 'community' => '13']);
+});
+
+it('validates dates and paging like the other query', function (Closure $build) use ($from, $to) {
+    $build($from, $to);
+})->with([
+    [fn ($f, $t) => new SelfConsumptionSearchQuery($t, $f, [Community::Madrid])],
+    [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], page: -1)],
+])->throws(InvalidRequestException::class);

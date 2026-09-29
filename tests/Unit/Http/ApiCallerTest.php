@@ -151,6 +151,7 @@ it('reports the call as sent when logging in again after a 401 fails', function 
         $stack->caller->get(SUPPLIES, [], 'get-consumption-data-v2');
     } catch (AuthenticationException $e) {
         expect($e->requestSent)->toBeTrue()
+            ->and($e->httpStatus)->toBe(401)
             ->and($e->endpoint)->toBe('get-consumption-data-v2')
             ->and($e->getPrevious())->toBeInstanceOf(AuthenticationException::class);
 

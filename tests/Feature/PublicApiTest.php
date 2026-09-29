@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use GuzzleHttp\Psr7\HttpFactory;
 use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
@@ -12,6 +13,8 @@ use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApi\SelfConsumptionSearchQuery;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\Responses;
+use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\RequestInterface;
 
 function publicApi(FakeHttpClient $http): PublicApi
 {
@@ -145,3 +148,67 @@ it('reports a 404 of the public API as no data', function () {
 
     publicApi($http)->search(searchQuery());
 })->throws(NoDataException::class);
+
+it('numbers the records of all pages from zero', function () {
+    $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},{"a":2}]'), Responses::json('[{"a":3}]'));
+    $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], pageSize: 2);
+
+    expect(array_keys(iterator_to_array(publicApi($http)->searchAll($query))))->toBe([0, 1, 2]);
+});
+
+it('counts an unusable row as part of a full page', function () {
+    $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},5]'), Responses::json('[]'));
+    $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], pageSize: 2);
+
+    iterator_to_array(publicApi($http)->searchAll($query));
+
+    expect($http->requests())->toHaveCount(2);
+});
+
+it('reports unusable rows', function () {
+    $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},5,[]]'));
+
+    expect(publicApi($http)->search(searchQuery())->skippedRows)->toBe(2);
+});
+
+it('reads an empty 200 as an empty page but fails on an envelope key that is not a list', function () {
+    $http = (new FakeHttpClient)->queue(Responses::empty(200), Responses::json('{"content":{"a":1}}'));
+
+    expect(publicApi($http)->search(searchQuery())->isEmpty())->toBeTrue()
+        ->and(fn () => publicApi($http)->search(searchQuery()))->toThrow(UninterpretableResponseException::class);
+});
+
+it('builds public requests with the PSR-17 factories it is given', function () {
+    $factory = new class implements RequestFactoryInterface
+    {
+        public int $calls = 0;
+
+        public function createRequest(string $method, $uri): RequestInterface
+        {
+            $this->calls++;
+
+            return (new HttpFactory)->createRequest($method, $uri);
+        }
+    };
+    $http = (new FakeHttpClient)->queue(Responses::json('[]'));
+
+    (new PublicApi(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http, $factory))->search(searchQuery());
+
+    expect($factory->calls)->toBe(1);
+});
+
+it('uses the public Datadis host by default', function () {
+    $http = (new FakeHttpClient)->queue(Responses::json('[]'));
+
+    (new PublicApi(http: $http))->search(searchQuery());
+
+    expect($http->lastRequest()->getUri()->getHost())->toBe('datadis.es');
+});
+
+it('sends public requests to the configured host', function () {
+    $http = (new FakeHttpClient)->queue(Responses::json('[]'));
+
+    publicApi($http)->search(searchQuery());
+
+    expect($http->lastRequest()->getUri()->getHost())->toBe('datadis.test');
+});

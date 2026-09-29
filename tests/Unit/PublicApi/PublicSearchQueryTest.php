@@ -96,3 +96,8 @@ it('moves to another page without changing the filters', function () use ($from,
     expect($next->toQuery())->toEqual(['page' => 1] + $query->toQuery())
         ->and($query->toQuery()['page'])->toBe(0);
 });
+
+it('accepts a single day and refuses a doubled minus in sort', function () use ($from) {
+    expect((new PublicSearchQuery($from, $from, [Community::Madrid], ['05']))->toQuery()['endDate'])->toBe('2026/01/01')
+        ->and(fn () => new PublicSearchQuery($from, $from, [Community::Madrid], ['05'], sort: ['--dataDate']))->toThrow(InvalidRequestException::class);
+});
