@@ -40,8 +40,8 @@ Additional scenario tests required: mislabelled gzip body, HTTP 200 HTML page, n
 
 ## Architecture tests
 
-`tests/ArchTest.php` enforces: no `dd`/`dump`/`ray` in `src`, no dependency on Guzzle outside the transport factory, all DTOs `final readonly`, exceptions extend `DatadisException`, `src` contains no mention of forbidden project names.
+`tests/ArchTest.php` enforces: no `dd`/`dump`/`ray` in `src`, strict types everywhere, final classes (except the two exception bases), every exception extends `DatadisException`, Guzzle used only by the default wiring (`GuzzleClientFactory`, `DatadisClient`, `PublicApi`), and immutable results and values. Forbidden project names are checked with `grep` before each commit, never by a test, since a test would have to spell them out.
 
 ## Quality gates before every commit
 
-`vendor/bin/pest` green, `vendor/bin/pint` clean, static analysis clean if configured, no real personal data (`grep` for `ES\d{16}` patterns that are not the fictitious ones).
+`composer test` green, `composer test-coverage` at 98 % or more, `composer phpstan` clean at level max, `vendor/bin/pint` clean, no real personal data (`grep` for `ES\d{16}` patterns that are not the fictitious ones).

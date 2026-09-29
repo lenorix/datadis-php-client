@@ -1,8 +1,18 @@
 <?php
 
 declare(strict_types=1);
+use Lenorix\DatadisClient\Data\DistributorCodes;
+use Lenorix\DatadisClient\Data\Envelope;
+use Lenorix\DatadisClient\Data\Fields;
+use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
+use Lenorix\DatadisClient\Http\GuzzleClientFactory;
+use Lenorix\DatadisClient\PublicApi\PublicApi;
+use Lenorix\DatadisClient\Time\DatadisDate;
+use Lenorix\DatadisClient\Time\MonthPlanner;
+use Lenorix\DatadisClient\Time\TimeInstant;
+use Lenorix\DatadisClient\Time\WallClock;
 
 it('will not use debugging functions')
     ->expect(['dd', 'dump', 'ray'])
@@ -25,3 +35,25 @@ arch('every exception extends DatadisException')
     ->expect('Lenorix\DatadisClient\Exceptions')
     ->toExtend(DatadisException::class)
     ->ignoring(DatadisException::class);
+
+arch('only the default wiring knows about Guzzle')
+    ->expect('GuzzleHttp')
+    ->toOnlyBeUsedIn([
+        GuzzleClientFactory::class,
+        DatadisClient::class,
+        PublicApi::class,
+    ]);
+
+arch('results and values are immutable')
+    ->expect(['Lenorix\DatadisClient\Data', 'Lenorix\DatadisClient\Values', 'Lenorix\DatadisClient\Time'])
+    ->classes()
+    ->toBeReadonly()
+    ->ignoring([
+        Envelope::class,
+        Fields::class,
+        DistributorCodes::class,
+        WallClock::class,
+        DatadisDate::class,
+        TimeInstant::class,
+        MonthPlanner::class,
+    ]);
