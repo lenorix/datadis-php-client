@@ -119,3 +119,11 @@ it('stops walking at the page limit', function () {
 it('builds with the default Guzzle transport and default settings', function () {
     expect(new PublicApi)->toBeInstanceOf(PublicApi::class);
 });
+
+it('yields unique keys across pages so iterator_to_array keeps every record', function () {
+    $page = fn (int $n) => json_encode(array_fill(0, $n, ['sumEnergy' => 1]));
+    $http = (new FakeHttpClient)->queue(Responses::json($page(2)), Responses::json($page(2)), Responses::json($page(1)));
+    $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], pageSize: 2);
+
+    expect(iterator_to_array(publicApi($http)->searchAll($query)))->toHaveCount(5);
+});

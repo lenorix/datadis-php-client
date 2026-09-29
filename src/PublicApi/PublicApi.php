@@ -100,10 +100,15 @@ final class PublicApi
      */
     private function walk(callable $fetch, int $firstPage, int $pageSize, int $maxPages): Generator
     {
+        $key = 0;
+
         for ($read = 0, $page = $firstPage; $read < $maxPages; $read++, $page++) {
             $result = $fetch($page);
 
-            yield from $result->records;
+            // Plain yields with a running key: `yield from` would restart keys at 0 on every page.
+            foreach ($result->records as $record) {
+                yield $key++ => $record;
+            }
 
             if ($result->count() + $result->skippedRows < $pageSize) {
                 return;

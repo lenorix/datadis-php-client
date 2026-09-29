@@ -176,3 +176,24 @@ it('reads Retry-After as an HTTP date', function () {
 
     expect($sleeps)->toBe([5000, 0]);
 });
+
+it('reads a Retry-After date as GMT whatever the default time zone', function () {
+    $previous = date_default_timezone_get();
+    date_default_timezone_set('America/New_York');
+
+    try {
+        $http = new FakeHttpClient;
+        $sleeps = [];
+        $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00 UTC'));
+        $client = new RetryingClient($http, 1, 1000, 30000, sleep: function (int $ms) use (&$sleeps) {
+            $sleeps[] = $ms;
+        }, clock: $clock);
+        $http->queue(Responses::text('', 503, ['Retry-After' => 'Tue, 15 Sep 2026 10:00:05 GMT']), Responses::json('[]'));
+
+        $client->sendRequest(get(SAFE));
+
+        expect($sleeps)->toBe([5000]);
+    } finally {
+        date_default_timezone_set($previous);
+    }
+});

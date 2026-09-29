@@ -6,6 +6,7 @@ namespace Lenorix\DatadisClient\Http;
 
 use Closure;
 use DateTimeImmutable;
+use DateTimeZone;
 use InvalidArgumentException;
 use Lenorix\DatadisClient\Auth\SystemClock;
 use Psr\Clock\ClockInterface;
@@ -149,7 +150,8 @@ final class RetryingClient implements ClientInterface
             return (int) $value * 1000;
         }
 
-        $date = DateTimeImmutable::createFromFormat(DATE_RFC7231, $value);
+        // The format has GMT as a literal, so the zone must be given or the host default would be used.
+        $date = DateTimeImmutable::createFromFormat(DATE_RFC7231, $value, new DateTimeZone('GMT'));
 
         if ($date === false) {
             return null;
