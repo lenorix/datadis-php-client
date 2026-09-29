@@ -19,4 +19,5 @@ Found by an independent review in M6 (all confirmed by running code unless noted
 
 - ~~Coverage target~~ done: 100 % lines, enforced at 98 % minimum by `composer test-coverage` and in CI (pcov). PHPStan runs at level max in CI through `phpstan.neon.dist`.
 - Pest mutation testing reported 100 % in parallel mode; that result looks unreliable and must be rechecked per class without `--parallel` (it is slow: run it in the background).
-- README (usage, custom PSR-18 client, errors, the 24 h rule, unverified parts), CHANGELOG.
+- ~~README and CHANGELOG~~ done; the README examples were run against the fake HTTP client.
+- Lowest dependencies (`composer update --prefer-lowest`: Pest 4.0.0, PHPUnit 12.3, Guzzle 8.2.0, brick/math 1.0.0) pass the whole suite.
