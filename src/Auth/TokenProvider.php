@@ -15,6 +15,7 @@ use Lenorix\DatadisClient\Http\Transport;
 use Lenorix\DatadisClient\Support\PersonalDataRedactor;
 use Psr\Clock\ClockInterface;
 use Psr\SimpleCache\CacheInterface;
+use Throwable;
 
 /**
  * Logs in and keeps the token until shortly before it expires.
@@ -54,12 +55,24 @@ final class TokenProvider
         $this->cacheKey = 'datadis_token_'.substr(hash('sha256', $config->baseUrl."\n".$config->username), 0, 40);
     }
 
+    /**
+     * The cache is only an optimisation: a store that fails or holds something that is not a
+     * usable token never breaks a call, it just means logging in again.
+     */
     public function token(): string
     {
-        $cached = $this->cache->get($this->cacheKey);
+        try {
+            $cached = $this->cache->get($this->cacheKey);
+        } catch (Throwable) {
+            $cached = null;
+        }
 
-        if (is_string($cached) && $cached !== '') {
+        if (is_string($cached) && self::clean($cached) === $cached) {
             return $cached;
+        }
+
+        if ($cached !== null) {
+            $this->invalidate();
         }
 
         $token = $this->login();
@@ -68,7 +81,11 @@ final class TokenProvider
         $ttl = $expiry - $this->clock->now()->getTimestamp() - self::SKEW_SECONDS;
 
         if ($ttl > 0) {
-            $this->cache->set($this->cacheKey, $token, $ttl);
+            try {
+                $this->cache->set($this->cacheKey, $token, $ttl);
+            } catch (Throwable) {
+                // Not cached: the next call logs in again.
+            }
         }
 
         return $token;
@@ -76,7 +93,11 @@ final class TokenProvider
 
     public function invalidate(): void
     {
-        $this->cache->delete($this->cacheKey);
+        try {
+            $this->cache->delete($this->cacheKey);
+        } catch (Throwable) {
+            // Nothing else to do: a stale token is detected by the 401 it causes.
+        }
     }
 
     private function login(): string

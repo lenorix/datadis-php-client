@@ -8,6 +8,8 @@ use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\TransportException;
+use Lenorix\DatadisClient\Http\Transport;
+use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Stack;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
@@ -172,3 +174,18 @@ it('reports the call as sent when the network fails while logging in again', fun
 
     throw new LogicException('Expected an exception.');
 });
+
+it('wraps whatever a misbehaving HTTP client throws', function (bool $preflight) {
+    $transport = new Transport((new FakeHttpClient)->queue(new RuntimeException('boom ES0031300000000001JN0F')));
+
+    try {
+        $transport->send(new Request('GET', 'https://datadis.test/x'), 'get-supplies-v2', $preflight);
+    } catch (TransportException $e) {
+        expect($e->requestSent)->toBe(! $preflight)
+            ->and($e->getMessage().$e->detail)->not->toContain('ES0031300000000001JN0F');
+
+        return;
+    }
+
+    throw new LogicException('Expected a TransportException.');
+})->with([true, false]);

@@ -38,6 +38,7 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\SimpleCache\CacheInterface;
+use SensitiveParameter;
 
 /**
  * Client of the Datadis private API.
@@ -293,7 +294,7 @@ final class DatadisClient
      * @param  array<string, string|int|list<string>|null>  $query
      * @return array<array-key, mixed>
      */
-    private function get(string $name, array $query): array
+    private function get(string $name, #[SensitiveParameter] array $query): array
     {
         $endpoint = $this->endpoint($name);
 
@@ -318,7 +319,11 @@ final class DatadisClient
             return $this->caller->get(self::API.$endpoint, $query, $endpoint);
         } catch (DatadisException $e) {
             if (! $e->requestSent) {
-                $this->ledger->forget($account, $query);
+                try {
+                    $this->ledger->forget($account, $query);
+                } catch (\Throwable) {
+                    // The original failure matters more; the entry expires with the window.
+                }
             }
 
             throw $e;

@@ -11,6 +11,7 @@ use LogicException;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use SensitiveParameter;
 
 /**
  * Builds the PSR-7 requests Datadis needs, with the headers it insists on.
@@ -57,7 +58,7 @@ final class RequestFactory
      * @param  array<string, string|int|list<string>|null>  $query  null values and empty lists are dropped;
      *                                                              a list repeats the key once per item
      */
-    public function get(string $path, array $query, string $token): RequestInterface
+    public function get(string $path, #[SensitiveParameter] array $query, #[SensitiveParameter] string $token): RequestInterface
     {
         if (preg_match('/^[A-Za-z0-9._~+\/=-]+$/D', $token) !== 1) {
             throw new InvalidArgumentException('The token contains characters that are not allowed in a header.');
@@ -71,7 +72,7 @@ final class RequestFactory
      *
      * @param  array<string, string|int|list<string>|null>  $query
      */
-    public function publicGet(string $path, array $query): RequestInterface
+    public function publicGet(string $path, #[SensitiveParameter] array $query): RequestInterface
     {
         $queryString = self::queryString($query);
         $uri = $this->settings->baseUrl.$path.($queryString === '' ? '' : '?'.$queryString);
@@ -81,7 +82,7 @@ final class RequestFactory
     }
 
     /** @param  array<string, mixed>  $query */
-    private static function queryString(array $query): string
+    private static function queryString(#[SensitiveParameter] array $query): string
     {
         $pairs = [];
 

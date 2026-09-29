@@ -35,7 +35,7 @@ final readonly class RequestFingerprinter
     }
 
     /** @param array<string, mixed> $query the query as sent, null for omitted parameters */
-    public function fingerprint(string $account, array $query): string
+    public function fingerprint(string $account, #[SensitiveParameter] array $query): string
     {
         $values = [];
         foreach (self::PARAMETERS as $name) {

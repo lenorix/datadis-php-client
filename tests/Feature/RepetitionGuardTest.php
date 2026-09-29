@@ -8,11 +8,13 @@ use Lenorix\DatadisClient\Auth\InMemoryCache;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
+use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
+use Lenorix\DatadisClient\Tests\Support\QuirkyCache;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
@@ -143,4 +145,32 @@ it('works without a ledger, sending whatever it is asked', function () use ($con
     $consumption($s->client);
 
     expect($s->http->requests())->toHaveCount(3);
+});
+
+it('sends nothing when the ledger cannot record the attempt', function () use ($consumption) {
+    $http = new FakeHttpClient;
+    $clock = new FrozenClock;
+    $ledger = new RequestLedger(new QuirkyCache(failSet: true), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+
+    expect(fn () => $consumption($client))->toThrow(LedgerUnavailableException::class)
+        ->and($http->requests())->toBe([]);
+});
+
+it('does not keep a query blocked when the token store fails before sending', function () use ($consumption) {
+    $http = new FakeHttpClient;
+    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $client = new DatadisClient(
+        new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'),
+        http: $http,
+        tokenCache: new QuirkyCache(throwOnGet: true, throwOnSet: true),
+        clock: $clock,
+        ledger: $ledger,
+    );
+    $http->queue(login($clock), Responses::json('{"timeCurve":[]}'));
+
+    $consumption($client);
+
+    expect($http->requests())->toHaveCount(2);
 });

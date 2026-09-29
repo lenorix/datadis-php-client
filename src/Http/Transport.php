@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Http;
 
 use Lenorix\DatadisClient\Exceptions\TransportException;
-use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use SensitiveParameter;
+use Throwable;
 
 /**
  * Sends a request through the PSR-18 client and turns any client failure into a TransportException.
@@ -24,11 +25,13 @@ final class Transport
      * @param  bool  $preflight  true for calls made before the data request (login): a failure there
      *                           means the data request was never sent.
      */
-    public function send(RequestInterface $request, string $endpoint, bool $preflight = false): ResponseInterface
+    public function send(#[SensitiveParameter] RequestInterface $request, string $endpoint, bool $preflight = false): ResponseInterface
     {
         try {
             return $this->http->sendRequest($request);
-        } catch (ClientExceptionInterface $e) {
+        } catch (Throwable $e) {
+            // A PSR-18 client should only throw ClientExceptionInterface, but a misbehaving one must
+            // not break the exception contract of this package either.
             throw new TransportException(
                 "{$endpoint}: the HTTP client failed before an answer arrived (".$e::class.').',
                 detail: $e->getMessage(),

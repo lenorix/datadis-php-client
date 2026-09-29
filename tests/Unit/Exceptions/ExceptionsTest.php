@@ -7,6 +7,7 @@ use Lenorix\DatadisClient\Exceptions\AuthorizationException;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
+use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
@@ -25,6 +26,7 @@ it('extends DatadisException, which is a RuntimeException', function (string $cl
     AuthorizationException::class,
     ConfigurationException::class,
     InvalidRequestException::class,
+    LedgerUnavailableException::class,
     NoDataException::class,
     RepetitionWindowException::class,
     RequestRejectedException::class,
@@ -43,6 +45,7 @@ it('assumes the request was sent unless it is a pre-flight failure', function ()
         ->and((new TransportException('x'))->requestSent)->toBeTrue()
         ->and((new ConfigurationException('x'))->requestSent)->toBeFalse()
         ->and((new InvalidRequestException('x'))->requestSent)->toBeFalse()
+        ->and((new LedgerUnavailableException('x'))->requestSent)->toBeFalse()
         ->and((new UnsupportedOperationException('x'))->requestSent)->toBeFalse()
         ->and((new AuthenticationException('x', requestSent: false))->requestSent)->toBeFalse();
 });

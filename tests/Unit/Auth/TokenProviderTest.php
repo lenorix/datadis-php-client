@@ -12,6 +12,7 @@ use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\TransportException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
+use Lenorix\DatadisClient\Tests\Support\QuirkyCache;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Stack;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
@@ -176,3 +177,35 @@ it('never puts the password or the token in an exception message', function () {
 
     throw new LogicException('Expected an exception.');
 });
+
+it('treats an unreadable token store as empty and still logs in', function () {
+    $stack = new Stack(cache: new QuirkyCache(throwOnGet: true, throwOnSet: true));
+    $stack->http->queue($stack->loginOk(subject: 'fresh'));
+
+    expect($stack->tokens->token())->toBeString()->and($stack->http->requests())->toHaveCount(1);
+});
+
+it('ignores a token store that refuses to save', function () {
+    $stack = new Stack(cache: new QuirkyCache(failSet: true));
+    $stack->http->queue($stack->loginOk(), $stack->loginOk());
+
+    $stack->tokens->token();
+    $stack->tokens->token();
+
+    expect($stack->http->requests())->toHaveCount(2);
+});
+
+it('drops a cached value that is not a usable token and logs in again', function (mixed $poison) {
+    $cache = new QuirkyCache;
+    $stack = new Stack(cache: $cache);
+    $stack->http->queue($stack->loginOk());
+    $stack->tokens->token();
+    foreach (array_keys($cache->items) as $key) {
+        $cache->items[$key] = $poison;
+    }
+    $stack->http->queue($stack->loginOk(subject: 'again'));
+
+    $token = $stack->tokens->token();
+
+    expect($token)->toMatch('/^[A-Za-z0-9._~+\/=-]+$/')->and($stack->http->requests())->toHaveCount(2);
+})->with([['Bearer abc'], ["abc\r\nX: y"], [''], [123], [['x']]]);

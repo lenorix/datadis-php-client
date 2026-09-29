@@ -65,7 +65,7 @@ The client does **not** embed job-level retry policy. It offers an opt-in decora
 
 ### How the guard is wired
 
-`DatadisClient` takes an optional `RequestLedger`. For consumption, max power and reactive it refuses locally (a `RepetitionWindowException` with `requestSent = false` and no HTTP status) a query attempted in the window, records the attempt before sending, and forgets it only for failures with `requestSent = false`. Without a ledger the client sends whatever it is asked. The ledger only sees attempts made through a store it shares, so every process using the same account must use the same PSR-16 store.
+`DatadisClient` takes an optional `RequestLedger`. For consumption, max power and reactive it refuses locally (a `RepetitionWindowException` with `requestSent = false` and no HTTP status) a query attempted in the window, records the attempt before sending, and forgets it only for failures with `requestSent = false`. Without a ledger the client sends whatever it is asked. The ledger only sees attempts made through a store it shares, so every process using the same account must use the same PSR-16 store. Checking and recording are two separate store calls (PSR-16 has no add-if-absent), so two workers racing on the same query can both send it; serialise such work per account if that matters. If the store cannot be read or written the query is not sent (`LedgerUnavailableException`).
 
 A data request that got a 401 was sent: if logging in again then fails, the failure is reported as an `AuthenticationException` with `requestSent = true`, never as the unsent login failure.
 

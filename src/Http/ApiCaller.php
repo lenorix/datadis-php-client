@@ -8,6 +8,7 @@ use Lenorix\DatadisClient\Auth\TokenProvider;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Psr\Http\Message\ResponseInterface;
+use SensitiveParameter;
 
 /**
  * Makes an authenticated GET.
@@ -28,7 +29,7 @@ final class ApiCaller
      * @param  array<string, string|int|list<string>|null>  $query
      * @return array<array-key, mixed> the decoded JSON
      */
-    public function get(string $path, array $query, string $endpoint): array
+    public function get(string $path, #[SensitiveParameter] array $query, string $endpoint): array
     {
         return ResponseClassifier::decode($this->send($path, $query, $endpoint), $endpoint);
     }
@@ -38,13 +39,13 @@ final class ApiCaller
      *
      * @param  array<string, string|int|list<string>|null>  $query
      */
-    public function getText(string $path, array $query, string $endpoint): string
+    public function getText(string $path, #[SensitiveParameter] array $query, string $endpoint): string
     {
         return ResponseClassifier::assertSuccessful($this->send($path, $query, $endpoint), $endpoint);
     }
 
     /** @param  array<string, string|int|list<string>|null>  $query */
-    private function send(string $path, array $query, string $endpoint): ResponseInterface
+    private function send(string $path, #[SensitiveParameter] array $query, string $endpoint): ResponseInterface
     {
         $response = $this->transport->send($this->requests->get($path, $query, $this->tokens->token()), $endpoint);
 
