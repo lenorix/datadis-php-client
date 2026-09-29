@@ -155,3 +155,32 @@ it('never sends a request when the month range is invalid', function () {
             }
         });
 });
+
+it('reads any reactive or distributors payload as a result or a DatadisException', function () {
+    $this->limitTo(pbtIterations())
+        ->forAll(
+            Generators::oneOf(
+                junkValue(),
+                Generators::seq(junkValue()),
+                Generators::associative(['reactiveEnergy' => Generators::oneOf(junkValue(), junkRow(), Generators::seq(junkRow())), 'distributorError' => junkValue()]),
+                Generators::associative(['distExistenceUser' => Generators::oneOf(junkValue(), Generators::seq(junkValue())), 'distributorError' => junkValue()]),
+                Generators::associative(['distributorCodes' => Generators::oneOf(junkValue(), Generators::seq(junkValue()))]),
+                Generators::associative(['energy' => Generators::seq(junkRow())]),
+            ),
+            Generators::bool(),
+        )
+        ->then(function (mixed $payload, bool $reactive) {
+            $s = Scenario::make();
+            $s->http->queue(Responses::json((string) json_encode($payload, JSON_PARTIAL_OUTPUT_ON_ERROR)));
+
+            try {
+                $result = $reactive
+                    ? $s->client->reactive(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1))
+                    : $s->client->distributors();
+
+                expect($result->records)->toBeArray();
+            } catch (DatadisException $e) {
+                expect($e->requestSent)->toBeTrue();
+            }
+        });
+});

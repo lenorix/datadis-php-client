@@ -31,3 +31,9 @@ it('exposes the 25 hourly buckets, the 25th being the extra hour of the autumn c
 it('returns null buckets when there are none', function () {
     expect(PublicRecord::fromRow(['x' => 1])->hourly())->toBe(array_fill(1, 25, null));
 });
+
+it('reads an absurd number as missing instead of failing', function () {
+    $record = PublicRecord::fromRow(['sumEnergy' => '1e99999999999999999999', 'mi1' => '1e1000']);
+
+    expect($record->decimal('sumEnergy'))->toBeNull()->and($record->hourly()[1])->toBeNull();
+});

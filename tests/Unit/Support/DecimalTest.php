@@ -22,3 +22,18 @@ it('scales numbers with half-up rounding', function (int|float|string $input, in
 it('rejects values that are not finite numbers', function (mixed $input) {
     Decimal::of($input, 3);
 })->with([[NAN], [INF], [-INF], ['abc'], [''], ['1,5'], [true], [null], [[]]])->throws(InvalidArgumentException::class);
+
+it('refuses numeric strings that would take huge time or memory', function (string $input) {
+    expect(Decimal::isNumeric($input))->toBeFalse();
+    Decimal::of($input, 3);
+})->with([
+    'huge exponent' => ['1e99999999999999999999'],
+    'four digit exponent' => ['1e1000'],
+    'long digits' => [str_repeat('9', 65)],
+])->throws(InvalidArgumentException::class);
+
+it('still accepts every exponent a float can have', function () {
+    expect(Decimal::of('1e308', 0))->toStartWith('1000')
+        ->and(Decimal::of('-1.5E-10', 3))->toBe('0.000')
+        ->and(Decimal::of(PHP_FLOAT_MAX, 0))->toStartWith('1797');
+});

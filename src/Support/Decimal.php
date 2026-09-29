@@ -15,6 +15,8 @@ final class Decimal
 
     public const int POWER_SCALE = 2;
 
+    private const int MAX_LENGTH = 64;
+
     public static function of(mixed $value, int $scale): string
     {
         return BigDecimal::of(self::literal($value))->toScale($scale, RoundingMode::HalfUp)->toString();
@@ -46,7 +48,9 @@ final class Decimal
             return json_encode($value, JSON_THROW_ON_ERROR);
         }
 
-        if (is_string($value) && preg_match('/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/D', $value) === 1) {
+        // Bounded on purpose: an exponent like 1e300000000 would need gigabytes of digits. Three
+        // exponent digits cover every float, and no real value needs more than 64 characters.
+        if (is_string($value) && strlen($value) <= self::MAX_LENGTH && preg_match('/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d{1,3})?$/D', $value) === 1) {
             return $value;
         }
 

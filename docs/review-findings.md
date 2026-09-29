@@ -7,8 +7,8 @@ Found by an independent review in M6 (all confirmed by running code unless noted
 3. ~~Autumn DST intervals are wrong~~ fixed: labels resolve to every instant they can name (offset in effect just before the end of the interval) and the client picks by order of appearance; widths use elapsed time. A label in the skipped hour or a third repetition has no interval.
 4. ~~Retry-After date parsed in the host time zone~~ fixed.
 5. ~~`searchAll` repeats generator keys~~ fixed.
-6. **Unbounded decimal exponents.** `Decimal` accepts `"1e99999999999999999999"` (raw `NumberFormatException` from `reactive()`, `PublicRecord`, `AccessTariff`) and `"1e300000000"` (out of memory). Bound the exponent; make `Fields` readers never throw; wrap `ReactiveEnergy::fromRow` like `Envelope` rows.
-7. **Unexpected shapes become empty results**: `reactive()` with `{"message":...}`, `{"foo":1}`, a bare list or `reactiveEnergy` as a list; `distributors()` with `["2","5"]` or `{"distExistenceUser":["2","5"]}`; `distributorError` as a single object is dropped.
+6. ~~Unbounded decimal exponents~~ fixed: numeric strings are limited to 64 characters and a three digit exponent; reactive decoding has the same boundary as the other endpoints.
+7. ~~Unexpected shapes become empty results~~ fixed: every known shape of reactive and distributor answers is read (including lists of codes and `reactiveEnergy` as a list), anything else is an `UninterpretableResponseException`, and a single `distributorError` object is kept.
 8. **Window checked in the client zone.** With Atlantic/Canary at 23:30 on the last day of a month, the history window is one month off compared with Madrid time (assuming Datadis evaluates in Madrid time).
 9. ~~CUPS and NIF in stack trace arguments~~ fixed with `#[SensitiveParameter]` on queries, requests and tokens. `Cups` and `Nif` objects still appear as objects in trace arguments.
 10. Nit: redactor misses `12345678-Z`, `X-1234567-L` and NIFs glued to letters.

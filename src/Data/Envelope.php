@@ -94,6 +94,11 @@ final class Envelope
             return [];
         }
 
+        // Documented as a list, but a single error object must not be lost.
+        if ($raw !== [] && ! array_is_list($raw)) {
+            $raw = [$raw];
+        }
+
         $errors = [];
         foreach ($raw as $item) {
             if (is_array($item)) {

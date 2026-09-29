@@ -35,3 +35,21 @@ it('always produces a plain decimal string with the requested scale', function (
             expect($result)->toMatch($pattern);
         });
 });
+
+it('never fails in any other way than InvalidArgumentException on arbitrary strings', function () {
+    $this->limitTo(pbtIterations())
+        ->forAll(Generators::oneOf(
+            Generators::string(),
+            Generators::map(fn (array $p) => $p[0].'e'.$p[1], Generators::tuple(Generators::choose(-99, 99), Generators::choose(-99999, 99999))),
+        ))
+        ->then(function (string $value) {
+            $numeric = Decimal::isNumeric($value);
+
+            try {
+                $result = Decimal::of($value, 3);
+                expect($numeric)->toBeTrue()->and($result)->toMatch('/^-?\d+\.\d{3}$/');
+            } catch (InvalidArgumentException) {
+                expect($numeric)->toBeFalse();
+            }
+        });
+});

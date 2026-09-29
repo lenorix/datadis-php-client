@@ -12,6 +12,7 @@ use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Exceptions\TransportException;
+use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\Payloads;
@@ -328,4 +329,69 @@ it('flags a third repetition and a label in the skipped hour instead of inventin
     $readings = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2025, 10), Month::of(2026, 3))->records;
 
     expect(array_map(fn ($r) => $r->hasValidTime(), $readings))->toBe([true, true, false, false]);
+});
+
+it('skips a row with an absurd number instead of failing the whole answer', function () {
+    [$client, $http] = scenario();
+    $http->queue(Responses::json(Payloads::envelope('timeCurve', [
+        ['date' => '2026/01/01', 'time' => '01:00', 'consumptionKWh' => '1e99999999999999999999'],
+        ['date' => '2026/01/01', 'time' => '02:00', 'consumptionKWh' => 0.5],
+    ])));
+
+    $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+
+    expect($result->records)->toHaveCount(1)->and($result->skippedRows)->toBe(1);
+});
+
+it('reads reactive energy tolerantly but never turns an unknown answer into an empty result', function (string $body, ?int $records) {
+    [$client, $http] = scenario();
+    $http->queue(Responses::json($body));
+    $call = fn () => $client->reactive(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
+
+    if ($records === null) {
+        expect($call)->toThrow(UninterpretableResponseException::class);
+
+        return;
+    }
+
+    expect($call()->records)->toHaveCount($records);
+})->with([
+    'message only' => ['{"message":"Internal error"}', null],
+    'unknown object' => ['{"foo":1}', null],
+    'bare list' => ['[{"cups":"x","energy":[]}]', null],
+    'reactive energy is a scalar' => ['{"reactiveEnergy":"x"}', null],
+    'reactive energy as a list' => ['{"reactiveEnergy":[{"cups":"x","energy":[{"date":"2026/01","energy_p1":1}]},{"cups":"y"}]}', 2],
+    'empty list of reactive energy' => ['{"reactiveEnergy":[]}', 0],
+    'only distributor errors' => ['{"distributorError":[{"errorCode":"1"}]}', 0],
+    'empty answer' => ['[]', 0],
+    'absurd number' => ['{"reactiveEnergy":{"cups":"x","energy":[{"date":"2026/01","energy_p1":"1e99999999999999999999"}]}}', 1],
+]);
+
+it('reads distributor codes in every shape seen and refuses unknown ones', function (string $body, ?array $codes) {
+    [$client, $http] = scenario();
+    $http->queue(Responses::json($body));
+
+    if ($codes === null) {
+        expect(fn () => $client->distributors())->toThrow(UninterpretableResponseException::class);
+
+        return;
+    }
+
+    expect($client->distributors()->records)->toBe($codes);
+})->with([
+    'bare list of codes' => ['["2","5"]', ['2', '5']],
+    'numbers' => ['[2,5]', ['2', '5']],
+    'list under distExistenceUser' => ['{"distExistenceUser":["2","5"]}', ['2', '5']],
+    'object without codes' => ['{"distExistenceUser":{"other":1}}', null],
+    'unknown object' => ['{"foo":1}', null],
+    'codes is a scalar' => ['{"distributorCodes":"2"}', null],
+]);
+
+it('keeps a distributor error sent as a single object', function () {
+    [$client, $http] = scenario();
+    $http->queue(Responses::json('{"timeCurve":[],"distributorError":{"distributorCode":"2","errorCode":"50","errorDescription":"Error interno distribuidora"}}'));
+
+    $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+
+    expect($result->isEmptyBecauseOfErrors())->toBeTrue()->and($result->distributorErrors[0]->errorCode)->toBe('50');
 });

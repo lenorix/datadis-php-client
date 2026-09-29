@@ -22,7 +22,6 @@ use Lenorix\DatadisClient\Data\Supply;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
-use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Http\ApiCaller;
@@ -213,7 +212,7 @@ final class DatadisClient
 
     /**
      * Reactive energy between two whole months (v2 only). Datadis refuses the identical query for 24 hours.
-     * The result holds zero or one ReactiveEnergy.
+     * The result usually holds zero or one ReactiveEnergy.
      *
      * @return ApiResult<ReactiveEnergy>
      */
@@ -234,16 +233,7 @@ final class DatadisClient
             'authorizedNif' => $this->authorized($authorizedNif),
         ]);
 
-        $endpoint = $this->endpoint('get-reactive-data');
-        $object = $decoded['reactiveEnergy'] ?? [];
-
-        if (! is_array($object)) {
-            throw new UninterpretableResponseException("{$endpoint}: \"reactiveEnergy\" is not an object.", endpoint: $endpoint);
-        }
-
-        $reactive = ReactiveEnergy::fromRow($object);
-
-        return new ApiResult($reactive === null ? [] : [$reactive], Envelope::distributorErrors($decoded), 0, $decoded);
+        return ReactiveEnergy::result($decoded, $this->endpoint('get-reactive-data'));
     }
 
     /**

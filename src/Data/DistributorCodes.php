@@ -21,21 +21,14 @@ final class DistributorCodes
      */
     public static function result(array $decoded, string $endpoint): ApiResult
     {
-        $lists = [];
-
-        if ($decoded !== [] && array_is_list($decoded)) {
-            foreach ($decoded as $item) {
-                if (is_array($item)) {
-                    $lists[] = $item['distributorCodes'] ?? [];
-                }
-            }
-        } elseif (isset($decoded['distExistenceUser']) && is_array($decoded['distExistenceUser'])) {
-            $lists[] = $decoded['distExistenceUser']['distributorCodes'] ?? [];
-        } elseif (array_key_exists('distributorCodes', $decoded)) {
-            $lists[] = $decoded['distributorCodes'];
-        } elseif ($decoded !== [] && ! array_key_exists('distributorError', $decoded) && ! array_key_exists('distExistenceUser', $decoded)) {
-            throw new UninterpretableResponseException("{$endpoint}: the answer has no distributor codes.", endpoint: $endpoint);
-        }
+        $lists = match (true) {
+            $decoded === [] => [],
+            array_is_list($decoded) => self::fromList($decoded, $endpoint),
+            array_key_exists('distExistenceUser', $decoded) => [self::codesOf($decoded['distExistenceUser'], $endpoint)],
+            array_key_exists('distributorCodes', $decoded) => [$decoded['distributorCodes']],
+            array_key_exists('distributorError', $decoded) => [],
+            default => throw new UninterpretableResponseException("{$endpoint}: the answer has no distributor codes.", endpoint: $endpoint),
+        };
 
         $codes = [];
         $skipped = 0;
@@ -59,5 +52,38 @@ final class DistributorCodes
         }
 
         return new ApiResult($codes, Envelope::distributorErrors($decoded), $skipped, $decoded);
+    }
+
+    /**
+     * A list of codes, or a list of objects that each carry `distributorCodes`.
+     *
+     * @param  list<mixed>  $items
+     * @return list<mixed>
+     */
+    private static function fromList(array $items, string $endpoint): array
+    {
+        $lists = [];
+        $scalars = [];
+
+        foreach ($items as $item) {
+            if (is_array($item)) {
+                $lists[] = self::codesOf($item, $endpoint);
+            } else {
+                $scalars[] = $item;
+            }
+        }
+
+        return $scalars === [] ? $lists : [...$lists, $scalars];
+    }
+
+    /** The codes of `{"distributorCodes": [...]}`, of a plain list, or nothing for an empty value. */
+    private static function codesOf(mixed $value, string $endpoint): mixed
+    {
+        return match (true) {
+            $value === null, $value === [] => [],
+            is_array($value) && array_is_list($value) => $value,
+            is_array($value) && array_key_exists('distributorCodes', $value) => $value['distributorCodes'],
+            default => throw new UninterpretableResponseException("{$endpoint}: the answer has no distributor codes.", endpoint: $endpoint),
+        };
     }
 }
