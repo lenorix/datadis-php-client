@@ -1,0 +1,50 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Lenorix\DatadisClient\Time;
+
+use DateTimeImmutable;
+use InvalidArgumentException;
+
+/**
+ * A quarter-hourly consumption label (`measurementType=1`), assumed to mark the END of a 15 minute
+ * interval, from `00:15` to `24:00`.
+ *
+ * UNVERIFIED: no source documents the real quarter-hourly format. This follows the hourly convention.
+ */
+final readonly class QuarterHourLabel
+{
+    private function __construct(private int $minutes) {}
+
+    public static function tryParse(string $label): ?self
+    {
+        if (preg_match('/^(\d{2}):(00|15|30|45)$/D', $label, $m) !== 1) {
+            return null;
+        }
+
+        $minutes = (int) $m[1] * 60 + (int) $m[2];
+
+        return $minutes >= 15 && $minutes <= 1440 ? new self($minutes) : null;
+    }
+
+    public static function parse(string $label): self
+    {
+        return self::tryParse($label) ?? throw new InvalidArgumentException('Not a quarter-hourly label between 00:15 and 24:00.');
+    }
+
+    /** Quarter of the day the label describes, 0 to 95. */
+    public function index(): int
+    {
+        return intdiv($this->minutes, 15) - 1;
+    }
+
+    /** @return array{DateTimeImmutable, DateTimeImmutable} */
+    public function interval(DateTimeImmutable $day): array
+    {
+        return [
+            WallClock::at($day, $this->minutes - 15),
+            WallClock::at($day, $this->minutes),
+        ];
+    }
+}
