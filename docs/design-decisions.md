@@ -57,7 +57,7 @@ Redaction happens in the base class (shape-based), so a subclass that interpolat
 
 ## Retries
 
-The client does **not** embed job-level retry policy. It offers an opt-in decorator that, for **unguarded** endpoints only (supplies, distributors, contract detail, login), retries network exceptions and 502/503/504 with exponential backoff and jitter (honouring `Retry-After` clamped to 1 s-1 h if present). It never retries 4xx. On guarded endpoints (consumption, max power, reactive) it never retries automatically once the request may have been sent, including network exceptions. Sleep goes through an injectable callable so tests do not wait.
+The client does **not** embed job-level retry policy. It offers an opt-in decorator that, for **unguarded** endpoints only (supplies, distributors, contract detail, login), retries network exceptions and 502/503/504 with exponential backoff and equal jitter, honouring `Retry-After` (seconds or HTTP date) unless it asks for more than the maximum wait, in which case the answer is returned as is. It never retries 4xx nor a plain 500 (Datadis answers an empty 500 consistently for some supplies). The authorization changes are never retried either. On guarded endpoints (consumption, max power, reactive) it never retries automatically once the request may have been sent, including network exceptions. Sleep goes through an injectable callable so tests do not wait.
 
 ## The 24 h guard (optional)
 
