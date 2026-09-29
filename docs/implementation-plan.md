@@ -2,6 +2,10 @@
 
 Namespace `Lenorix\DatadisClient`. Every milestone follows TDD (red, green, refactor), ends with the full suite green and Pint clean, and is one commit. Test files mirror `src/` under `tests/Unit`, `tests/Feature` (client against a fake PSR-18) and `tests/Property` (Eris). Design rationale lives in [design-decisions.md](design-decisions.md).
 
+## Status
+
+All milestones M0 to M6 are done. M6 (review and hardening) found and fixed the defects listed in [review-findings.md](review-findings.md). The quality gates are in [testing-strategy.md](testing-strategy.md).
+
 ## Decisions taken for this plan (revisit on request)
 
 - The client supports **v1 and v2** (`ApiVersion` enum, default v2). v1 differs only in path (no `-v2` suffix) and in returning a bare JSON list without `distributorError`; reactive is v2 only. Functionality that exists only in v1 is **included**: authorization endpoints and the public API (UNVERIFIED, synthetic fixtures).
