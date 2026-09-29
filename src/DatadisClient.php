@@ -19,9 +19,12 @@ use Lenorix\DatadisClient\Data\Envelope;
 use Lenorix\DatadisClient\Data\MaxPowerReading;
 use Lenorix\DatadisClient\Data\ReactiveEnergy;
 use Lenorix\DatadisClient\Data\Supply;
+use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
+use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
+use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Http\ApiCaller;
 use Lenorix\DatadisClient\Http\GuzzleClientFactory;
 use Lenorix\DatadisClient\Http\RequestFactory;
@@ -50,6 +53,9 @@ final class DatadisClient
 {
     private const string API = '/api-private/api/';
 
+    /** The endpoints subject to the 24 hour repetition rule. */
+    private const array GUARDED = ['get-consumption-data', 'get-max-power', 'get-reactive-data'];
+
     private readonly ApiCaller $caller;
 
     private readonly ClockInterface $clock;
@@ -60,6 +66,7 @@ final class DatadisClient
      * @param  ClientInterface|null  $http  any PSR-18 client; Guzzle is used when omitted
      * @param  CacheInterface|null  $tokenCache  any PSR-16 store to share the token between processes; it holds a live credential
      * @param  DateTimeZone|null  $timeZone  zone of the civil dates and times Datadis sends: Europe/Madrid by default, Atlantic/Canary for the Canary Islands
+     * @param  RequestLedger|null  $ledger  when given, a guarded query already attempted in the last 24 hours is refused locally
      */
     public function __construct(
         private readonly DatadisConfig $config,
@@ -70,6 +77,7 @@ final class DatadisClient
         ?DateTimeZone $timeZone = null,
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
+        private readonly ?RequestLedger $ledger = null,
     ) {
         $this->clock = $clock ?? new SystemClock;
         $this->timeZone = $timeZone ?? new DateTimeZone('Europe/Madrid');
@@ -287,7 +295,34 @@ final class DatadisClient
      */
     private function get(string $name, array $query): array
     {
-        return $this->caller->get(self::API.$this->endpoint($name), $query, $this->endpoint($name));
+        $endpoint = $this->endpoint($name);
+
+        if ($this->ledger === null || ! in_array($name, self::GUARDED, true)) {
+            return $this->caller->get(self::API.$endpoint, $query, $endpoint);
+        }
+
+        $account = $this->config->username;
+        $last = $this->ledger->lastAttempt($account, $query);
+
+        if ($last !== null) {
+            throw new RepetitionWindowException(
+                "{$endpoint}: the same query was already sent at {$last->format(DATE_ATOM)}; Datadis refuses repeating it within 24 hours.",
+                endpoint: $endpoint,
+                requestSent: false,
+            );
+        }
+
+        $this->ledger->record($account, $query);
+
+        try {
+            return $this->caller->get(self::API.$endpoint, $query, $endpoint);
+        } catch (DatadisException $e) {
+            if (! $e->requestSent) {
+                $this->ledger->forget($account, $query);
+            }
+
+            throw $e;
+        }
     }
 
     private function endpoint(string $name): string

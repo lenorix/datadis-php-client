@@ -5,6 +5,7 @@ declare(strict_types=1);
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\Request;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
+use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\TransportException;
 use Lenorix\DatadisClient\Tests\Support\Responses;
@@ -138,4 +139,36 @@ it('returns the raw text of an answer that is allowed to be empty', function () 
 
     expect($stack->caller->getText('/api-private/api/cancel-authorization', [], 'cancel-authorization'))->toBe('')
         ->and($stack->http->requests())->toHaveCount(4);
+});
+
+it('reports the call as sent when logging in again after a 401 fails', function () {
+    $stack = new Stack;
+    $stack->http->queue($stack->loginOk(), Responses::text('expired', 401), Responses::text('bad credentials', 401));
+
+    try {
+        $stack->caller->get(SUPPLIES, [], 'get-consumption-data-v2');
+    } catch (AuthenticationException $e) {
+        expect($e->requestSent)->toBeTrue()
+            ->and($e->endpoint)->toBe('get-consumption-data-v2')
+            ->and($e->getPrevious())->toBeInstanceOf(AuthenticationException::class);
+
+        return;
+    }
+
+    throw new LogicException('Expected an AuthenticationException.');
+});
+
+it('reports the call as sent when the network fails while logging in again', function () {
+    $stack = new Stack;
+    $stack->http->queue($stack->loginOk(), Responses::text('expired', 401), new ConnectException('down', new Request('POST', 'https://datadis.test')));
+
+    try {
+        $stack->caller->get(SUPPLIES, [], 'get-consumption-data-v2');
+    } catch (DatadisException $e) {
+        expect($e->requestSent)->toBeTrue();
+
+        return;
+    }
+
+    throw new LogicException('Expected an exception.');
 });

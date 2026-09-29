@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Http;
 
 use Lenorix\DatadisClient\Auth\TokenProvider;
+use Lenorix\DatadisClient\Exceptions\AuthenticationException;
+use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Psr\Http\Message\ResponseInterface;
 
 /**
@@ -46,11 +48,26 @@ final class ApiCaller
     {
         $response = $this->transport->send($this->requests->get($path, $query, $this->tokens->token()), $endpoint);
 
-        if ($response->getStatusCode() === 401) {
-            $this->tokens->invalidate();
-            $response = $this->transport->send($this->requests->get($path, $query, $this->tokens->token()), $endpoint);
+        if ($response->getStatusCode() !== 401) {
+            return $response;
         }
 
-        return $response;
+        $this->tokens->invalidate();
+
+        try {
+            $token = $this->tokens->token();
+        } catch (DatadisException $e) {
+            // The data request already went out once, so whatever happens now it counts as sent.
+            throw new AuthenticationException(
+                "{$endpoint}: the token was rejected and logging in again failed.",
+                401,
+                $e->detail,
+                $endpoint,
+                requestSent: true,
+                previous: $e,
+            );
+        }
+
+        return $this->transport->send($this->requests->get($path, $query, $token), $endpoint);
     }
 }

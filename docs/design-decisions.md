@@ -63,6 +63,12 @@ The client does **not** embed job-level retry policy. It offers an opt-in decora
 
 `RequestFingerprint` builds a stable key from account, endpoint-agnostic query parameters in fixed order, with `authorizedNif` kept as `null` when omitted (sent and omitted are different calls). An optional `RequestLedger` (PSR-16 backed) registers an attempt **before** sending and **keeps it** after any failure that may have reached Datadis, including network exceptions. It forgets the attempt only for pre-flight failures (validation, login failure before the data request). The HMAC key is supplied by the caller so keys cannot be reversed to a CUPS.
 
+### How the guard is wired
+
+`DatadisClient` takes an optional `RequestLedger`. For consumption, max power and reactive it refuses locally (a `RepetitionWindowException` with `requestSent = false` and no HTTP status) a query attempted in the window, records the attempt before sending, and forgets it only for failures with `requestSent = false`. Without a ledger the client sends whatever it is asked. The ledger only sees attempts made through a store it shares, so every process using the same account must use the same PSR-16 store.
+
+A data request that got a 401 was sent: if logging in again then fails, the failure is reported as an `AuthenticationException` with `requestSent = true`, never as the unsent login failure.
+
 ## Time parsing
 
 Every row keeps the raw `time` string. Parsing depends on what was requested:
