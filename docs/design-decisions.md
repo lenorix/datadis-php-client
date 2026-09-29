@@ -74,7 +74,7 @@ Every row keeps the raw `time` string. Parsing depends on what was requested:
 
 ## Configuration
 
-Immutable `DatadisConfig`: username, password, base URL (default `https://datadis.es`), user agent, login timeout, data timeout. The password is never logged and is excluded from `__debugInfo`/string conversion.
+Immutable `DatadisConfig`: username, password, base URL (default `https://datadis.es`, HTTPS only), user agent, connect timeout and one overall timeout (PSR-18 has no per-request timeouts, so login and data calls share it). The password is kept in a closure so `var_dump`, `print_r`, `var_export` and `serialize` cannot expose it.
 
 ## Things deliberately not done
 
