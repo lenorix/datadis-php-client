@@ -1,13 +1,20 @@
 # Design decisions
 
-Proposed architecture. Each decision states the reason so it can be revisited.
+The architecture as built. Each decision states the reason so it can be revisited.
+
+## Decisions taken with the maintainer
+
+- **Both API versions are supported.** v2 is the default; v1 is available for every endpoint that has it. Functionality v2 lacks is included on its v1-style paths: authorization management and the public API. Reactive data and groups exist only in v2; the partner programme calls have no version suffix.
+- **Every endpoint in the official documentation is covered**, including groups and the partner programme. Answers the documentation does not describe are returned raw.
+- **No framework dependency.** The package must work without Laravel; applications configure it from their own settings with `fromArray()` and pass their HTTP client and cache. An architecture test keeps Laravel and Symfony classes out.
+- **Guzzle, at its latest line, is the default transport**, but the client only type-hints PSR interfaces so any PSR-18 client can replace it. That agnosticism is kept only while it causes no bugs.
+- **Decimals use `brick/math`** and are exposed as scaled strings.
 
 ## Dependencies
 
-- Runtime: PHP `^8.4`, `psr/http-client`, `psr/http-factory`, `psr/http-message`, `psr/simple-cache` (optional), `psr/clock` (optional), `brick/math` (decimals, to be confirmed in the plan).
-- Guzzle (`guzzlehttp/guzzle` + `guzzlehttp/psr7`) is the default transport, suggested rather than required if `php-http/discovery` can find any PSR-18 client. Final packaging choice is made in the plan.
-- The client class depends only on `Psr\Http\Client\ClientInterface`, `RequestFactoryInterface`, `StreamFactoryInterface` and friends. Any PSR-18 client works (Symfony HttpClient, a Laravel adapter, a test double).
-- Guzzle specifics live in one small factory: `http_errors => false`, `decode_content => false`, redirects off, explicit timeouts.
+- Runtime: PHP `^8.4`, `guzzlehttp/guzzle` `^8.2` with `guzzlehttp/psr7` `^3.1`, `brick/math` from `0.14.2` to `1.x` (the range the current Laravel accepts, so applications do not have to upgrade it), and the PSR interfaces: `psr/http-client`, `psr/http-factory`, `psr/http-message`, `psr/simple-cache`, `psr/clock`.
+- The client depends only on `Psr\Http\Client\ClientInterface`, `RequestFactoryInterface`, `StreamFactoryInterface` and friends. Any PSR-18 client works (Symfony HttpClient, Laravel's `Http::buildClient()`, a test double).
+- Guzzle specifics live in one small factory: `http_errors => false`, `decode_content => false`, redirects off, explicit timeouts. The suite runs with both the lowest and the latest allowed dependencies.
 
 ## Layers
 

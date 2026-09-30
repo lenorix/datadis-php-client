@@ -10,7 +10,7 @@ Internal notes for maintainers (human or AI) of `lenorix/datadis-client`. They c
 | [domain-knowledge.md](domain-knowledge.md) | Spanish electricity concepts needed to interpret Datadis data. |
 | [design-decisions.md](design-decisions.md) | Architecture: PSR interfaces, token cache, exceptions, retries, DTOs. |
 | [testing-strategy.md](testing-strategy.md) | TDD + property-based testing rules, fixture provenance. |
-| [open-questions.md](open-questions.md) | Unverified facts and decisions pending. |
+| [open-questions.md](open-questions.md) | What is still unknown, what the client assumes meanwhile, and how to settle it. |
 | [implementation-plan.md](implementation-plan.md) | The milestones the package was built in. |
 | [review-findings.md](review-findings.md) | Findings of the review milestone and their status. |
 

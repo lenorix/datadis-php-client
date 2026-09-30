@@ -8,7 +8,7 @@ A PHP 8.4+ package that is **only the client side of Datadis**: the code and the
 
 - Authentication and token handling (expiry-aware, cacheable).
 - Every endpoint of the private API in **both v1 and v2**: supplies, distributors with supplies, contract detail, consumption, max power (and reactive data, which exists only in v2). The caller picks the version (`ApiVersion`), v2 being the default.
-- Functionality that only exists in v1 (maintainer decision): authorization management (`new-`, `cancel-`, `list-authorization`) and the public API (`api-search`, `api-sum-search`, `api-search-auto`, `api-sum-search-auto`). Their behaviour is UNVERIFIED (see [open-questions.md](open-questions.md)).
+- Functionality that only exists in v1 (maintainer decision): authorization management (`new-`, `cancel-`, `list-authorization`) and the public API (`api-search`, `api-sum-search`, `api-search-auto`, `api-sum-search-auto`). The public API answer shapes are known from the official manual's samples; the authorization answers are not (see [open-questions.md](open-questions.md)).
 - Typed, immutable DTOs that also keep the raw payload.
 - An exception taxonomy that tells the caller what is safe to retry.
 - Generic helpers needed to interpret the data: month value object, hour-label handling, CUPS shape validation and normalisation, personal-data redaction, request fingerprinting for the 24 h rule, tariff-shape parsing.

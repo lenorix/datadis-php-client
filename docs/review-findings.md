@@ -33,7 +33,7 @@ Found by a second independent review after the fixes above. All fixed with a fai
 5. The README described the decimal scales wrongly; the unused scale constants are gone.
 6. A top-level `{}` passed as "no data". It is now an `UninterpretableResponseException` everywhere, the public API included.
 7. A reactive list with no usable entry is an error like on the other endpoints; a `distributorError` sent as text is kept; the README says which exceptions are not `DatadisException`; the Ceuta and Melilla docblock matches the table.
-8. Not changed, on purpose: quarter-hourly data is not refused locally for any point type (see [open-questions.md](open-questions.md)).
+8. Not changed, on purpose: quarter-hourly data is not refused locally for any point type (a real type 5 supply answers an empty list instead of refusing; see [open-questions.md](open-questions.md)).
 
 ## Bugs of other implementations checked
 

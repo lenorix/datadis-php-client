@@ -46,4 +46,4 @@ A holder (titular) authorises a third party's NIF inside Datadis (up to about 2 
 
 ## Public API (no authentication, v1-style only)
 
-`/api-public/api-search`, `api-sum-search`, `api-search-auto`, `api-sum-search-auto`. Dates `YYYY/MM/DD`, `page` from 0, `pageSize` up to 2000, `community` mandatory, response fields `mi1`..`mi25`. No success sample exists in any source. Not covered (see [open-questions.md](open-questions.md)).
+`/api-public/api-search`, `api-sum-search`, `api-search-auto`, `api-sum-search-auto`. Dates `YYYY/MM/DD`, `page` from 0, `pageSize` up to 2000, `community` mandatory, hourly totals `mi1`..`mi25`. Parameters and answer shapes are in [api-reference.md](api-reference.md).
