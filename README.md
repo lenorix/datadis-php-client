@@ -51,14 +51,9 @@ if ($supply === null || ! $supply->isQueryable()) {
     throw new RuntimeException('This account cannot see that supply.');
 }
 
-// 2. Ask for a month of hourly consumption.
-$result = $client->consumption(
-    Cups::fromString($supply->cups),   // always the CUPS exactly as Datadis returned it
-    $supply->distributorCode,
-    $supply->pointType,
-    Month::of(2026, 7),
-    Month::of(2026, 7),
-);
+// 2. Ask for a month of hourly consumption: the supply gives its CUPS and codes exactly as
+//    Datadis listed them.
+$result = $client->consumptionOf($supply, Month::of(2026, 7));
 
 foreach ($result->records as $reading) {
     echo $reading->start?->format('Y-m-d H:i'), '  ', $reading->kWh, " kWh\n";
@@ -78,13 +73,13 @@ $holder = Nif::fromString('12345678Z');
 
 $supplies = $client->supplies($holder);
 $supply = $client->findSupply(Cups::fromString('ES0031300000000001JN0F'), $holder);
-$result = $client->consumption(Cups::fromString($supply->cups), $supply->distributorCode, $supply->pointType, Month::of(2026, 7), Month::of(2026, 7), authorizedNif: $holder);
+$result = $client->consumptionOf($supply, Month::of(2026, 7), authorizedNif: $holder);
 ```
 
 ### Get the contract and its access tariff
 
 ```php
-$contract = $client->contractDetail(Cups::fromString($supply->cups), $supply->distributorCode)->records[0] ?? null;
+$contract = $client->contractDetailOf($supply)->records[0] ?? null;
 
 $contract?->tariff();              // AccessTariff::T20TD, T30TD, T61TD... or null when unsure
 $contract?->contractedPowerKw;     // ['3.45', '3.45'], one per power period
@@ -133,10 +128,12 @@ The 3.0TD and 6.XTD calendars depend on regulated season tables; implement the `
 ```php
 use Lenorix\DatadisClient\Values\MeasurementType;
 
-$quarters = $client->consumption($cups, $code, $pointType, $from, $to, MeasurementType::QuarterHourly);
-$peaks = $client->maxPower($cups, $code, $from, $to);        // one row per tariff period, in kW
-$reactive = $client->reactive($cups, $code, $from, $to);     // API v2 only
+$quarters = $client->consumptionOf($supply, $from, $to, MeasurementType::QuarterHourly);
+$peaks = $client->maxPowerOf($supply, $from, $to);        // one row per tariff period, in kW
+$reactive = $client->reactiveOf($supply, $from, $to);     // API v2 only
 ```
+
+Leave `$to` out to ask for one month. Each `...Of()` call has a twin that takes the CUPS and codes one by one (`consumption()`, `maxPower()`, `reactive()`, `contractDetail()`), for when you stored them yourself; send the CUPS exactly as the supplies list gave it.
 
 Quarter-hourly data is only available for some meters; for the others Datadis answers with an empty list.
 
@@ -154,7 +151,7 @@ $current = Month::current($now);
 
 foreach (MonthPlanner::ranges($current->addMonths(-23), $current, $now, supply: $supply) as [$from, $to]) {
     try {
-        $result = $client->consumption($cups, $supply->distributorCode, $supply->pointType, $from, $to);
+        $result = $client->consumptionOf($supply, $from, $to);
 
         if ($result->isEmptyBecauseOfErrors()) {
             // the distributor failed; the query was sent, so it counts: try again tomorrow
@@ -358,6 +355,7 @@ Then bind the client in `app/Providers/AppServiceProvider.php`:
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Lenorix\DatadisClient\DatadisClient;
+use Lenorix\DatadisClient\DatadisClientInterface;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
@@ -366,7 +364,7 @@ use Lenorix\DatadisClient\Http\GuzzleClientFactory;
 public function register(): void
 {
     // bind, not singleton: the client is built where it is used, after any Http::fake() in a test.
-    $this->app->bind(DatadisClient::class, function () {
+    $this->app->bind(DatadisClientInterface::class, function () {
         $settings = config('services.datadis');
 
         return DatadisClient::fromArray(
@@ -384,7 +382,9 @@ public function register(): void
 
 Do not use `Http::buildClient()` for this: it ignores the pending timeout and decompression options.
 
-Inject `DatadisClient` wherever you need it (controllers, jobs, commands). In your tests, fake Datadis like any other HTTP service:
+Inject `DatadisClientInterface` wherever you need it (controllers, jobs, commands). The client holds a password and cannot be serialized, so a queued job resolves it in `handle()` instead of keeping it in a property.
+
+In your tests, either stand in for the interface with a mock, or fake Datadis like any other HTTP service:
 
 ```php
 Http::preventStrayRequests();
@@ -393,7 +393,7 @@ Http::fake([
     'datadis.es/api-private/api/get-supplies-v2*' => Http::response(['supplies' => [], 'distributorError' => []]),
 ]);
 
-app(DatadisClient::class)->supplies();
+app(DatadisClientInterface::class)->supplies();
 
 Http::assertSent(fn ($request) => $request->hasHeader('Accept', 'application/json'));
 ```

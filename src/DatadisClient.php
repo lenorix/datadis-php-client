@@ -55,7 +55,7 @@ use SensitiveParameter;
  * Every list method returns an ApiResult. An empty result is a normal answer, never zero
  * consumption, and `distributorErrors` carries partial failures reported inside a 200.
  */
-final class DatadisClient
+final class DatadisClient implements DatadisClientInterface
 {
     private const string API = '/api-private/api/';
 
@@ -203,7 +203,7 @@ final class DatadisClient
     }
 
     /**
-     * Consumption between two whole months, both included. Datadis refuses the identical query for 24 hours.
+     * Consumption between two whole months, both included (one month when `$to` is omitted). Datadis refuses the identical query for 24 hours.
      *
      * `$pointType` and `$distributorCode` come from the supply. Quarter-hourly data is only offered for
      * some point types; Datadis decides, so it is not checked here.
@@ -215,10 +215,11 @@ final class DatadisClient
         string $distributorCode,
         int $pointType,
         Month $from,
-        Month $to,
+        ?Month $to = null,
         MeasurementType $measurementType = MeasurementType::Hourly,
         ?Nif $authorizedNif = null,
     ): ApiResult {
+        $to ??= $from;
         $this->assertDistributorCode($distributorCode);
         $this->assertPointType($pointType);
         $this->assertRange($from, $to);
@@ -246,12 +247,13 @@ final class DatadisClient
     }
 
     /**
-     * Maximum power between two whole months, both included. Datadis refuses the identical query for 24 hours.
+     * Maximum power between two whole months, both included (one month when `$to` is omitted). Datadis refuses the identical query for 24 hours.
      *
      * @return ApiResult<MaxPowerReading>
      */
-    public function maxPower(Cups $cups, string $distributorCode, Month $from, Month $to, ?Nif $authorizedNif = null): ApiResult
+    public function maxPower(Cups $cups, string $distributorCode, Month $from, ?Month $to = null, ?Nif $authorizedNif = null): ApiResult
     {
+        $to ??= $from;
         $this->assertDistributorCode($distributorCode);
         $this->assertRange($from, $to);
 
@@ -267,13 +269,15 @@ final class DatadisClient
     }
 
     /**
-     * Reactive energy between two whole months (v2 only). Datadis refuses the identical query for 24 hours.
+     * Reactive energy between two whole months, both included (v2 only). Datadis refuses the identical query for 24 hours.
      * The result usually holds zero or one ReactiveEnergy.
      *
      * @return ApiResult<ReactiveEnergy>
      */
-    public function reactive(Cups $cups, string $distributorCode, Month $from, Month $to, ?Nif $authorizedNif = null): ApiResult
+    public function reactive(Cups $cups, string $distributorCode, Month $from, ?Month $to = null, ?Nif $authorizedNif = null): ApiResult
     {
+        $to ??= $from;
+
         if ($this->version !== ApiVersion::V2) {
             throw new UnsupportedOperationException('Reactive data exists only in API v2.');
         }
@@ -290,6 +294,59 @@ final class DatadisClient
         ]);
 
         return ReactiveEnergy::result($decoded, $this->endpoint('get-reactive-data'));
+    }
+
+    /**
+     * contractDetail() for a supply as listed by supplies().
+     *
+     * @return ApiResult<ContractDetail>
+     */
+    public function contractDetailOf(Supply $supply, ?Nif $authorizedNif = null): ApiResult
+    {
+        [$cups, $code] = $this->queryable($supply);
+
+        return $this->contractDetail($cups, $code, $authorizedNif);
+    }
+
+    /**
+     * consumption() for a supply as listed by supplies().
+     *
+     * @return ApiResult<ConsumptionReading>
+     */
+    public function consumptionOf(
+        Supply $supply,
+        Month $from,
+        ?Month $to = null,
+        MeasurementType $measurementType = MeasurementType::Hourly,
+        ?Nif $authorizedNif = null,
+    ): ApiResult {
+        [$cups, $code, $pointType] = $this->queryable($supply);
+
+        return $this->consumption($cups, $code, $pointType, $from, $to, $measurementType, $authorizedNif);
+    }
+
+    /**
+     * maxPower() for a supply as listed by supplies().
+     *
+     * @return ApiResult<MaxPowerReading>
+     */
+    public function maxPowerOf(Supply $supply, Month $from, ?Month $to = null, ?Nif $authorizedNif = null): ApiResult
+    {
+        [$cups, $code] = $this->queryable($supply);
+
+        return $this->maxPower($cups, $code, $from, $to, $authorizedNif);
+    }
+
+    /**
+     * reactive() for a supply as listed by supplies().
+     *
+     * @return ApiResult<ReactiveEnergy>
+     */
+    public function reactiveOf(Supply $supply, Month $from, ?Month $to = null, ?Nif $authorizedNif = null): ApiResult
+    {
+        [$cups, $code] = $this->queryable($supply);
+
+        return $this->reactive($cups, $code, $from, $to, $authorizedNif);
     }
 
     /**
@@ -495,6 +552,16 @@ final class DatadisClient
         }
 
         return $values;
+    }
+
+    /** @return array{Cups, string, int} */
+    private function queryable(Supply $supply): array
+    {
+        if (! $supply->isQueryable()) {
+            throw new InvalidRequestException('The supply was listed without a usable CUPS, distributor code or point type; list the supplies again.');
+        }
+
+        return [Cups::fromString($supply->cups), $supply->distributorCode, $supply->pointType];
     }
 
     private function assertDistributorCode(string $code): void

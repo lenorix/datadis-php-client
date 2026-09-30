@@ -20,7 +20,7 @@ The architecture as built. Each decision states the reason so it can be revisite
 
 1. **Transport**: sends PSR-7 requests, adds the mandatory headers, reads the whole body inside the same failure mapping (a streaming client transfers the body only when it is read), never throws on HTTP status by itself.
 2. **Authentication**: `TokenProvider` obtains and caches the JWT (PSR-16 store optional, in-memory default), reads `exp`, refreshes once on 401.
-3. **Endpoints**: one method per v2 endpoint with parameter objects that validate before any request leaves the machine.
+3. **Endpoints**: one method per endpoint, taking value objects (`Cups`, `Nif`, `Month`) and validating the rest before any request leaves the machine. The data calls also take a listed `Supply` (`consumptionOf()` and the like), so its CUPS and codes are sent exactly as Datadis gave them. `DatadisClientInterface` lists the calls, so applications can stand in for the client in their tests.
 4. **Decoding**: turns envelopes into immutable DTOs, keeping `raw` and `distributorErrors`. Tolerant reader: accepts a bare list, both `installedCapacity`/`installedCapacityKW`, `accessFare`/`accesFare`, numeric strings, `""` as null.
 5. **Helpers**: pure classes (month, hour label, CUPS, redactor, fingerprint, tariff-shape parser).
 

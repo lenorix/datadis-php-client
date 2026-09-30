@@ -6,6 +6,7 @@ namespace Lenorix\DatadisClient\Data;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use Lenorix\DatadisClient\Values\Cups;
 use SensitiveParameter;
 
 /**
@@ -71,14 +72,14 @@ final readonly class Supply
     }
 
     /**
-     * Whether the two values every other endpoint asks for are present and usable.
+     * Whether the CUPS and the two codes every other endpoint asks for are present and usable.
      *
      * @phpstan-assert-if-true !null $this->distributorCode
      * @phpstan-assert-if-true !null $this->pointType
      */
     public function isQueryable(): bool
     {
-        return self::isValidDistributorCode($this->distributorCode) && self::isValidPointType($this->pointType);
+        return Cups::isValid($this->cups) && self::isValidDistributorCode($this->distributorCode) && self::isValidPointType($this->pointType);
     }
 
     /** Datadis codes are opaque short strings (`"1"`..`"8"` today). */
