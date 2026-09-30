@@ -43,7 +43,7 @@ const CUPS22 = 'ES0031300000000001JN0F';
 
 it('lists supplies with the v2 endpoint', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json(datadisFixture('v2/supplies.json')));
+    $http->queue(Responses::datadis(datadisFixture('v2/supplies.json')));
 
     $result = $client->supplies();
 
@@ -56,7 +56,7 @@ it('lists supplies with the v2 endpoint', function () {
 
 it('lists supplies with the v1 endpoint and a bare list', function () {
     [$client, $http] = scenario(ApiVersion::V1);
-    $http->queue(Responses::json(datadisFixture('v1/supplies.json')));
+    $http->queue(Responses::datadis(datadisFixture('v1/supplies.json')));
 
     $result = $client->supplies();
 
@@ -67,7 +67,7 @@ it('lists supplies with the v1 endpoint and a bare list', function () {
 
 it('sends authorizedNif only when it is a third party', function (?string $nif, ?string $expected) {
     [$client, $http] = scenario();
-    $http->queue(Responses::json('{"supplies":[],"distributorError":[]}'));
+    $http->queue(Responses::datadis('{"supplies":[],"distributorError":[]}'));
 
     $client->supplies($nif === null ? null : Nif::fromString($nif));
 
@@ -82,7 +82,7 @@ it('sends authorizedNif only when it is a third party', function (?string $nif, 
 
 it('can filter supplies by distributor code', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json('{"supplies":[],"distributorError":[]}'));
+    $http->queue(Responses::datadis('{"supplies":[],"distributorError":[]}'));
 
     $client->supplies(distributorCode: '2');
 
@@ -91,7 +91,7 @@ it('can filter supplies by distributor code', function () {
 
 it('lists the distributors that have supplies in both shapes', function (ApiVersion $version, string $file, string $path) {
     [$client, $http] = scenario($version);
-    $http->queue(Responses::json(datadisFixture($file)));
+    $http->queue(Responses::datadis(datadisFixture($file)));
 
     $result = $client->distributors();
 
@@ -104,14 +104,14 @@ it('lists the distributors that have supplies in both shapes', function (ApiVers
 
 it('reads the distributors of a v1 list wrapper', function () {
     [$client, $http] = scenario(ApiVersion::V1);
-    $http->queue(Responses::json('[{"distributorCodes":["1","2"]}]'));
+    $http->queue(Responses::datadis('[{"distributorCodes":["1","2"]}]'));
 
     expect($client->distributors()->records)->toBe(['1', '2']);
 });
 
 it('gets the contract detail', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json(datadisFixture('v2/contract-detail.json')));
+    $http->queue(Responses::datadis(datadisFixture('v2/contract-detail.json')));
 
     $result = $client->contractDetail(Cups::fromString(CUPS22), '2');
 
@@ -122,14 +122,14 @@ it('gets the contract detail', function () {
 
 it('returns an empty result for an empty contract list instead of failing', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json('{"contract":[],"distributorError":[]}'));
+    $http->queue(Responses::datadis('{"contract":[],"distributorError":[]}'));
 
     expect($client->contractDetail(Cups::fromString(CUPS22), '2')->isEmpty())->toBeTrue();
 });
 
 it('requests consumption with every parameter Datadis requires', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json(datadisFixture('v2/consumption.json')));
+    $http->queue(Responses::datadis(datadisFixture('v2/consumption.json')));
 
     $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 2));
 
@@ -149,7 +149,7 @@ it('requests consumption with every parameter Datadis requires', function () {
 
 it('requests quarter-hourly data and reads quarter labels', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json(Payloads::envelope('timeCurve', [
+    $http->queue(Responses::datadis(Payloads::envelope('timeCurve', [
         ['cups' => CUPS22, 'date' => '2026/01/01', 'time' => '00:15', 'consumptionKWh' => 0.05, 'obtainMethod' => 'Real'],
     ])));
 
@@ -160,7 +160,7 @@ it('requests quarter-hourly data and reads quarter labels', function () {
 
 it('keeps the 25 hour and the 23 hour day intact', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json(Payloads::envelope('timeCurve', [
+    $http->queue(Responses::datadis(Payloads::envelope('timeCurve', [
         ...Payloads::hourlyRows('2025/10/26', Payloads::autumnDay()),
         ...Payloads::hourlyRows('2026/03/29', Payloads::springDay()),
     ])));
@@ -175,7 +175,7 @@ it('keeps the 25 hour and the 23 hour day intact', function () {
 
 it('places consumption days in the configured time zone', function () {
     [$client, $http] = scenario(zone: new DateTimeZone('Atlantic/Canary'));
-    $http->queue(Responses::json(datadisFixture('v2/consumption.json')));
+    $http->queue(Responses::datadis(datadisFixture('v2/consumption.json')));
 
     $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
@@ -184,7 +184,7 @@ it('places consumption days in the configured time zone', function () {
 
 it('reports a distributor failure hidden inside a 200 as data, not as an exception', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json(datadisFixture('v2/distributor-error-only.json')));
+    $http->queue(Responses::datadis(datadisFixture('v2/distributor-error-only.json')));
 
     $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
@@ -193,7 +193,7 @@ it('reports a distributor failure hidden inside a 200 as data, not as an excepti
 
 it('requests the maximum power without measurement type or point type', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json(datadisFixture('v2/max-power.json')));
+    $http->queue(Responses::datadis(datadisFixture('v2/max-power.json')));
 
     $result = $client->maxPower(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
 
@@ -204,7 +204,7 @@ it('requests the maximum power without measurement type or point type', function
 
 it('requests reactive energy in v2', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json(datadisFixture('v2/reactive.json')));
+    $http->queue(Responses::datadis(datadisFixture('v2/reactive.json')));
 
     $result = $client->reactive(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
 
@@ -215,7 +215,7 @@ it('requests reactive energy in v2', function () {
 
 it('returns an empty result for an empty reactive answer', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json('{"reactiveEnergy":{},"distributorError":[]}'));
+    $http->queue(Responses::datadis('{"reactiveEnergy":{},"distributorError":[]}'));
 
     expect($client->reactive(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1))->isEmpty())->toBeTrue();
 });
@@ -259,7 +259,7 @@ it('refuses invalid requests before anything is sent', function (Closure $call) 
 
 it('accepts the whole 24 month window', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json('{"maxPower":[],"distributorError":[]}'));
+    $http->queue(Responses::datadis('{"maxPower":[],"distributorError":[]}'));
 
     $client->maxPower(Cups::fromString(CUPS22), '2', Month::of(2024, 10), Month::of(2026, 9));
 
@@ -287,7 +287,7 @@ it('lets the HTTP failures through as typed exceptions', function (Closure $resp
 
 it('finds the supply of a CUPS', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json(datadisFixture('v2/supplies.json')));
+    $http->queue(Responses::datadis(datadisFixture('v2/supplies.json')));
 
     $supply = $client->findSupply(Cups::fromString('ES0031300000000001JN'));
 
@@ -300,7 +300,7 @@ it('builds with the default Guzzle transport', function () {
 
 it('gives the readings of both change days consecutive one hour intervals', function (string $date, array $times, int $month, int $year) {
     [$client, $http] = scenario();
-    $http->queue(Responses::json(Payloads::envelope('timeCurve', Payloads::hourlyRows($date, $times))));
+    $http->queue(Responses::datadis(Payloads::envelope('timeCurve', Payloads::hourlyRows($date, $times))));
 
     $readings = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of($year, $month), Month::of($year, $month))->records;
     $zone = new DateTimeZone('Europe/Madrid');
@@ -326,7 +326,7 @@ it('flags a third repetition and a label in the skipped hour instead of inventin
         ...Payloads::hourlyRows('2025/10/26', ['03:00', '03:00', '03:00']),
         ...Payloads::hourlyRows('2026/03/29', ['03:00']),
     ];
-    $http->queue(Responses::json(Payloads::envelope('timeCurve', $rows)));
+    $http->queue(Responses::datadis(Payloads::envelope('timeCurve', $rows)));
 
     $readings = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2025, 10), Month::of(2026, 3))->records;
 
@@ -335,7 +335,7 @@ it('flags a third repetition and a label in the skipped hour instead of inventin
 
 it('skips a row with an absurd number instead of failing the whole answer', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json(Payloads::envelope('timeCurve', [
+    $http->queue(Responses::datadis(Payloads::envelope('timeCurve', [
         ['date' => '2026/01/01', 'time' => '01:00', 'consumptionKWh' => '1e99999999999999999999'],
         ['date' => '2026/01/01', 'time' => '02:00', 'consumptionKWh' => 0.5],
     ])));
@@ -347,7 +347,7 @@ it('skips a row with an absurd number instead of failing the whole answer', func
 
 it('reads reactive energy tolerantly but never turns an unknown answer into an empty result', function (string $body, ?int $records) {
     [$client, $http] = scenario();
-    $http->queue(Responses::json($body));
+    $http->queue(Responses::datadis($body));
     $call = fn () => $client->reactive(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
 
     if ($records === null) {
@@ -373,7 +373,7 @@ it('reads reactive energy tolerantly but never turns an unknown answer into an e
 
 it('reads distributor codes in every shape seen and refuses unknown ones', function (string $body, ?array $codes) {
     [$client, $http] = scenario();
-    $http->queue(Responses::json($body));
+    $http->queue(Responses::datadis($body));
 
     if ($codes === null) {
         expect(fn () => $client->distributors())->toThrow(UninterpretableResponseException::class);
@@ -395,7 +395,7 @@ it('reads distributor codes in every shape seen and refuses unknown ones', funct
 
 it('keeps a distributor error sent as a single object', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json('{"timeCurve":[],"distributorError":{"distributorCode":"2","errorCode":"50","errorDescription":"Error interno distribuidora"}}'));
+    $http->queue(Responses::datadis('{"timeCurve":[],"distributorError":{"distributorCode":"2","errorCode":"50","errorDescription":"Error interno distribuidora"}}'));
 
     $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
@@ -407,7 +407,7 @@ it('judges the 24 month window by the Madrid calendar even when reading Canary I
     // 23:30 on 30 September in the Canary Islands is already 1 October in Madrid.
     $clock = new FrozenClock(new DateTimeImmutable('2026-09-30 23:30:00', new DateTimeZone('Atlantic/Canary')));
     $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, timeZone: new DateTimeZone('Atlantic/Canary'));
-    $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 3600])), Responses::json('{"maxPower":[]}'));
+    $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 3600])), Responses::datadis('{"maxPower":[]}'));
 
     expect(fn () => $client->maxPower(Cups::fromString(CUPS22), '2', Month::of(2024, 10), Month::of(2024, 10)))->toThrow(InvalidRequestException::class)
         ->and($http->requests())->toBe([]);
@@ -419,7 +419,7 @@ it('judges the 24 month window by the Madrid calendar even when reading Canary I
 
 it('skips reactive entries that are not objects', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json('{"reactiveEnergy":[1,{"cups":"x"}]}'));
+    $http->queue(Responses::datadis('{"reactiveEnergy":[1,{"cups":"x"}]}'));
 
     $result = $client->reactive(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
 
@@ -428,7 +428,7 @@ it('skips reactive entries that are not objects', function () {
 
 it('counts unusable distributor codes and keeps reading after them', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json('[{"distributorCodes":["2",null,"",5]}, "8"]'));
+    $http->queue(Responses::datadis('[{"distributorCodes":["2",null,"",5]}, "8"]'));
 
     $result = $client->distributors();
 
@@ -437,14 +437,14 @@ it('counts unusable distributor codes and keeps reading after them', function ()
 
 it('refuses an empty object where an envelope was expected', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json('{}'));
+    $http->queue(Responses::datadis('{}'));
 
     $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 })->throws(UninterpretableResponseException::class);
 
 it('keeps a distributor error sent as plain text', function () {
     [$client, $http] = scenario();
-    $http->queue(Responses::json('{"timeCurve":[],"distributorError":"Error interno distribuidora"}'));
+    $http->queue(Responses::datadis('{"timeCurve":[],"distributorError":"Error interno distribuidora"}'));
 
     $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 

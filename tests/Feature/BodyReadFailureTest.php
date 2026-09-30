@@ -53,7 +53,7 @@ it('does not block a query for 24 hours when only the login answer failed to be 
         expect($e->requestSent)->toBeFalse();
     }
 
-    $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 3600])), Responses::json('{"timeCurve":[]}'));
+    $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 3600])), Responses::datadis('{"timeCurve":[]}'));
     $call();
 
     expect($http->requests())->toHaveCount(3);

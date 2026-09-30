@@ -26,6 +26,15 @@ final class FakeHttpClient implements ClientInterface
     /** @var list<ResponseInterface|Throwable|Closure> */
     private array $queue = [];
 
+    /**
+     * Requests that arrived with nothing queued, across every instance, since the last check.
+     * The code under test may swallow the exception thrown for them, so a global hook in
+     * tests/Pest.php fails the test whenever this is not empty.
+     *
+     * @var list<string>
+     */
+    private static array $unexpected = [];
+
     public function queue(ResponseInterface|Throwable|Closure ...$items): self
     {
         foreach ($items as $item) {
@@ -42,9 +51,10 @@ final class FakeHttpClient implements ClientInterface
         $item = array_shift($this->queue);
 
         if ($item === null) {
-            throw new LogicException(
-                'Unexpected request with nothing queued: '.$request->getMethod().' '.$request->getUri()
-            );
+            $message = 'Unexpected request with nothing queued: '.$request->getMethod().' '.$request->getUri();
+            self::$unexpected[] = $message;
+
+            throw new LogicException($message);
         }
 
         if ($item instanceof Closure) {
@@ -73,5 +83,13 @@ final class FakeHttpClient implements ClientInterface
     public function pending(): int
     {
         return count($this->queue);
+    }
+
+    /** @return list<string> the unexpected requests since the last call, which clears them */
+    public static function takeUnexpected(): array
+    {
+        [$unexpected, self::$unexpected] = [self::$unexpected, []];
+
+        return $unexpected;
     }
 }

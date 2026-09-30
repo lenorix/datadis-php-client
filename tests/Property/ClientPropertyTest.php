@@ -75,7 +75,7 @@ foreach ($calls as $name => $call) {
                 $body = $version === ApiVersion::V1
                     ? json_encode($rows, JSON_PARTIAL_OUTPUT_ON_ERROR)
                     : json_encode([$keys[$name] => $rows, 'distributorError' => []], JSON_PARTIAL_OUTPUT_ON_ERROR);
-                $s->http->queue(Responses::json($body));
+                $s->http->queue(Responses::datadis($body));
 
                 try {
                     $result = $call($s->client);
@@ -101,7 +101,7 @@ it('decodes every valid hourly row, in order, whatever the day shape', function 
             }
 
             $s = Scenario::make();
-            $s->http->queue(Responses::json(Payloads::envelope('timeCurve', $rows)));
+            $s->http->queue(Responses::datadis(Payloads::envelope('timeCurve', $rows)));
             $expectedUsable = max(0, count($rows) - min($nullRows, count($rows)));
 
             if ($expectedUsable === 0) {
@@ -124,7 +124,7 @@ it('sends authorizedNif exactly when it differs from the account', function () {
         ->forAll(Generators::elements('12345678Z', ' 12345678z', '12345678Z ', '87654321X', 'X1234567L', ' x1234567l '))
         ->then(function (string $nif) {
             $s = Scenario::make();
-            $s->http->queue(Responses::json('{"supplies":[],"distributorError":[]}'));
+            $s->http->queue(Responses::datadis('{"supplies":[],"distributorError":[]}'));
 
             $s->client->supplies(Nif::fromString($nif));
 
@@ -145,7 +145,7 @@ it('never sends a request when the month range is invalid', function () {
             $valid = ! $from->isAfter($to) && $from->isWithinHistory($now) && $to->isWithinHistory($now);
 
             $s = Scenario::make();
-            $s->http->queue(Responses::json('{"maxPower":[],"distributorError":[]}'));
+            $s->http->queue(Responses::datadis('{"maxPower":[],"distributorError":[]}'));
 
             try {
                 $s->client->maxPower(Cups::fromString(Scenario::CUPS), '2', $from, $to);
@@ -171,7 +171,7 @@ it('reads any reactive or distributors payload as a result or a DatadisException
         )
         ->then(function (mixed $payload, bool $reactive) {
             $s = Scenario::make();
-            $s->http->queue(Responses::json((string) json_encode($payload, JSON_PARTIAL_OUTPUT_ON_ERROR)));
+            $s->http->queue(Responses::datadis((string) json_encode($payload, JSON_PARTIAL_OUTPUT_ON_ERROR)));
 
             try {
                 $result = $reactive

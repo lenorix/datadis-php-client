@@ -34,11 +34,11 @@ $calls = [
 foreach ($calls as $name => [$call, $body]) {
     it("sends authorizedNif for a third party and omits it for the account itself ({$name})", function () use ($call, $body) {
         $third = Scenario::make();
-        $third->http->queue(Responses::json($body));
+        $third->http->queue(Responses::datadis($body));
         $call($third->client, Nif::fromString('87654321x'));
 
         $own = Scenario::make();
-        $own->http->queue(Responses::json($body));
+        $own->http->queue(Responses::datadis($body));
         $call($own->client, Nif::fromString('12345678Z'));
 
         expect($third->query()['authorizedNif'] ?? null)->toBe('87654321X')
@@ -77,7 +77,7 @@ it('accepts a one day authorization and one with only a start or an end', functi
 
 it('counts repeated labels per day, not across days', function () {
     $s = Scenario::make();
-    $s->http->queue(Responses::json(Payloads::envelope('timeCurve', [
+    $s->http->queue(Responses::datadis(Payloads::envelope('timeCurve', [
         ...Payloads::hourlyRows('2026/01/01', Payloads::normalDay()),
         ...Payloads::hourlyRows('2026/01/02', Payloads::normalDay()),
     ])));
@@ -131,7 +131,7 @@ it('builds requests with the PSR-17 factories it is given', function () {
             return $this->inner->createStreamFromResource($resource);
         }
     };
-    $http = (new FakeHttpClient)->queue(Responses::text(Tokens::jwt(['exp' => time() + 3600])), Responses::json('{"supplies":[]}'));
+    $http = (new FakeHttpClient)->queue(Responses::text(Tokens::jwt(['exp' => time() + 3600])), Responses::datadis('{"supplies":[]}'));
     $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, requestFactory: $requests, streamFactory: $streams);
 
     $client->supplies();

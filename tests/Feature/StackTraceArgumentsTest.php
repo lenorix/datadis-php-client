@@ -56,7 +56,7 @@ it('keeps personal data of decoded answers out of stack trace arguments', functi
 
     try {
         $s = Scenario::make();
-        $s->http->queue(Responses::json('{"timeCurve":[{"cups":"ES0031300000000001JN0F","date":"x","time":"01:00","consumptionKWh":null}]}'));
+        $s->http->queue(Responses::datadis('{"timeCurve":[{"cups":"ES0031300000000001JN0F","date":"x","time":"01:00","consumptionKWh":null}]}'));
 
         try {
             $s->client->consumption(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
@@ -87,7 +87,7 @@ it('never shows the token or the password when the client is dumped', function (
         }
     };
     $token = Tokens::jwt(['exp' => time() + 3600]);
-    $http->answers = [Responses::text($token), Responses::json('{"supplies":[]}')];
+    $http->answers = [Responses::text($token), Responses::datadis('{"supplies":[]}')];
     $client = new DatadisClient(new DatadisConfig('12345678Z', 'never-dump-this', baseUrl: 'https://datadis.test'), http: $http);
     $client->supplies();
 

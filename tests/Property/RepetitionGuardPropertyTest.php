@@ -34,7 +34,7 @@ it('sends a guarded query only when the model says the window is free', function
             $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 365 * 86400])));
 
             $answers = [
-                fn () => Responses::json('{"maxPower":[],"timeCurve":[],"distributorError":[]}'),
+                fn () => Responses::datadis('{"maxPower":[],"timeCurve":[],"distributorError":[]}'),
                 fn () => Responses::text('', 500),
                 fn () => Responses::text('bad', 400),
                 fn () => Responses::text('again', 429),

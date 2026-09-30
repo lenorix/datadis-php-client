@@ -29,6 +29,12 @@ it('throws queued throwables and runs closures', function () {
     expect((string) $http->sendRequest(new Request('POST', 'https://datadis.test/'))->getBody())->toBe('POST');
 });
 
-it('fails loudly on an unexpected request', function () {
-    (new FakeHttpClient)->sendRequest(new Request('GET', 'https://datadis.test/'));
-})->throws(LogicException::class, 'Unexpected request');
+it('fails loudly on an unexpected request and remembers it even if the exception is swallowed', function () {
+    try {
+        (new FakeHttpClient)->sendRequest(new Request('GET', 'https://datadis.test/x'));
+    } catch (LogicException) {
+    }
+
+    expect(FakeHttpClient::takeUnexpected())->toBe(['Unexpected request with nothing queued: GET https://datadis.test/x'])
+        ->and(FakeHttpClient::takeUnexpected())->toBe([]);
+});

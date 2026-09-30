@@ -46,7 +46,7 @@ $reactive = fn (DatadisClient $c) => $c->reactive(Cups::fromString('ES0031300000
 
 it('refuses locally to repeat a guarded query within the window', function () use ($consumption) {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::json('{"timeCurve":[],"distributorError":[]}'));
+    $http->queue(login($clock), Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
 
     $consumption($client);
 
@@ -66,7 +66,7 @@ it('refuses locally to repeat a guarded query within the window', function () us
 
 it('allows the query again once the window is over', function () use ($consumption) {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::json('{"timeCurve":[]}'), Responses::json('{"timeCurve":[]}'));
+    $http->queue(login($clock), Responses::datadis('{"timeCurve":[]}'), Responses::datadis('{"timeCurve":[]}'));
 
     $consumption($client);
     $clock->advance(RequestLedger::WINDOW_SECONDS);
@@ -77,7 +77,7 @@ it('allows the query again once the window is over', function () use ($consumpti
 
 it('treats max power and reactive with the same window as the same query', function () use ($maxPower, $reactive) {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::json('{"maxPower":[]}'));
+    $http->queue(login($clock), Responses::datadis('{"maxPower":[]}'));
 
     $maxPower($client);
 
@@ -101,13 +101,13 @@ it('keeps the attempt after failures that may have reached Datadis', function (C
     'server error' => [fn () => Responses::text('', 500)],
     'repetition answered by Datadis' => [fn () => Responses::text('Consulta ya realizada', 429)],
     'network failure' => [fn () => new ConnectException('cURL error 28', new Request('GET', 'https://datadis.test'))],
-    'unreadable answer' => [fn () => Responses::json('"maintenance"')],
+    'unreadable answer' => [fn () => Responses::datadis('"maintenance"')],
     'no data' => [fn () => Responses::text('Data not found', 404)],
 ]);
 
 it('forgets the attempt when nothing was sent because login failed', function () use ($consumption) {
     [$client, $http, $clock] = guarded();
-    $http->queue(Responses::text('bad credentials', 401), login($clock), Responses::json('{"timeCurve":[]}'));
+    $http->queue(Responses::text('bad credentials', 401), login($clock), Responses::datadis('{"timeCurve":[]}'));
 
     expect(fn () => $consumption($client))->toThrow(DatadisException::class);
 
@@ -117,19 +117,23 @@ it('forgets the attempt when nothing was sent because login failed', function ()
         ->and($http->requests()[2]->getUri()->getPath())->toBe('/api-private/api/get-consumption-data-v2');
 });
 
-it('does not guard the endpoints the rule does not cover', function () {
+it('does not guard the endpoints the rule does not cover, which Datadis answers every time', function (Closure $call, string $answer) {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::json('{"supplies":[]}'), Responses::json('{"supplies":[]}'));
+    $http->queue(login($clock), Responses::datadis($answer), Responses::datadis($answer));
 
-    $client->supplies();
-    $client->supplies();
+    $call($client);
+    $call($client);
 
     expect($http->requests())->toHaveCount(3);
-});
+})->with([
+    'supplies' => [fn (DatadisClient $c) => $c->supplies(), '{"supplies":[],"distributorError":[]}'],
+    'contract detail' => [fn (DatadisClient $c) => $c->contractDetail(Cups::fromString('ES0031300000000001JN0F'), '2'), '{"contract":[],"distributorError":[]}'],
+    'distributors' => [fn (DatadisClient $c) => $c->distributors(), '{"distExistenceUser":{"distributorCodes":["2"]},"distributorError":[]}'],
+]);
 
 it('does not record queries refused before sending', function () use ($maxPower) {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::json('{"maxPower":[]}'));
+    $http->queue(login($clock), Responses::datadis('{"maxPower":[]}'));
 
     expect(fn () => $client->maxPower(Cups::fromString('ES0031300000000001JN0F'), '', Month::of(2026, 1), Month::of(2026, 1)))
         ->toThrow(DatadisException::class);
@@ -141,7 +145,7 @@ it('does not record queries refused before sending', function () use ($maxPower)
 
 it('works without a ledger, sending whatever it is asked', function () use ($consumption) {
     $s = Scenario::make();
-    $s->http->queue(Responses::json('{"timeCurve":[]}'), Responses::json('{"timeCurve":[]}'));
+    $s->http->queue(Responses::datadis('{"timeCurve":[]}'), Responses::datadis('{"timeCurve":[]}'));
 
     $consumption($s->client);
     $consumption($s->client);
@@ -170,7 +174,7 @@ it('does not keep a query blocked when the token store fails before sending', fu
         clock: $clock,
         ledger: $ledger,
     );
-    $http->queue(login($clock), Responses::json('{"timeCurve":[]}'));
+    $http->queue(login($clock), Responses::datadis('{"timeCurve":[]}'));
 
     $consumption($client);
 
@@ -189,7 +193,7 @@ it('keeps the original failure when the ledger cannot forget an unsent query', f
 
 it('treats max power queries with and without authorizedNif as the same query, as the manual keys them', function () {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::json('{"maxPower":[]}'));
+    $http->queue(login($clock), Responses::datadis('{"maxPower":[]}'));
 
     $client->maxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1), Nif::fromString('87654321X'));
 
@@ -199,7 +203,7 @@ it('treats max power queries with and without authorizedNif as the same query, a
 
 it('keeps consumption queries with and without authorizedNif apart, as the manual keys them', function () {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::json('{"timeCurve":[]}'), Responses::json('{"timeCurve":[]}'));
+    $http->queue(login($clock), Responses::datadis('{"timeCurve":[]}'), Responses::datadis('{"timeCurve":[]}'));
 
     $client->consumption(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: Nif::fromString('87654321X'));
     $client->consumption(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));

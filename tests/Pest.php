@@ -3,8 +3,17 @@
 declare(strict_types=1);
 
 use Eris\TestTrait;
+use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 
 uses(TestTrait::class)->in('Property');
+
+// A request the fake HTTP client did not expect fails the test even when the code under test
+// swallows the exception (it turns client failures into its own exceptions on purpose).
+uses()->afterEach(function () {
+    $unexpected = FakeHttpClient::takeUnexpected();
+
+    expect($unexpected)->toBe([], 'The fake HTTP client got requests nothing was queued for.');
+})->in(__DIR__);
 
 /**
  * Loads a fixture file from tests/Fixtures. Provenance of each fixture is

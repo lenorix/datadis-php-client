@@ -10,7 +10,7 @@ use Lenorix\DatadisClient\Values\Nif;
 
 it('lists the groups of the account', function (string $body) {
     $s = Scenario::make();
-    $s->http->queue(Responses::json($body));
+    $s->http->queue(Responses::datadis($body));
 
     $result = $s->client->groups();
 
@@ -32,7 +32,7 @@ it('refuses groups in v1, where they do not exist', function () {
 
 it('lists the users of a partner', function () {
     $s = Scenario::make();
-    $s->http->queue(Responses::json('[{"nif":"87654321X"}]'));
+    $s->http->queue(Responses::datadis('[{"nif":"87654321X"}]'));
 
     $users = $s->client->partnerUsers();
 

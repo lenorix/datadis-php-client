@@ -71,7 +71,7 @@ it('decodes the change days of every year through the client', function () {
             $lastSunday = new DateTimeImmutable("last sunday of {$year}-{$month}", $zone);
             $day = realDay($lastSunday);
             $s = Scenario::make();
-            $s->http->queue(Responses::json(Payloads::envelope('timeCurve', Payloads::hourlyRows($lastSunday->format('Y/m/d'), array_column($day, 0)))));
+            $s->http->queue(Responses::datadis(Payloads::envelope('timeCurve', Payloads::hourlyRows($lastSunday->format('Y/m/d'), array_column($day, 0)))));
 
             $readings = $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of($year, $month), Month::of($year, $month))->records;
 
