@@ -22,6 +22,7 @@ use Lenorix\DatadisClient\Data\ReactiveEnergy;
 use Lenorix\DatadisClient\Data\Supply;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
+use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
 use Lenorix\DatadisClient\Guard\RequestLedger;
@@ -105,7 +106,16 @@ final class DatadisClient
             $this->assertDistributorCode($distributorCode);
         }
 
-        $decoded = $this->get('get-supplies', ['authorizedNif' => $this->authorized($authorizedNif), 'distributorCode' => $distributorCode]);
+        try {
+            $decoded = $this->get('get-supplies', ['authorizedNif' => $this->authorized($authorizedNif), 'distributorCode' => $distributorCode]);
+        } catch (NoDataException $e) {
+            // An account without supplies gets a 404 "No supplies" (verified): an empty list.
+            if ($e->httpStatus === 404) {
+                return new ApiResult([]);
+            }
+
+            throw $e;
+        }
 
         return Envelope::build($decoded, 'supplies', $this->endpoint('get-supplies'), fn (array $row) => Supply::fromRow($row, $this->timeZone));
     }

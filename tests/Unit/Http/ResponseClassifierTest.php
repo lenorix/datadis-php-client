@@ -216,3 +216,15 @@ it('leaves no PHP error behind when a gzip-looking body is not gzip', function (
 
     expect(error_get_last())->toBeNull();
 });
+
+it('reads the real "not authorized" 400 as an authorization failure', function () {
+    try {
+        ResponseClassifier::decode(Responses::text('No se encuentra autorizado el cups introducido', 400), ENDPOINT);
+    } catch (AuthorizationException $e) {
+        expect($e->httpStatus)->toBe(400);
+
+        return;
+    }
+
+    throw new LogicException('Expected an AuthorizationException.');
+});

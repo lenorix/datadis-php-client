@@ -32,8 +32,17 @@ final class Envelope
 
         $records = [];
         $skipped = 0;
+        $blank = 0;
 
         foreach ($rows as $row) {
+            if (is_array($row) && self::isBlank($row)) {
+                // Datadis answers a CUPS it cannot see with one row whose fields are all empty
+                // (verified): it carries no data and is not a failure.
+                $blank++;
+
+                continue;
+            }
+
             $record = is_array($row) ? self::decodeRow($decodeRow, $row, $endpoint) : null;
 
             if ($record === null) {
@@ -45,11 +54,11 @@ final class Envelope
             $records[] = $record;
         }
 
-        if ($rows !== [] && $records === []) {
+        if ($skipped > 0 && $records === []) {
             throw new UninterpretableResponseException("{$endpoint}: none of the {$skipped} rows could be used.", endpoint: $endpoint);
         }
 
-        return new ApiResult($records, $errors, $skipped, $decoded);
+        return new ApiResult($records, $errors, $skipped + $blank, $decoded);
     }
 
     /**
@@ -115,6 +124,22 @@ final class Envelope
         }
 
         return $errors;
+    }
+
+    /**
+     * Whether every field of a row is empty: an empty or blank string, null or an empty list.
+     *
+     * @param  array<array-key, mixed>  $row
+     */
+    private static function isBlank(#[SensitiveParameter] array $row): bool
+    {
+        foreach ($row as $value) {
+            if (! ($value === null || $value === [] || (is_string($value) && trim($value) === ''))) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

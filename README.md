@@ -100,7 +100,7 @@ Every exception raised while talking to Datadis extends `DatadisException`, whic
 | `ConfigurationException` | Invalid settings, before anything is sent. |
 | `InvalidRequestException` | A request known to be wrong, before anything is sent. |
 | `AuthenticationException` | Login refused, or a token refused even after one new login. |
-| `AuthorizationException` | 403: no valid authorization for that CUPS, or stale supply codes. |
+| `AuthorizationException` | No valid authorization for that CUPS (Datadis answers 403, or 400 "no se encuentra autorizado" on contract detail and consumption), or stale supply codes. |
 | `NoDataException` | 404, 204 or an empty body. |
 | `RepetitionWindowException` | 429 from Datadis, or refused locally by the guard (`requestSent = false`). |
 | `RequestRejectedException` | 400 and other 4xx. Never resend the identical call. |
@@ -138,7 +138,7 @@ Whatever client you use: do not let it follow redirects or decode gzip on its ow
 
 ### Sharing the token
 
-The token is kept until two minutes before it expires. Give a PSR-16 cache to share it between processes; it holds a live credential, so protect it like one:
+The token lasts 24 hours and is kept until two minutes before it expires. Give a PSR-16 cache to share it between processes; it holds a live credential, so protect it like one:
 
 ```php
 $client = new DatadisClient($config, tokenCache: $psr16Cache);

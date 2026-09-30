@@ -1,0 +1,7 @@
+{
+    "timestamp": "2026-09-30T00:22:50.912+0000",
+    "status": 401,
+    "error": "Unauthorized",
+    "message": "No message available",
+    "path": "/api-private/api/get-supplies"
+}

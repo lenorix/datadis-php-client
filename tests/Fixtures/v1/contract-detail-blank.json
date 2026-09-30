@@ -1,0 +1,28 @@
+[
+    {
+        "cups": "",
+        "distributor": "",
+        "marketer": "",
+        "tension": "",
+        "accessFare": "",
+        "province": "",
+        "municipality": "",
+        "postalCode": "",
+        "contractedPowerkW": [],
+        "timeDiscrimination": "",
+        "modePowerControl": "",
+        "startDate": "",
+        "endDate": "",
+        "codeFare": "",
+        "selfConsumptionTypeCode": null,
+        "selfConsumptionTypeDesc": null,
+        "section": null,
+        "subsection": null,
+        "partitionCoefficient": null,
+        "cau": null,
+        "installedCapacity": null,
+        "dateOwner": null,
+        "lastMarketerDate": null,
+        "maxPowerInstall": null
+    }
+]

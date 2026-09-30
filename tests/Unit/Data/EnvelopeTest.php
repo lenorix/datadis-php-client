@@ -110,3 +110,17 @@ it('lets a DatadisException from a row decoder through untouched', function () {
 it('refuses rows sent as an object even when every row is usable', function () use ($decoder) {
     Envelope::build(['timeCurve' => ['first' => ['ok' => 1], 'second' => ['ok' => 2]]], 'timeCurve', 'endpoint', $decoder);
 })->throws(UninterpretableResponseException::class);
+
+it('drops rows whose fields are all empty without calling the answer unusable', function () use ($decoder) {
+    $blank = ['a' => '', 'b' => null, 'c' => [], 'd' => '  '];
+
+    $onlyBlank = Envelope::build([$blank, $blank], 'timeCurve', 'endpoint', $decoder);
+    $mixed = Envelope::build([$blank, ['ok' => 1]], 'timeCurve', 'endpoint', $decoder);
+
+    expect($onlyBlank->isEmpty())->toBeTrue()->and($onlyBlank->skippedRows)->toBe(2)
+        ->and($mixed->records)->toHaveCount(1)->and($mixed->skippedRows)->toBe(1);
+});
+
+it('does not treat a row with any value as blank', function () use ($decoder) {
+    Envelope::build([['a' => '', 'b' => 0]], 'timeCurve', 'endpoint', $decoder);
+})->throws(UninterpretableResponseException::class);

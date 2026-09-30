@@ -23,3 +23,6 @@ Identifiers are fictitious: CUPS `ES0031300000000001JN0F` (22 chars) and `ES0031
 | `public/search.json`, `public/search-auto.json` | SPEC | Copied from the sample answers of the official API manual (aggregated open data, no personal data). Numbers arrive as strings; the date is `dataDay`/`dataMonth`/`dataYear`. |
 | `public/sum-search.json`, `public/sum-search-auto.json` | SPEC | Sample answers of the official manual: note `sumContract` in singular and numbers as JSON numbers. |
 | `v2/groups.json` | SYNTHETIC | The official documentation lists only `name` and `description`; one implementation reads a bare list. |
+| `v1/contract-detail-blank.json` | VERIFIED | Real answer (September 2026) of `get-contract-detail` for a CUPS the account cannot see: HTTP 200 with one row whose fields are all empty. Contains no personal data. |
+| `errors/401-spring.json` | VERIFIED | Real 401 for a missing or altered token. |
+| Error bodies inlined in `tests/Feature/RealErrorAnswersTest.php` | VERIFIED | Real status, content type and body of each case (September 2026). |

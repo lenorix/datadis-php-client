@@ -17,7 +17,7 @@ Where sources disagree the text says so.
 
 - Response body: a bare JWT as plain text (VERIFIED). Trim whitespace and surrounding quotes. Reject an empty body, one starting with `<` or `{`, or containing `DOCTYPE` (WAF or maintenance HTML pages have been seen with HTTP 200).
 - Failure: 401/403 for bad credentials. One client also treats a 500 on login as bad credentials (REPORTED).
-- Token lifetime: **unknown**. Read the JWT `exp` claim (base64url payload, do not verify the signature) and subtract a safety skew (about 2 minutes). Fall back to a conservative TTL (1 hour) when `exp` is absent.
+- Token lifetime: **24 hours** (VERIFIED, September 2026: `exp` minus `iat` is 86400). The answer is `text/plain;charset=UTF-8`, an HS512 JWT of about 1100 characters whose claims include `sub`, `authorities` (permissions such as `ROLE_API` or `ROLE_PARTNER`), `publicUser`, `environment`, `iat` and `exp`. The client reads `exp` (base64url payload, signature not verified) minus a two minute skew, and falls back to one hour when `exp` is absent.
 - Every data call sends `Authorization: Bearer <jwt>`. On 401 re-login once and retry the GET once. Never re-login per request.
 
 ## Headers required on every data call

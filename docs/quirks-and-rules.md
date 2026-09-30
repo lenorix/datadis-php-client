@@ -16,6 +16,27 @@ Datadis refuses an identical query made within 24 hours with **HTTP 429** ("Cons
 - Cache even empty results and 429 outcomes for 24 h on the consumer side. The package offers a fingerprint builder and an optional PSR-16 guard, never mandatory.
 - Whether a 429 is what an actual repeat returns has been reported by several sources but never captured by the reference consumer. Treat the mapping as SPEC/REPORTED.
 
+## Real answers (VERIFIED, September 2026, v1 paths)
+
+| Case | Status | Content type | Body |
+|------|--------|--------------|------|
+| Login | 200 | `text/plain;charset=UTF-8` | the JWT |
+| Month without data (consumption, max power, also a 3 month range and the current month) | 200 | `text/plain` | `[]` |
+| Quarter-hourly (`measurementType=1`) with point type 5 | 200 | `text/plain` | `[]`: not refused |
+| Contract detail of a CUPS the account cannot see (or that does not exist) | 200 | `text/plain` | one row whose fields are all `""`, `null` or `[]` |
+| Supplies of an account without supplies (also `authorizedNif=` empty) | 404 | `application/json` | `No supplies` (plain text despite the type) |
+| Supplies with an `authorizedNif` that authorized nothing | 403 | `application/json` | `No authorized supplies` |
+| Contract detail or consumption with an `authorizedNif` without consent for that CUPS | **400** | `application/json` | `No se encuentra autorizado el cups introducido` |
+| No token, garbage token, altered signature | 401 | `application/json` | Spring JSON `{"timestamp","status","error","message":"No message available","path"}` |
+| No `Accept` header | 400 | `text/plain;charset=UTF-8` | `Parámetro en cabecera requerido en estado vacío, con formato erróneo o con valores fuera de rango` |
+| Unknown `distributorCode` (`99`) | 400 | `application/json` | `Parámetro requerido en estado vacío, con formato erróneo, o con valores fuera de rango / Parámetro de ordenación erróneo` |
+| Dates in `YYYY-MM`, in the future, older than two years, or start after end | 400 | `application/json` | `Fechas incorrectas revise: Formato de fechas YYYY/MM, las fechas deben ser anteriores o iguales al mes actual, fecha inicio no superior a fecha fin. La fecha inicio no puede ser superior a dos años.` |
+| `pointType=9` | 400 | `application/json` | `PointType incorrecto ` |
+| A required parameter missing (contract without `distributorCode`, consumption without `measurementType`, max power without dates) | **500** | | empty |
+| Unknown path | **403** | `text/plain` | `403 Forbidden` |
+
+Consequences in the client: JSON is read whatever the content type; the blank contract row is dropped (an empty result, not a failure); "No supplies" is an empty supplies list; the "no se encuentra autorizado" 400 is an `AuthorizationException`; a 500 is never retried because it can be a client mistake; every required parameter is always sent. Latency in this capture was about one second per call.
+
 ## Status codes as observed
 
 | Status | Meaning |
@@ -27,10 +48,10 @@ Datadis refuses an identical query made within 24 hours with **HTTP 429** ("Cons
 | 200 + empty body, or 204 | No data. |
 | 400 | Rejected parameters (malformed CUPS or `distributorCode`, `startDate` before the supply's `validDateFrom`, boundary month, missing `Accept`). Permanent: never resend the identical call. Body is `text/plain`, not JSON. |
 | 401 | Token missing or expired. Re-login once. |
-| 403 | The `authorizedNif` has no valid authorization for that CUPS, or a stale `distributorCode`/`pointType`. Also seen for blocked User-Agents. |
-| 404 | Older/v1 behaviour for "no data" ("Data not found"). Map to a no-data condition, not a fatal error. A wrong path also gives a Spring-style JSON 404. |
+| 403 | The `authorizedNif` has no authorized supplies, or a stale `distributorCode`/`pointType`. Also seen for blocked User-Agents and for unknown paths. Contract detail and consumption report a missing consent with a 400 instead. |
+| 404 | "No data": `No supplies` for an account without supplies (verified), "Data not found" reported for data calls. Map to a no-data condition, not a fatal error. |
 | 429 | Repetition window. Never retry. |
-| 500/502/503/504 | Datadis or distributor failure. Empty-body 5xx happens for some CUPS. Retry only on unguarded endpoints. |
+| 500/502/503/504 | Datadis or distributor failure. An empty 500 is also the answer to a missing required parameter (verified), so a 500 is never retried. |
 
 Error bodies come as `text/plain`, Spring JSON `{"timestamp","status","error","message","path"}`, or `{"message":"..."}`. Read defensively. Datadis **echoes rejected parameters (CUPS, NIF) in error bodies**, so any excerpt kept in an exception or log must be redacted by shape.
 

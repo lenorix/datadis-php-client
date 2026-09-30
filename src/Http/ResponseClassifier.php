@@ -105,6 +105,8 @@ final class ResponseClassifier
         return match (true) {
             $status === 401 => new AuthenticationException($message, $status, $detail, $endpoint),
             $status === 403 => new AuthorizationException($message, $status, $detail, $endpoint),
+            // Contract detail and consumption answer a missing consent with a 400 (verified).
+            $status === 400 && preg_match('/no se encuentra autorizado/i', $detail) === 1 => new AuthorizationException($message, $status, $detail, $endpoint),
             $status === 404 => new NoDataException($message, $status, $detail, $endpoint),
             $status === 429 => new RepetitionWindowException($message, $status, $detail, $endpoint),
             $status >= 500 => new ServiceUnavailableException($message, $status, $detail, $endpoint),

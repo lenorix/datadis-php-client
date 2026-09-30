@@ -43,7 +43,7 @@ Base `DatadisException` (extends `RuntimeException`) carrying: HTTP status (null
 |-----------|------|-------|
 | `ConfigurationException` | missing credentials or base URL | no, thrown before any HTTP call |
 | `AuthenticationException` | login 401/403, or 401 after the one re-login | no |
-| `AuthorizationException` | 403 on a data call | no, the caller's consent or stale codes |
+| `AuthorizationException` | 403, or the 400 "no se encuentra autorizado" of contract detail and consumption | no, the caller's consent or stale codes |
 | `RequestRejectedException` | 400 and other 4xx | never the identical call |
 | `NoDataException` | 404, 204, empty body | caller decides |
 | `RepetitionWindowException` | 429 | never, the window expires in 24 h |
