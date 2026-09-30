@@ -34,3 +34,7 @@ Found by a second independent review after the fixes above. All fixed with a fai
 6. A top-level `{}` passed as "no data". It is now an `UninterpretableResponseException` everywhere, the public API included.
 7. A reactive list with no usable entry is an error like on the other endpoints; a `distributorError` sent as text is kept; the README says which exceptions are not `DatadisException`; the Ceuta and Melilla docblock matches the table.
 8. Not changed, on purpose: quarter-hourly data is not refused locally for any point type (see [open-questions.md](open-questions.md)).
+
+## Bugs of other implementations checked
+
+The mistakes found in other Datadis clients (see the "mistakes to avoid" notes in [quirks-and-rules.md](quirks-and-rules.md) and [design-decisions.md](design-decisions.md)) were checked one by one against this package, and each is covered by a test: retrying 429, guessing parameter variants, placing `24:00` on the same date, reading `obtainMethod` as `R`, treating `measurementType` as consumption/generation, swallowing decoding errors, reading an `hour` field, the `accesFare` spelling, mislabelled gzip, a blocked default user agent, sending `authorizedNif` unnormalised or for the account itself, comparing dates as strings, floats in exponent notation, the two year window computed as "now minus two years", short timeouts, hand-built query strings, and treating a failed transfer as never sent. The extra `00:00` row some distributors send is kept and flagged rather than dropped; the README tells callers to decide before summing.

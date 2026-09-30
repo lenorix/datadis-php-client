@@ -80,6 +80,8 @@ Numbers are decimal strings with a fixed scale, never floats: three decimals for
 
 Consumption labels run `01:00` to `24:00` and mark the **end** of the interval. On the autumn change day `03:00` appears twice and on the spring change day it is missing. Readings keep the order they arrived in, and `start`, `end` and `index` place each one on the real hour: the two `03:00` rows get two different hours. Never key readings by `(date, time)`.
 
+A row whose label cannot be placed (one distributor sends an extra `00:00` row on days that already have 24 hours) is kept with `hasValidTime() === false` and null `start`, `end` and `index`. Decide explicitly what to do with such rows before summing energy.
+
 Dates are local civil time without an offset. Pass the zone of the supply when it is in the Canary Islands:
 
 ```php
