@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 use Eris\Generators;
 use GuzzleHttp\Psr7\HttpFactory;
+use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Http\RequestFactory;
 
 it('round-trips any query value through the url', function () {
     $factory = new HttpFactory;
-    $requests = new RequestFactory(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), $factory, $factory);
+    $requests = new RequestFactory(new ConnectionSettings(baseUrl: 'https://datadis.test'), $factory, $factory);
 
     $this->limitTo(pbtIterations())
         ->forAll(Generators::string(), Generators::string())
@@ -29,7 +30,7 @@ it('never puts the password in the login url or headers', function () {
     $this->limitTo(pbtIterations())
         ->forAll(Generators::suchThat(fn (string $s) => strlen($s) >= 6 && ! str_contains($s, "\0"), Generators::string()))
         ->then(function (string $password) use ($factory) {
-            $request = (new RequestFactory(new DatadisConfig('12345678Z', $password, baseUrl: 'https://datadis.test'), $factory, $factory))->login();
+            $request = (new RequestFactory(new ConnectionSettings(baseUrl: 'https://datadis.test'), $factory, $factory))->login(new DatadisConfig('12345678Z', $password, baseUrl: 'https://datadis.test'));
             parse_str((string) $request->getBody(), $form);
 
             expect($form['password'] ?? null)->toBe($password);
@@ -41,7 +42,7 @@ it('never puts the password in the login url or headers', function () {
 
 it('repeats the key once per list item and keeps every item intact', function () {
     $factory = new HttpFactory;
-    $requests = new RequestFactory(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), $factory, $factory);
+    $requests = new RequestFactory(new ConnectionSettings(baseUrl: 'https://datadis.test'), $factory, $factory);
 
     $this->limitTo(pbtIterations())
         ->forAll(Generators::seq(Generators::string()))

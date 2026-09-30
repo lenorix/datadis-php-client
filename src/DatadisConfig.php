@@ -10,7 +10,7 @@ use LogicException;
 use SensitiveParameter;
 
 /**
- * Immutable connection settings.
+ * The account (username and password) and the connection settings of the private API, immutable.
  *
  * Invalid settings raise a ConfigurationException, which means nothing was sent. The password lives
  * in a closure so that var_dump(), print_r(), var_export() and serialize() cannot expose it.
@@ -18,6 +18,11 @@ use SensitiveParameter;
 final readonly class DatadisConfig
 {
     public const string DEFAULT_BASE_URL = 'https://datadis.es';
+
+    /** Seconds for a whole call: Datadis is slow (contract detail about 15 s, consumption tens of seconds). */
+    public const float DEFAULT_TIMEOUT = 120.0;
+
+    public const float DEFAULT_CONNECT_TIMEOUT = 10.0;
 
     /**
      * Some hosts refuse unknown or library default agents, so the agent identifies this package but
@@ -49,8 +54,8 @@ final readonly class DatadisConfig
         string $username,
         #[SensitiveParameter] string $password,
         string $baseUrl = self::DEFAULT_BASE_URL,
-        float $timeout = 120.0,
-        float $connectTimeout = 10.0,
+        float $timeout = self::DEFAULT_TIMEOUT,
+        float $connectTimeout = self::DEFAULT_CONNECT_TIMEOUT,
         string $userAgent = self::DEFAULT_USER_AGENT,
     ) {
         $username = strtoupper(trim($username));
@@ -89,8 +94,8 @@ final readonly class DatadisConfig
             self::setting($settings, 'username') ?? throw new ConfigurationException('The Datadis setting "username" is missing.'),
             self::passwordFrom($settings),
             self::setting($settings, 'base_url') ?? self::DEFAULT_BASE_URL,
-            self::seconds($settings, 'timeout', 120.0),
-            self::seconds($settings, 'connect_timeout', 10.0),
+            self::seconds($settings, 'timeout', self::DEFAULT_TIMEOUT),
+            self::seconds($settings, 'connect_timeout', self::DEFAULT_CONNECT_TIMEOUT),
             self::setting($settings, 'user_agent') ?? self::DEFAULT_USER_AGENT,
         );
     }

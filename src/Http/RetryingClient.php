@@ -19,7 +19,8 @@ use Psr\Http\Message\ResponseInterface;
  * Opt-in PSR-18 decorator that retries transient failures of the endpoints where a repeat is harmless.
  *
  * It retries network failures and 502, 503 and 504 answers of the login, supplies, distributors,
- * contract detail, authorization list and public API calls, with exponential backoff and jitter,
+ * contract detail, groups, authorization list, partner reads and public API searches, with
+ * exponential backoff and jitter,
  * honouring Retry-After when it is not longer than the maximum wait.
  *
  * It never retries the guarded endpoints (consumption, max power, reactive), the authorization
@@ -132,7 +133,7 @@ final class RetryingClient implements ClientInterface
     /** Exponential, capped, with "equal jitter": between half and all of the step. */
     private function backoff(int $attempt): int
     {
-        $step = min($this->maxDelayMs, $this->baseDelayMs * (2 ** min($attempt, 30)));
+        $step = min($this->maxDelayMs, $this->baseDelayMs * (2 ** $attempt));
         $random = max(0.0, min(1.0, ($this->random)()));
 
         return (int) round($step * (0.5 + 0.5 * $random));
@@ -141,7 +142,7 @@ final class RetryingClient implements ClientInterface
     /** Milliseconds requested by a Retry-After header (seconds or an HTTP date), or null when absent or unreadable. */
     private function retryAfter(ResponseInterface $response): ?int
     {
-        $value = trim($response->getHeaderLine('Retry-After'));
+        $value = $response->getHeaderLine('Retry-After');
 
         if ($value === '') {
             return null;

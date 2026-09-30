@@ -38,10 +38,6 @@ it('still accepts every exponent a float can have', function () {
         ->and(Decimal::of(PHP_FLOAT_MAX, 0))->toStartWith('1797');
 });
 
-it('refuses a negative scale', function () {
-    Decimal::of(1.5, -1);
-})->throws(InvalidArgumentException::class);
-
 it('accepts a numeric string of exactly the maximum length', function () {
     expect(Decimal::isNumeric(str_repeat('9', 64)))->toBeTrue()->and(Decimal::of(0, 0))->toBe('0');
 });

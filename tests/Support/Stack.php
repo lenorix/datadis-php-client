@@ -27,7 +27,7 @@ final class Stack
     ) {
         $this->config = $config ?? new DatadisConfig('12345678Z', self::PASSWORD, baseUrl: 'https://datadis.test');
         $factory = new HttpFactory;
-        $this->requests = new RequestFactory($this->config, $factory, $factory);
+        $this->requests = new RequestFactory($this->config->connection(), $factory, $factory);
         $this->transport = new Transport($this->http, $factory);
         $this->tokens = new TokenProvider($this->config, $this->requests, $this->transport, $this->cache, $this->clock);
         $this->caller = new ApiCaller($this->requests, $this->transport, $this->tokens);

@@ -40,7 +40,7 @@ final class MonthPlanner
             $first = self::latest($first, Month::fromDate($supply->validDateFrom));
         }
 
-        if ($supply !== null && ! $supply->isOpenEnded() && $supply->validDateTo !== null) {
+        if ($supply?->validDateTo !== null) {
             $last = self::earliest($last, Month::fromDate($supply->validDateTo));
         }
 

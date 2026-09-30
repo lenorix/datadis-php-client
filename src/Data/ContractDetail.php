@@ -151,10 +151,6 @@ final readonly class ContractDetail
     /** Ownership periods use dashes (`2022-01-01`), unlike every other date, but slashes are accepted too. */
     private static function ownerDate(mixed $value, DateTimeZone $zone): ?DateTimeImmutable
     {
-        if (! is_string($value) || trim($value) === '') {
-            return null;
-        }
-
-        return DatadisDate::tryParseDashed(trim($value), $zone) ?? DatadisDate::tryParse(trim($value), $zone);
+        return is_string($value) ? DatadisDate::tryParse($value, $zone) : null;
     }
 }

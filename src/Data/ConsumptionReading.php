@@ -7,7 +7,6 @@ namespace Lenorix\DatadisClient\Data;
 use DateTimeImmutable;
 use DateTimeZone;
 use Lenorix\DatadisClient\Decoding\Fields;
-use Lenorix\DatadisClient\Time\DatadisDate;
 use Lenorix\DatadisClient\Time\HourLabel;
 use Lenorix\DatadisClient\Time\QuarterHourLabel;
 use Lenorix\DatadisClient\Values\MeasurementType;
@@ -57,7 +56,7 @@ final readonly class ConsumptionReading
         $date = Fields::text($row, 'date');
         $time = Fields::text($row, 'time');
         $consumptionKWh = Fields::decimal($row, 3, 'consumptionKWh');
-        $day = $date === null ? null : DatadisDate::tryParse($date, $zone);
+        $day = Fields::date($row, $zone, 'date');
 
         if ($date === null || $time === null || $day === null || $consumptionKWh === null) {
             return null;

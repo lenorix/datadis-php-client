@@ -14,7 +14,7 @@ namespace Lenorix\DatadisClient\Support;
  *
  * @internal
  */
-final class TextNormalizer
+final class TextNormaliser
 {
     private const array ASCII = [
         'á' => 'a', 'à' => 'a', 'â' => 'a', 'ä' => 'a', 'ã' => 'a', 'å' => 'a',
@@ -31,7 +31,7 @@ final class TextNormalizer
         'Ñ' => 'n', 'Ç' => 'c',
     ];
 
-    public static function normalize(string $text): string
+    public static function normalise(string $text): string
     {
         // Byte-wise on purpose: after the table, any byte outside ASCII (including broken UTF-8) goes.
         $text = strtr($text, self::ASCII);

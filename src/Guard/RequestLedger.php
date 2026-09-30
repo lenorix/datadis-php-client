@@ -57,7 +57,7 @@ final class RequestLedger
             $value = (int) $value;
         }
 
-        if (! is_int($value) || $value < 0 || $this->clock->now()->getTimestamp() - $value >= self::WINDOW_SECONDS) {
+        if (! is_int($value) || $this->clock->now()->getTimestamp() - $value >= self::WINDOW_SECONDS) {
             return null;
         }
 

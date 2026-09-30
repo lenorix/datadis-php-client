@@ -6,13 +6,10 @@ namespace Lenorix\DatadisClient;
 
 use Generator;
 use Lenorix\DatadisClient\Data\ApiResult;
+use Lenorix\DatadisClient\Decoding\Envelope;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Http\ApiCaller;
-use Lenorix\DatadisClient\Http\Connection;
-use Lenorix\DatadisClient\Http\RequestFactory;
-use Lenorix\DatadisClient\Http\ResponseClassifier;
-use Lenorix\DatadisClient\Http\Transport;
 use Lenorix\DatadisClient\PublicApi\PublicRecord;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApi\SelfConsumptionSearchQuery;
@@ -40,12 +37,8 @@ final class PublicApiClient
     /** TOLERATED, NO SOURCE: keys under which a paged answer might carry its rows (the manual shows a bare list). */
     private const array LIST_KEYS = ['content', 'data', 'results', 'items'];
 
-    private readonly RequestFactory $requests;
-
-    private readonly Transport $transport;
-
-    /** Set when credentials were given: calls then carry the login token. */
-    private readonly ?ApiCaller $caller;
+    /** With a DatadisConfig the calls carry the login token; with ConnectionSettings they carry none. */
+    private readonly ApiCaller $caller;
 
     public function __construct(
         DatadisConfig|ConnectionSettings|null $settings = null,
@@ -54,12 +47,7 @@ final class PublicApiClient
         ?StreamFactoryInterface $streamFactory = null,
         ?CacheInterface $tokenCache = null,
     ) {
-        $settings ??= new ConnectionSettings;
-        $connection = new Connection($settings, $http, $requestFactory, $streamFactory);
-
-        $this->requests = $connection->requests;
-        $this->transport = $connection->transport;
-        $this->caller = $settings instanceof DatadisConfig ? $connection->caller($settings, $tokenCache) : null;
+        $this->caller = ApiCaller::connect($settings ?? new ConnectionSettings, $http, $requestFactory, $streamFactory, $tokenCache);
     }
 
     /** @return ApiResult<PublicRecord> */
@@ -136,15 +124,14 @@ final class PublicApiClient
     private function call(string $endpoint, array $query): ApiResult
     {
         try {
-            $decoded = $this->caller === null
-                ? ResponseClassifier::decode($this->transport->send($this->requests->publicGet(self::PATH.$endpoint, $query), $endpoint), $endpoint)
-                : $this->caller->get(self::PATH.$endpoint, $query, $endpoint);
+            $decoded = $this->caller->get(self::PATH.$endpoint, $query, $endpoint);
         } catch (NoDataException $e) {
-            if ($e->httpStatus !== null && $e->httpStatus >= 200 && $e->httpStatus < 300) {
-                return new ApiResult([]);
+            // A 404 is a failure of the public API; a 2xx without a body is an empty page.
+            if ($e->httpStatus === 404) {
+                throw $e;
             }
 
-            throw $e;
+            return new ApiResult([]);
         }
 
         $rows = self::rows($decoded, $endpoint);
@@ -172,19 +159,13 @@ final class PublicApiClient
      */
     private static function rows(#[SensitiveParameter] array $decoded, string $endpoint): array
     {
-        if ($decoded === [] || array_is_list($decoded)) {
+        if (array_is_list($decoded)) {
             return $decoded;
         }
 
         foreach (self::LIST_KEYS as $key) {
             if (array_key_exists($key, $decoded)) {
-                $rows = $decoded[$key];
-
-                if (! is_array($rows) || ($rows !== [] && ! array_is_list($rows))) {
-                    throw new UninterpretableResponseException("{$endpoint}: \"{$key}\" is not a list.", endpoint: $endpoint);
-                }
-
-                return $rows;
+                return Envelope::listAt($decoded, $key, $endpoint);
             }
         }
 

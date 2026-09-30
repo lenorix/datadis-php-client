@@ -32,11 +32,11 @@ final readonly class Month implements Stringable
     public static function of(int $year, int $month): self
     {
         if ($year < 1 || $year > 9999) {
-            throw new InvalidArgumentException("Year out of range: {$year}");
+            throw new InvalidArgumentException("The year must be between 1 and 9999, {$year} given.");
         }
 
         if ($month < 1 || $month > 12) {
-            throw new InvalidArgumentException("Month out of range: {$month}");
+            throw new InvalidArgumentException("The month must be between 1 and 12, {$month} given.");
         }
 
         return new self($year, $month);
@@ -125,7 +125,7 @@ final readonly class Month implements Stringable
         $current = self::current($now);
         $age = $current->diffInMonths($this);
 
-        return $age >= 0 && $age <= self::HISTORY_MONTHS - 1;
+        return $age >= 0 && $age < self::HISTORY_MONTHS;
     }
 
     public function __toString(): string

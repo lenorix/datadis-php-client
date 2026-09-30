@@ -6,7 +6,8 @@ use Lenorix\DatadisClient\Values\Cups;
 
 it('accepts 20 and 22 character CUPS and normalises case and whitespace', function () {
     expect(Cups::fromString('ES0031300000000001JN')->value())->toBe('ES0031300000000001JN')
-        ->and(Cups::fromString('  es0031300000000001jn0f ')->value())->toBe('ES0031300000000001JN0F');
+        ->and(Cups::fromString('  es0031300000000001jn0f ')->value())->toBe('ES0031300000000001JN0F')
+        ->and('CUPS '.Cups::fromString(' es0031300000000001jn '))->toBe('CUPS ES0031300000000001JN');
 });
 
 it('rejects values that are not CUPS shaped', function (string $value) {
@@ -31,10 +32,6 @@ it('exposes the 20 character base and matches on it', function () {
         ->and($short->base())->toBe('ES0031300000000001JN')
         ->and($long->matches($short))->toBeTrue()
         ->and($long->matches(Cups::fromString('ES0031300000000002JN')))->toBeFalse();
-});
-
-it('converts to string', function () {
-    expect((string) Cups::fromString('es0031300000000001jn'))->toBe('ES0031300000000001JN');
 });
 
 it('says a well formed CUPS is valid', function () {

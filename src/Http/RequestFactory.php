@@ -9,7 +9,6 @@ use InvalidArgumentException;
 use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
-use LogicException;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -32,28 +31,17 @@ final class RequestFactory
     /** What a token may contain to travel in a header: a JWT, or any other base64 or URL-safe text. */
     public const string TOKEN_PATTERN = '/^[A-Za-z0-9._~+\/=-]+$/D';
 
-    private readonly ConnectionSettings $settings;
-
-    private readonly ?DatadisConfig $credentials;
-
     public function __construct(
-        DatadisConfig|ConnectionSettings $settings,
+        private readonly ConnectionSettings $settings,
         private readonly RequestFactoryInterface $requests,
         private readonly StreamFactoryInterface $streams,
-    ) {
-        $this->credentials = $settings instanceof DatadisConfig ? $settings : null;
-        $this->settings = $settings instanceof DatadisConfig ? $settings->connection() : $settings;
-    }
+    ) {}
 
-    public function login(): RequestInterface
+    public function login(#[SensitiveParameter] DatadisConfig $credentials): RequestInterface
     {
-        if ($this->credentials === null) {
-            throw new LogicException('This request factory has no credentials: build it from a DatadisConfig.');
-        }
-
         $body = http_build_query([
-            'username' => $this->credentials->username,
-            'password' => $this->credentials->password(),
+            'username' => $credentials->username,
+            'password' => $credentials->password(),
         ], '', '&', PHP_QUERY_RFC1738);
 
         return $this->build(fn () => $this->common($this->requests->createRequest('POST', $this->settings->baseUrl.self::LOGIN_PATH))

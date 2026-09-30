@@ -106,7 +106,7 @@ final class TokenProvider
 
     private function login(): string
     {
-        $response = $this->transport->send($this->requests->login(), self::ENDPOINT, preflight: true);
+        $response = $this->transport->send($this->requests->login($this->config), self::ENDPOINT, preflight: true);
         $status = $response->getStatusCode();
         $text = ResponseClassifier::text($response);
         // The login body is where credentials were submitted, so an error body that echoes them must not

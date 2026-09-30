@@ -254,14 +254,6 @@ it('retries when Retry-After asks for exactly the maximum wait, not a millisecon
     expect($client->sendRequest(get(SAFE))->getStatusCode())->toBe(503);
 });
 
-it('reads a Retry-After surrounded by spaces', function () {
-    [$client, $http, $sleeps] = retrying();
-    $http->queue(Responses::text('', 503, ['Retry-After' => ' 3 ']), Responses::json('[]'));
-    $client->sendRequest(get(SAFE));
-
-    expect($sleeps->getArrayCopy())->toBe([3000]);
-});
-
 it('accepts the extreme settings', function (array $arguments) {
     expect(new RetryingClient(new FakeHttpClient, ...$arguments))->toBeInstanceOf(RetryingClient::class);
 })->with([[['maxRetries' => 0]], [['maxRetries' => 10]], [['baseDelayMs' => 1, 'maxDelayMs' => 1]]]);

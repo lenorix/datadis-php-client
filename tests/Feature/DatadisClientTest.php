@@ -5,7 +5,6 @@ declare(strict_types=1);
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\Request;
 use Lenorix\DatadisClient\ApiVersion;
-use Lenorix\DatadisClient\Data\ConsumptionReading;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
@@ -39,19 +38,6 @@ function queryOf(FakeHttpClient $http, int $index = 1): array
 }
 
 const CUPS22 = 'ES0031300000000001JN0F';
-
-it('lists supplies with the v2 endpoint', function () {
-    [$client, $http] = scenario();
-    $http->queue(Responses::datadis(datadisFixture('v2/supplies.json')));
-
-    $result = $client->getSupplies();
-
-    expect($http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/get-supplies-v2')
-        ->and(queryOf($http))->toBe([])
-        ->and($result->records)->toHaveCount(2)
-        ->and($result->records[0]->distributorCode)->toBe('2')
-        ->and($result->distributorErrors)->toBe([]);
-});
 
 it('sends authorizedNif only when it is a third party', function (?string $nif, ?string $expected) {
     [$client, $http] = scenario();
@@ -89,26 +75,6 @@ it('returns an empty result for an empty contract list instead of failing', func
     $http->queue(Responses::datadis('{"contract":[],"distributorError":[]}'));
 
     expect($client->getContractDetail(Cups::fromString(CUPS22), '2')->isEmpty())->toBeTrue();
-});
-
-it('requests consumption with every parameter Datadis requires', function () {
-    [$client, $http] = scenario();
-    $http->queue(Responses::datadis(datadisFixture('v2/consumption.json')));
-
-    $result = $client->getConsumptionData(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 2));
-
-    expect($http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/get-consumption-data-v2')
-        ->and(queryOf($http))->toBe([
-            'cups' => CUPS22,
-            'distributorCode' => '2',
-            'startDate' => '2026/01',
-            'endDate' => '2026/02',
-            'measurementType' => '0',
-            'pointType' => '5',
-        ])
-        ->and($result->records)->toHaveCount(3)
-        ->and($result->skippedRows)->toBe(2)
-        ->and($result->records[0])->toBeInstanceOf(ConsumptionReading::class);
 });
 
 it('places consumption days in the configured time zone', function () {

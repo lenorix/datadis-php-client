@@ -157,15 +157,27 @@ it('works without a ledger, sending whatever it is asked', function () use ($con
     expect($s->http->requests())->toHaveCount(3);
 });
 
-it('sends nothing when the ledger cannot record the attempt', function () use ($consumption) {
+it('sends nothing when the ledger store cannot be read or cannot record the attempt', function (QuirkyCache $store) use ($consumption) {
     $http = new FakeHttpClient;
     $clock = new FrozenClock;
-    $ledger = new RequestLedger(new QuirkyCache(failSet: true), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
     $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
 
-    expect(fn () => $consumption($client))->toThrow(LedgerUnavailableException::class)
-        ->and($http->requests())->toBe([]);
-});
+    try {
+        $consumption($client);
+    } catch (LedgerUnavailableException $e) {
+        expect($e->endpoint)->toBe('get-consumption-data-v2')
+            ->and($e->requestSent)->toBeFalse()
+            ->and($http->requests())->toBe([]);
+
+        return;
+    }
+
+    throw new LogicException('Expected a LedgerUnavailableException.');
+})->with([
+    'unreadable' => [fn () => new QuirkyCache(throwOnGet: true)],
+    'refusing to record' => [fn () => new QuirkyCache(failSet: true)],
+]);
 
 it('does not keep a query blocked when the token store fails before sending', function () use ($consumption) {
     $http = new FakeHttpClient;

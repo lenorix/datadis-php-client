@@ -72,7 +72,7 @@ final readonly class PublicRecord
     /** Number of contracts; searches spell it `sumContracts` and sums `sumContract`. */
     public function sumContracts(): ?int
     {
-        return Fields::integer($this->raw, 'sumContracts') ?? Fields::integer($this->raw, 'sumContract');
+        return Fields::integer($this->raw, 'sumContracts', 'sumContract');
     }
 
     /** @return array<int, string|null> bucket number (1 to 25) => decimal string with scale 3, or null */

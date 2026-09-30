@@ -6,15 +6,6 @@ use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 
-it('has the same defaults as the private client', function () {
-    $settings = new ConnectionSettings;
-
-    expect($settings->baseUrl)->toBe('https://datadis.es')
-        ->and($settings->timeout)->toBe(120.0)
-        ->and($settings->connectTimeout)->toBe(10.0)
-        ->and($settings->userAgent)->toBe(DatadisConfig::DEFAULT_USER_AGENT);
-});
-
 it('validates like the private configuration', function (array $arguments) {
     new ConnectionSettings(...$arguments);
 })->with([

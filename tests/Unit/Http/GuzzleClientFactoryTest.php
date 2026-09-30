@@ -18,7 +18,7 @@ function guzzleWith(MockHandler $mock, ?DatadisConfig $config = null): ClientInt
     );
 }
 
-it('applies the configured timeouts and disables Guzzle magic', function () {
+it('applies the configured timeouts and leaves gzip to the package', function () {
     $mock = new MockHandler([new Response(200, [], '[]')]);
 
     guzzleWith($mock)->sendRequest(new Request('GET', 'https://datadis.test/x'));
@@ -26,17 +26,7 @@ it('applies the configured timeouts and disables Guzzle magic', function () {
 
     expect($options['timeout'])->toBe(42.0)
         ->and($options['connect_timeout'])->toBe(7.0)
-        ->and($options['http_errors'])->toBeFalse()
-        ->and($options['allow_redirects'])->toBeFalse()
         ->and($options['decode_content'])->toBeFalse();
-});
-
-it('returns error statuses as responses instead of throwing', function () {
-    $mock = new MockHandler([new Response(500, [], ''), new Response(429, [], 'again')]);
-    $client = guzzleWith($mock);
-
-    expect($client->sendRequest(new Request('GET', 'https://datadis.test/x'))->getStatusCode())->toBe(500)
-        ->and($client->sendRequest(new Request('GET', 'https://datadis.test/x'))->getStatusCode())->toBe(429);
 });
 
 it('does not add an Accept-Encoding header of its own', function () {

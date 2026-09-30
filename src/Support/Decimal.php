@@ -20,10 +20,6 @@ final class Decimal
 
     public static function of(mixed $value, int $minScale): string
     {
-        if ($minScale < 0) {
-            throw new InvalidArgumentException('The minimum scale must not be negative.');
-        }
-
         // Plain text without an exponent; trailing zeros of the fraction carry no precision.
         $text = (string) BigDecimal::of(self::literal($value));
         $point = strpos($text, '.');
@@ -35,7 +31,10 @@ final class Decimal
         $point = strpos($text, '.');
         $decimals = $point === false ? 0 : strlen($text) - $point - 1;
 
-        return (string) BigDecimal::of($text)->toScale(max($minScale, $decimals));
+        /** @var int<0, max> $scale */
+        $scale = max(0, $minScale, $decimals);
+
+        return (string) BigDecimal::of($text)->toScale($scale);
     }
 
     /** Like of(), or null for anything that is not a finite number. */

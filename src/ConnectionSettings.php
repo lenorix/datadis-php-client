@@ -20,8 +20,8 @@ final readonly class ConnectionSettings
      */
     public function __construct(
         string $baseUrl = DatadisConfig::DEFAULT_BASE_URL,
-        public float $timeout = 120.0,
-        public float $connectTimeout = 10.0,
+        public float $timeout = DatadisConfig::DEFAULT_TIMEOUT,
+        public float $connectTimeout = DatadisConfig::DEFAULT_CONNECT_TIMEOUT,
         public string $userAgent = DatadisConfig::DEFAULT_USER_AGENT,
     ) {
         // Guzzle works in milliseconds: anything shorter becomes 0, which means "wait forever".

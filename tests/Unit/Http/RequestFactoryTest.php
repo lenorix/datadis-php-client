@@ -7,15 +7,20 @@ use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Http\RequestFactory;
 
+function account(): DatadisConfig
+{
+    return new DatadisConfig('12345678Z', 'p&ss=w rd/é', baseUrl: 'https://datadis.test');
+}
+
 function requests(?DatadisConfig $config = null): RequestFactory
 {
     $factory = new HttpFactory;
 
-    return new RequestFactory($config ?? new DatadisConfig('12345678Z', 'p&ss=w rd/é', baseUrl: 'https://datadis.test'), $factory, $factory);
+    return new RequestFactory(($config ?? account())->connection(), $factory, $factory);
 }
 
 it('builds the login request with credentials in a form body, never in the url', function () {
-    $request = requests()->login();
+    $request = requests()->login(account());
     parse_str((string) $request->getBody(), $form);
 
     expect($request->getMethod())->toBe('POST')
@@ -36,7 +41,7 @@ it('sends the headers Datadis needs on every data call', function () {
 });
 
 it('sends the headers on the login request too', function () {
-    $request = requests()->login();
+    $request = requests()->login(account());
 
     expect($request->getHeaderLine('Accept-Encoding'))->toBe('identity')
         ->and($request->getHeaderLine('User-Agent'))->toContain('lenorix-datadis-client')
@@ -95,12 +100,6 @@ it('builds unauthenticated requests for the public API', function () {
         ->and($request->getHeaderLine('Accept-Encoding'))->toBe('identity')
         ->and((string) $request->getUri())->toBe('https://datadis.test/api-public/api-search?page=0&community=01%2C13');
 });
-
-it('cannot log in without credentials', function () {
-    $factory = new HttpFactory;
-
-    (new RequestFactory(new ConnectionSettings, $factory, $factory))->login();
-})->throws(LogicException::class);
 
 it('refuses query values of other types and maps instead of lists', function (mixed $value) {
     requests()->get('/x', ['v' => $value], 't');

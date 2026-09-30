@@ -31,22 +31,25 @@ final class Fields
     public static function text(#[SensitiveParameter] array $row, string ...$keys): ?string
     {
         foreach ($keys as $key) {
-            $value = $row[$key] ?? null;
+            $text = self::scalar($row[$key] ?? null);
 
-            if (is_string($value)) {
-                return $value;
-            }
-
-            if (is_int($value)) {
-                return (string) $value;
-            }
-
-            if (is_float($value) && is_finite($value)) {
-                return Decimal::shortest($value);
+            if ($text !== null) {
+                return $text;
             }
         }
 
         return null;
+    }
+
+    /** A string, an integer or a finite float as text; anything else is null. */
+    public static function scalar(#[SensitiveParameter] mixed $value): ?string
+    {
+        return match (true) {
+            is_string($value) => $value,
+            is_int($value) => (string) $value,
+            is_float($value) && is_finite($value) => Decimal::shortest($value),
+            default => null,
+        };
     }
 
     /**
@@ -81,17 +84,25 @@ final class Fields
     }
 
     /** @param  array<array-key, mixed>  $row */
-    public static function integer(#[SensitiveParameter] array $row, string $key): ?int
+    public static function integer(#[SensitiveParameter] array $row, string ...$keys): ?int
     {
-        $value = $row[$key] ?? null;
+        foreach ($keys as $key) {
+            $value = $row[$key] ?? null;
 
-        // Anything that does not fit an int is unknown rather than wrapped or saturated.
-        return match (true) {
-            is_int($value) => $value,
-            is_float($value) => is_finite($value) && floor($value) === $value && abs($value) < 2 ** 63 ? (int) $value : null,
-            is_string($value) => ($int = filter_var(trim($value), FILTER_VALIDATE_INT)) === false ? null : $int,
-            default => null,
-        };
+            // Anything that does not fit an int is unknown rather than wrapped or saturated.
+            $integer = match (true) {
+                is_int($value) => $value,
+                is_float($value) => is_finite($value) && floor($value) === $value && abs($value) < 2 ** 63 ? (int) $value : null,
+                is_string($value) => ($int = filter_var(trim($value), FILTER_VALIDATE_INT)) === false ? null : $int,
+                default => null,
+            };
+
+            if ($integer !== null) {
+                return $integer;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -103,6 +114,6 @@ final class Fields
     {
         $text = self::nonEmptyText($row, $key);
 
-        return $text === null ? null : DatadisDate::tryParse(trim($text), $zone);
+        return $text === null ? null : DatadisDate::tryParse($text, $zone);
     }
 }

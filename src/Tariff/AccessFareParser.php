@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Tariff;
 
-use Lenorix\DatadisClient\Support\TextNormalizer;
+use Lenorix\DatadisClient\Support\TextNormaliser;
 
 /**
  * Recognises the access tariff in the free-text `accessFare` of a contract by its SHAPE.
@@ -21,7 +21,7 @@ final class AccessFareParser
     {
         // ≤ and ≥ have no ASCII form and would be dropped by the normalisation, losing the only
         // signal that separates 2.0TD from 3.0TD, so they are spelled out first.
-        $text = TextNormalizer::normalize(str_replace(['≤', '≥'], ['<=', '>='], $accessFare));
+        $text = TextNormaliser::normalise(str_replace(['≤', '≥'], ['<=', '>='], $accessFare));
 
         $byBand = self::lowVoltageBand($text) ?? self::kilovoltBand($text);
         $byAlias = self::alias($text);

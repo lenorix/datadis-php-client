@@ -42,7 +42,7 @@ final readonly class RequestFingerprinter
             $value = $query[$name] ?? null;
             $values[] = match (true) {
                 $value === null => null,
-                is_array($value) => array_map(strval(...), $value),
+                is_array($value) => $value,
                 default => (string) $value,
             };
         }

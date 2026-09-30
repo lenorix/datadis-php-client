@@ -64,15 +64,29 @@ final class Envelope
     }
 
     /**
+     * The list under $key; null counts as an empty list.
+     *
+     * @param  array<array-key, mixed>  $decoded
+     * @return list<mixed>
+     */
+    public static function listAt(#[SensitiveParameter] array $decoded, string $key, string $endpoint): array
+    {
+        $rows = $decoded[$key] ?? [];
+
+        if (! is_array($rows) || ! array_is_list($rows)) {
+            throw new UninterpretableResponseException("{$endpoint}: \"{$key}\" is not a list.", endpoint: $endpoint);
+        }
+
+        return $rows;
+    }
+
+    /**
      * @param  array<array-key, mixed>  $decoded
      * @return array{list<mixed>, list<DistributorError>}
      */
-    public static function open(#[SensitiveParameter] array $decoded, string $key, string $endpoint): array
+    private static function open(#[SensitiveParameter] array $decoded, string $key, string $endpoint): array
     {
-        if ($decoded === []) {
-            return [[], []];
-        }
-
+        // v1 answers are bare lists (verified), an empty one included.
         if (array_is_list($decoded)) {
             return [$decoded, []];
         }
@@ -80,13 +94,7 @@ final class Envelope
         $errors = self::distributorErrors($decoded);
 
         if (array_key_exists($key, $decoded)) {
-            $rows = $decoded[$key] ?? [];
-
-            if (! is_array($rows) || ($rows !== [] && ! array_is_list($rows))) {
-                throw new UninterpretableResponseException("{$endpoint}: \"{$key}\" is not a list.", endpoint: $endpoint);
-            }
-
-            return [$rows, $errors];
+            return [self::listAt($decoded, $key, $endpoint), $errors];
         }
 
         if (array_key_exists('distributorError', $decoded)) {

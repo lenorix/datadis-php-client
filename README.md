@@ -72,7 +72,8 @@ use Lenorix\DatadisClient\Values\Nif;
 $holder = $client->forHolder(Nif::fromString('87654321X'));
 
 $supplies = $holder->getSupplies();
-$supply = $holder->findSupply(Cups::fromString('ES0031300000000001JN0F'));
+$supply = $holder->findSupply(Cups::fromString('ES0031300000000001JN0F'))
+    ?? throw new RuntimeException('That holder has not authorized this supply.');
 $result = $holder->getConsumptionDataOf($supply, Month::of(2026, 7));
 ```
 
@@ -314,7 +315,7 @@ $config = DatadisConfig::fromArray(['username' => 'B12345678', 'password' => 'yo
 
 ### Retry transient failures safely
 
-`RetryingClient` retries network failures and gateway errors with backoff, but only for calls where repeating is harmless (login, supplies, distributors, contract detail, the authorization list and the public API). Data queries and changes are never retried.
+`RetryingClient` retries network failures and gateway errors with backoff, but only for calls where repeating is harmless (login, supplies, distributors, contract detail, groups, the authorization list, the partner reads and the public API searches). Data queries and changes are never retried.
 
 ```php
 use Lenorix\DatadisClient\Http\GuzzleClientFactory;
@@ -385,7 +386,7 @@ public function register(): void
 
 Do not use `Http::buildClient()` for this: it ignores the pending timeout and decompression options.
 
-Inject `DatadisClient` wherever you need it (controllers, jobs, commands). The client holds a password and cannot be serialized, so a queued job resolves it in `handle()` instead of keeping it in a property.
+Inject `DatadisClient` wherever you need it (controllers, jobs, commands). The client holds a password and cannot be serialised, so a queued job resolves it in `handle()` instead of keeping it in a property.
 
 In your tests, fake Datadis like any other HTTP service:
 

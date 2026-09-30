@@ -30,8 +30,6 @@ final class TimeInstant
             return null;
         }
 
-        // A time in the repeated autumn hour is read as its first occurrence; one in the skipped
-        // spring hour never existed.
         return WallClock::instants($day, $hour * 60 + $minute, false)[0] ?? null;
     }
 }

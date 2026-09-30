@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Lenorix\DatadisClient\Support\TextNormalizer;
+use Lenorix\DatadisClient\Support\TextNormaliser;
 
 it('lowercases, removes accents and collapses whitespace', function (string $input, string $expected) {
-    expect(TextNormalizer::normalize($input))->toBe($expected);
+    expect(TextNormaliser::normalise($input))->toBe($expected);
 })->with([
     ['BAJA TENSIÓN  y   POTENCIA', 'baja tension y potencia'],
     ["Maxímetro\n\tÑandú", 'maximetro nandu'],
@@ -16,5 +16,5 @@ it('lowercases, removes accents and collapses whitespace', function (string $inp
 ]);
 
 it('drops what has no ASCII form and survives broken UTF-8', function () {
-    expect(TextNormalizer::normalize("a€b\xC3"))->toBe('ab');
+    expect(TextNormaliser::normalise("a€b\xC3"))->toBe('ab');
 });

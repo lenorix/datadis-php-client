@@ -48,7 +48,7 @@ final class QueryRules
      */
     public static function communities(array $communities): string
     {
-        $codes = array_values(array_map(static fn (Community $c): string => $c->value, $communities));
+        $codes = array_map(static fn (Community $c): string => $c->value, $communities);
 
         if ($codes === [] || count($codes) > 2 || count(array_unique($codes)) !== count($codes)) {
             throw new InvalidRequestException('Give one or two different communities.');

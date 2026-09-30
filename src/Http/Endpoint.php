@@ -33,7 +33,7 @@ enum Endpoint: string
     /** The call a private API path names, in either version, whatever comes before the API prefix. */
     public static function fromPath(string $path): ?self
     {
-        if (preg_match('#'.preg_quote(self::PREFIX, '#').'([a-z-]+?)(?:-v2)?$#D', $path, $m) !== 1) {
+        if (preg_match('#'.self::PREFIX.'([a-z-]+?)(?:-v2)?$#D', $path, $m) !== 1) {
             return null;
         }
 
@@ -44,7 +44,6 @@ enum Endpoint: string
     public function name(ApiVersion $version): string
     {
         return match ($this) {
-            self::Reactive, self::Groups => $this->value.ApiVersion::V2->suffix(),
             self::NewAuthorization, self::CancelAuthorization, self::Authorizations,
             self::PartnerUsers, self::PartnerDeleteUser, self::PartnerAgreementDate => $this->value,
             default => $this->value.$version->suffix(),

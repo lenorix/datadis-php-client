@@ -6,6 +6,7 @@ namespace Lenorix\DatadisClient\Guard;
 
 use Closure;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
+use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Http\Endpoint;
 use SensitiveParameter;
@@ -35,7 +36,12 @@ final readonly class RepetitionGuard
         }
 
         $key = self::repetitionKey($endpoint, $query);
-        $last = $this->ledger->lastAttempt($this->account, $key);
+
+        try {
+            $last = $this->ledger->lastAttempt($this->account, $key);
+        } catch (LedgerUnavailableException $e) {
+            throw new LedgerUnavailableException("{$name}: {$e->getMessage()}", $name, $e);
+        }
 
         if ($last !== null) {
             throw new RepetitionWindowException(
@@ -45,7 +51,11 @@ final readonly class RepetitionGuard
             );
         }
 
-        $this->ledger->record($this->account, $key);
+        try {
+            $this->ledger->record($this->account, $key);
+        } catch (LedgerUnavailableException $e) {
+            throw new LedgerUnavailableException("{$name}: {$e->getMessage()}", $name, $e);
+        }
 
         try {
             return $send();

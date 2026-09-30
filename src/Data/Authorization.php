@@ -58,10 +58,6 @@ final readonly class Authorization
 
     private static function date(?string $value, DateTimeZone $zone): ?DateTimeImmutable
     {
-        if ($value === null) {
-            return null;
-        }
-
-        return DatadisDate::tryParse(trim($value), $zone) ?? DatadisDate::tryParseDashed(trim($value), $zone);
+        return $value === null ? null : DatadisDate::tryParse($value, $zone);
     }
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Eris\Generators;
 use Lenorix\DatadisClient\Calendar\NationalHolidays;
 use Lenorix\DatadisClient\Calendar\Territory;
-use Lenorix\DatadisClient\Support\TextNormalizer;
+use Lenorix\DatadisClient\Support\TextNormaliser;
 use Lenorix\DatadisClient\Tariff\AccessFareParser;
 use Lenorix\DatadisClient\Tariff\AccessTariff;
 use Lenorix\DatadisClient\Tariff\FixedSchedulePeriods;
@@ -58,9 +58,9 @@ it('normalises idempotently into lowercase single-spaced ASCII', function () {
     $this->limitTo(pbtIterations())
         ->forAll(Generators::oneOf(Generators::string(), Generators::elements('Ñandú  EDISTRIBUCIÓN', "Maxímetro\t\n", "\xC3\x28 broken")))
         ->then(function (string $text) {
-            $once = TextNormalizer::normalize($text);
+            $once = TextNormaliser::normalise($text);
 
-            expect(TextNormalizer::normalize($once))->toBe($once)
+            expect(TextNormaliser::normalise($once))->toBe($once)
                 ->and(preg_match('/[^\x20-\x7E]/', $once))->toBe(0)
                 ->and($once)->toBe(strtolower($once))
                 ->and($once)->not->toContain('  ')

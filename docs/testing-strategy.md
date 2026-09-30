@@ -6,7 +6,8 @@
 - **Eris** (`giorgiosironi/eris`) for property-based testing (PBT). Smoke-tested with Pest 4 / PHPUnit 12.5 and Eris 1.1: `uses(Eris\TestTrait::class)` in the test file, then `$this->forAll(...)->then(...)`. A failing property fails the test and prints a seed.
   - PHPUnit 12 dropped docblock metadata, so `@eris-repeat` style annotations do not work. Control iterations with `->limitTo(n)` through a helper in `tests/Pest.php` that reads **our own** env var (`ERIS_ITERATIONS` is not an Eris feature; only `ERIS_SEED` and `ERIS_ORIGINAL_INPUT` are).
   - Eris prints a reproduce hint using `vendor/bin/phpunit`. Reproduce with `ERIS_SEED=<seed> vendor/bin/pest --filter '<test name>'` instead.
-  - Running the suite: bare `vendor/bin/pest` printed only a coverage warning and ran nothing while `phpunit.xml.dist` had a `<coverage><report>` block. Always check that the summary line shows a test count. Use `--no-coverage` for normal runs until the config is fixed in M0. In zsh use `$pipestatus[1]` (not `${PIPESTATUS[0]}`) to read an exit code through a pipe.
+  - Always check that the summary line shows a test count. In zsh use `$pipestatus[1]` (not `${PIPESTATUS[0]}`) to read an exit code through a pipe.
+- **Mutation testing** with Infection, which has no Pest adapter: its PHPUnit adapter drives Pest through a small shim script that answers `--version` like PHPUnit, runs `vendor/bin/pest`, rewrites the JUnit class names and prints `OK (` on success. Without the shim every mutant counts as killed. Run it before a release; the last run (0.1.0) killed 90.9 % of 1982 mutants, and every survivor was classified (missing test, equivalent, dead code, input Datadis never sends, message wording).
 - No live API calls in tests, ever. A recording PSR-18 test double serves canned responses and records requests.
 
 ## TDD loop
@@ -23,7 +24,7 @@ Red (write a failing test that states the behaviour), green (smallest code that 
 
 ## Property-based testing rules
 
-- Every pure helper gets properties: month round-trip and arithmetic, chunk coverage without overlap, hour label bijection over 1..24 and rejection otherwise, redactor totality and idempotence, CUPS normalisation idempotence, tariff-shape parser totality and normalisation-invariance, fingerprint determinism and sensitivity to every parameter, decimal conversion (including exponent notation).
+- Every pure helper gets properties: month round-trip and arithmetic, hour label bijection over 1..24 and rejection otherwise, redactor totality and idempotence, CUPS normalisation idempotence, tariff-shape parser totality and normalisation-invariance, fingerprint determinism and sensitivity to every parameter, decimal conversion (including exponent notation).
 - Decoders get generative tests: random valid payloads decode and re-encode without loss of `raw`; random malformed payloads only ever raise `DatadisException` subclasses.
 - Eris pitfalls (learned in another project): register a stubbed HTTP double **once** outside the property loop, with a closure that reads a variable by reference. First-registered stub wins, so re-registering per iteration keeps serving the first response. Give each field the code distinguishes a different value so mixed-up fields are detected.
 - Seed failures: when a property fails, add the shrunk counterexample as a plain example test.

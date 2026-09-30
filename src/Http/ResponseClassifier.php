@@ -29,8 +29,6 @@ final class ResponseClassifier
     /** Upper bound for an inflated body, to stay safe against decompression bombs. */
     private const int MAX_INFLATED_BYTES = 32 * 1024 * 1024;
 
-    private const int DETAIL_LENGTH = 300;
-
     /**
      * @return array<array-key, mixed> the decoded JSON object or list
      *
@@ -41,7 +39,8 @@ final class ResponseClassifier
         $status = $response->getStatusCode();
         $body = self::assertSuccessful($response, $endpoint);
 
-        if ($status === 204 || trim($body) === '') {
+        // A 204 has no body either.
+        if (trim($body) === '') {
             throw new NoDataException("{$endpoint}: Datadis answered without a body.", $status, '', $endpoint);
         }
 
@@ -55,7 +54,7 @@ final class ResponseClassifier
             $decoded = json_decode(trim($body), true, 512, JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING);
         } catch (JsonException $e) {
             throw new UninterpretableResponseException(
-                "{$endpoint}: the response is not valid JSON.",
+                "{$endpoint}: the answer is not valid JSON.",
                 $status,
                 self::detail($body),
                 $endpoint,
@@ -66,12 +65,12 @@ final class ResponseClassifier
         // An empty object decodes like an empty list, but it is never a valid answer: every object
         // answer has an envelope key, so {} must not pass as "no data".
         if ($decoded === [] && str_starts_with(trim($body), '{')) {
-            throw new UninterpretableResponseException("{$endpoint}: the response is an empty object.", $status, '', $endpoint);
+            throw new UninterpretableResponseException("{$endpoint}: the answer is an empty object.", $status, '', $endpoint);
         }
 
         if (! is_array($decoded)) {
             throw new UninterpretableResponseException(
-                "{$endpoint}: the response is not a JSON object or list.",
+                "{$endpoint}: the answer is not a JSON object or list.",
                 $status,
                 self::detail($body),
                 $endpoint,
@@ -90,7 +89,7 @@ final class ResponseClassifier
     public static function assertSuccessful(ResponseInterface $response, string $endpoint): string
     {
         $status = $response->getStatusCode();
-        $body = self::readBody($response);
+        $body = self::text($response);
 
         if ($status < 200 || $status >= 300) {
             throw self::failure($status, $body, $endpoint);
@@ -118,12 +117,8 @@ final class ResponseClassifier
     }
 
     /** The body as text: inflated when it is gzip whatever its headers claim, without a byte order mark. */
+    /** The body as text: inflated when it is gzip in disguise, without a byte order mark. */
     public static function text(ResponseInterface $response): string
-    {
-        return self::readBody($response);
-    }
-
-    private static function readBody(ResponseInterface $response): string
     {
         $body = (string) $response->getBody();
 
@@ -167,6 +162,6 @@ final class ResponseClassifier
             }
         }
 
-        return PersonalDataRedactor::excerpt($text, self::DETAIL_LENGTH);
+        return PersonalDataRedactor::excerpt($text);
     }
 }

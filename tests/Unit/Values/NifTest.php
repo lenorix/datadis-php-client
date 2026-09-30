@@ -5,7 +5,8 @@ declare(strict_types=1);
 use Lenorix\DatadisClient\Values\Nif;
 
 it('normalises to trimmed uppercase', function () {
-    expect(Nif::fromString(' 12345678z ')->value())->toBe('12345678Z');
+    expect(Nif::fromString(' 12345678z ')->value())->toBe('12345678Z')
+        ->and('NIF '.Nif::fromString(' 12345678z '))->toBe('NIF 12345678Z');
 });
 
 it('accepts a NIF, NIE or CIF whose control character matches', function (string $value) {
@@ -36,8 +37,4 @@ it('rejects other shapes', function (string $value) {
 it('compares after normalisation', function () {
     expect(Nif::fromString('12345678Z')->equals(Nif::fromString(' 12345678z')))->toBeTrue()
         ->and(Nif::fromString('12345678Z')->equals(Nif::fromString('87654321X')))->toBeFalse();
-});
-
-it('converts to its normalised string', function () {
-    expect((string) Nif::fromString(' 12345678z'))->toBe('12345678Z');
 });

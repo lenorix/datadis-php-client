@@ -4,7 +4,7 @@ Namespace `Lenorix\DatadisClient`. Every milestone follows TDD (red, green, refa
 
 ## Status
 
-All milestones M0 to M6 are done. M6 (review and hardening) found and fixed the defects listed in [review-findings.md](review-findings.md). The quality gates are in [testing-strategy.md](testing-strategy.md).
+All milestones M0 to M6 are done. This plan is kept as it was written: class and method names in it are those of the time, and several were renamed later (the current ones follow Datadis's own names, see [design-decisions.md](design-decisions.md)). M6 (review and hardening) found and fixed the defects listed in [review-findings.md](review-findings.md). The quality gates are in [testing-strategy.md](testing-strategy.md).
 
 ## Decisions taken for this plan (revisit on request)
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 use Lenorix\DatadisClient\Exceptions\DatadisException;
-use Lenorix\DatadisClient\Http\Connection;
+use Lenorix\DatadisClient\Http\ApiCaller;
 use Lenorix\DatadisClient\Http\GuzzleClientFactory;
 use Lenorix\DatadisClient\Time\DatadisDate;
 use Lenorix\DatadisClient\Time\MonthPlanner;
@@ -32,7 +32,7 @@ arch('only the default wiring knows about Guzzle')
     ->expect('GuzzleHttp')
     ->toOnlyBeUsedIn([
         GuzzleClientFactory::class,
-        Connection::class,
+        ApiCaller::class,
     ]);
 
 arch('results and values are immutable, and Data holds only results')

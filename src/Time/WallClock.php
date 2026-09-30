@@ -53,21 +53,19 @@ final class WallClock
         return (new DateTimeImmutable('@'.($instant->getTimestamp() - $seconds)))->setTimezone($instant->getTimezone());
     }
 
-    /** @return list<int> the UTC offsets the zone uses around the given moment */
+    /**
+     * The UTC offsets the zone uses around the given moment: a day either side reaches past any
+     * daylight saving change a wall-clock reading could fall in.
+     *
+     * @return list<int>
+     */
     private static function offsets(DateTimeZone $zone, int $around): array
     {
-        $transitions = $zone->getTransitions($around - 2 * 86400, $around + 2 * 86400);
-        $offsets = [self::offsetAt($zone, $around)];
-
-        // A fixed offset zone answers false, whatever the signature says.
-        // @phpstan-ignore function.alreadyNarrowedType
-        if (is_array($transitions)) {
-            foreach ($transitions as $transition) {
-                $offsets[] = (int) $transition['offset'];
-            }
-        }
-
-        return array_values(array_unique($offsets));
+        return array_values(array_unique([
+            self::offsetAt($zone, $around - 86400),
+            self::offsetAt($zone, $around),
+            self::offsetAt($zone, $around + 86400),
+        ]));
     }
 
     private static function offsetAt(DateTimeZone $zone, int $timestamp): int

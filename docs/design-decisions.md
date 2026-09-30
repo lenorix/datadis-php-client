@@ -34,8 +34,8 @@ The architecture as built. Each decision states the reason so it can be revisite
 
 ## Value objects
 
-- `Month` (`YYYY/MM`): parse, format, arithmetic, chunking, 24-month window check, no-future check.
-- `HourLabel`: `01:00`..`24:00` to index and interval start/end in a given `DateTimeZone`. Rejects other shapes.
+- `Month` (`YYYY/MM`): parse, format, arithmetic, ordering, sequences, the 24-month window check.
+- `HourLabel` and `QuarterHourLabel`: `01:00`..`24:00` (or `00:15`..`24:00`) to index, hour of the day and the interval they end on a given day. Reject other shapes.
 - `Cups`: normalisation and shape check. Matching on the first 20 characters (`matches()`); `Data\SupplyMatcher` picks the supply of a CUPS from a list.
 - `Nif`: normalisation, shape and control character (NIF/NIE modulo 23, CIF control digit or letter), checked by default because a mistyped NIF would be sent and refused; `checkControl: false` skips the check. Equality is `equals()` on every value object.
 - `MeasurementType`: backed enum (`0` hourly, `1` quarter-hourly).
@@ -64,7 +64,7 @@ Base `DatadisException` (extends `RuntimeException`) carrying: HTTP status (null
 | `NoDataException` | 404, 204, empty body | caller decides |
 | `RepetitionWindowException` | 429 | never, the window expires in 24 h |
 | `ServiceUnavailableException` | 5xx | only unguarded endpoints |
-| `TransportException` (a `ServiceUnavailableException`) | PSR-18 network exception, outcome unknown, `requestSent = true` | unguarded endpoints only; never automatically on guarded ones |
+| `TransportException` | anything the HTTP client throws, or a body that fails while being read: outcome unknown, `requestSent = true` | unguarded endpoints only; never automatically on guarded ones |
 | `UninterpretableResponseException` | 200 with unusable body, missing keys, bad dates or numbers | not blindly |
 
 Anything other than a Datadis exception thrown while decoding a 200 body (date parse, decimal parse, type errors) is wrapped in `UninterpretableResponseException` at one boundary, so nothing escapes as a raw `TypeError`.

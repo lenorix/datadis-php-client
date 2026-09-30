@@ -28,26 +28,19 @@ final class ReactiveEnergyAnswer
             return new ApiResult([]);
         }
 
-        if (array_is_list($decoded)) {
-            throw new UninterpretableResponseException("{$endpoint}: the answer is not an object.", endpoint: $endpoint);
-        }
-
-        $value = array_key_exists('reactiveEnergy', $decoded) ? $decoded['reactiveEnergy'] : null;
-
+        // A bare list has neither key either.
         if (! array_key_exists('reactiveEnergy', $decoded) && ! array_key_exists('distributorError', $decoded)) {
             throw new UninterpretableResponseException("{$endpoint}: the answer has no \"reactiveEnergy\".", endpoint: $endpoint);
         }
 
-        if ($value !== null && ! is_array($value)) {
+        $value = $decoded['reactiveEnergy'] ?? [];
+
+        if (! is_array($value)) {
             throw new UninterpretableResponseException("{$endpoint}: \"reactiveEnergy\" is not an object.", endpoint: $endpoint);
         }
 
-        $objects = match (true) {
-            $value === null, $value === [] => [],
-            // TOLERATED, NO SOURCE: documented as one object; a list of them is read too.
-            array_is_list($value) => $value,
-            default => [$value],
-        };
+        // TOLERATED, NO SOURCE: documented as one object; a list of them is read too.
+        $objects = array_is_list($value) ? $value : [$value];
 
         $records = [];
         $skipped = 0;

@@ -33,6 +33,7 @@ final class DistributorCodes
             default => throw new UninterpretableResponseException("{$endpoint}: the answer has no distributor codes.", endpoint: $endpoint),
         };
 
+        /** @var list<string> $codes */
         $codes = [];
         $skipped = 0;
 
@@ -42,9 +43,9 @@ final class DistributorCodes
             }
 
             foreach ($list as $code) {
-                $text = Fields::nonEmptyText(['c' => $code], 'c');
+                $text = Fields::scalar($code);
 
-                if ($text === null) {
+                if ($text === null || trim($text) === '') {
                     $skipped++;
 
                     continue;

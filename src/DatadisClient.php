@@ -28,7 +28,6 @@ use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
 use Lenorix\DatadisClient\Guard\RepetitionGuard;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Http\ApiCaller;
-use Lenorix\DatadisClient\Http\Connection;
 use Lenorix\DatadisClient\Http\Endpoint;
 use Lenorix\DatadisClient\Support\PersonalDataRedactor;
 use Lenorix\DatadisClient\Support\SystemClock;
@@ -87,7 +86,7 @@ final class DatadisClient
         $this->clock = $clock ?? new SystemClock;
         $this->timeZone = $timeZone ?? new DateTimeZone(Month::SERVICE_TIME_ZONE);
 
-        $this->caller = (new Connection($config, $http, $requestFactory, $streamFactory))->caller($config, $tokenCache, $this->clock);
+        $this->caller = ApiCaller::connect($config, $http, $requestFactory, $streamFactory, $tokenCache, $this->clock);
         $this->guard = $ledger === null ? null : new RepetitionGuard($ledger, $config->username);
     }
 
@@ -226,16 +225,10 @@ final class DatadisClient
         MeasurementType $measurementType = MeasurementType::Hourly,
         ?Nif $authorizedNif = null,
     ): ApiResult {
-        $endDate ??= $startDate;
-        $this->assertDistributorCode($distributorCode);
+        $query = $this->monthQuery($cups, $distributorCode, $startDate, $endDate);
         $this->assertPointType($pointType);
-        $this->assertRange($startDate, $endDate);
 
-        $decoded = $this->fetch(Endpoint::Consumption, [
-            'cups' => $cups->value(),
-            'distributorCode' => $distributorCode,
-            'startDate' => $startDate->format(),
-            'endDate' => $endDate->format(),
+        $decoded = $this->fetch(Endpoint::Consumption, $query + [
             'measurementType' => $measurementType->value,
             'pointType' => $pointType,
             'authorizedNif' => $this->authorized($authorizedNif),
@@ -260,17 +253,9 @@ final class DatadisClient
      */
     public function getMaxPower(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
-        $endDate ??= $startDate;
-        $this->assertDistributorCode($distributorCode);
-        $this->assertRange($startDate, $endDate);
+        $query = $this->monthQuery($cups, $distributorCode, $startDate, $endDate);
 
-        $decoded = $this->fetch(Endpoint::MaxPower, [
-            'cups' => $cups->value(),
-            'distributorCode' => $distributorCode,
-            'startDate' => $startDate->format(),
-            'endDate' => $endDate->format(),
-            'authorizedNif' => $this->authorized($authorizedNif),
-        ]);
+        $decoded = $this->fetch(Endpoint::MaxPower, $query + ['authorizedNif' => $this->authorized($authorizedNif)]);
 
         return Envelope::build($decoded, 'maxPower', $this->name(Endpoint::MaxPower), fn (array $row) => MaxPowerReading::fromRow($row, $this->timeZone));
     }
@@ -283,22 +268,13 @@ final class DatadisClient
      */
     public function getReactiveData(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
-        $endDate ??= $startDate;
-
         if ($this->version !== ApiVersion::V2) {
             throw new UnsupportedOperationException('Reactive data exists only in API v2.');
         }
 
-        $this->assertDistributorCode($distributorCode);
-        $this->assertRange($startDate, $endDate);
+        $query = $this->monthQuery($cups, $distributorCode, $startDate, $endDate);
 
-        $decoded = $this->fetch(Endpoint::Reactive, [
-            'cups' => $cups->value(),
-            'distributorCode' => $distributorCode,
-            'startDate' => $startDate->format(),
-            'endDate' => $endDate->format(),
-            'authorizedNif' => $this->authorized($authorizedNif),
-        ]);
+        $decoded = $this->fetch(Endpoint::Reactive, $query + ['authorizedNif' => $this->authorized($authorizedNif)]);
 
         return ReactiveEnergyAnswer::result($decoded, $this->name(Endpoint::Reactive));
     }
@@ -540,6 +516,25 @@ final class DatadisClient
         }
 
         return [Cups::fromString($supply->cups), $supply->distributorCode, $supply->pointType];
+    }
+
+    /**
+     * The part every month-range data call shares, after checking it: one month when there is no end.
+     *
+     * @return array{cups: string, distributorCode: string, startDate: string, endDate: string}
+     */
+    private function monthQuery(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate): array
+    {
+        $endDate ??= $startDate;
+        $this->assertDistributorCode($distributorCode);
+        $this->assertRange($startDate, $endDate);
+
+        return [
+            'cups' => $cups->value(),
+            'distributorCode' => $distributorCode,
+            'startDate' => $startDate->format(),
+            'endDate' => $endDate->format(),
+        ];
     }
 
     private function assertDistributorCode(string $code): void

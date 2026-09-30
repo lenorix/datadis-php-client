@@ -31,7 +31,7 @@ Where sources disagree the text says so.
 
 ## Endpoints (all GET, parameters in the query string)
 
-Strip `null` parameters and use `http_build_query` so values are URL-encoded.
+Strip `null` parameters and URL-encode every value; a list repeats its key once per item (built by hand, since `http_build_query` would add brackets).
 
 | Endpoint | Required parameters | Optional | Envelope |
 |----------|--------------------|----------|----------|

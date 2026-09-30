@@ -50,7 +50,7 @@ final class Transport
             // A PSR-18 client should only throw ClientExceptionInterface, but a misbehaving one or a
             // failing body stream must not break the exception contract of this package either.
             throw new TransportException(
-                "{$endpoint}: the HTTP client failed before an answer arrived (".$e::class.').',
+                "{$endpoint}: the HTTP client failed before a whole answer arrived (".$e::class.').',
                 detail: $e->getMessage(),
                 endpoint: $endpoint,
                 requestSent: ! $preflight,
