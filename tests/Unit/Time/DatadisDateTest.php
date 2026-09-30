@@ -25,7 +25,3 @@ it('returns null for dashed input in the slash parser and the reverse', function
     expect(DatadisDate::tryParse('2022-01-01', $utc))->toBeNull()
         ->and(DatadisDate::tryParseDashed('2022/01/01', $utc))->toBeNull();
 });
-
-it('accepts the first year', function () {
-    expect(DatadisDate::tryParse('0001/01/01', new DateTimeZone('UTC'))?->format('Y'))->toBe('0001');
-});

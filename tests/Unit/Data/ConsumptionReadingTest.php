@@ -101,10 +101,6 @@ it('keeps the 25 hour day in source order with the repeated label', function () 
         ->and($readings[2]->index)->toBe(2)->and($readings[3]->index)->toBe(2);
 });
 
-it('has no reading for the skipped hour of the 23 hour day', function () {
-    expect(Payloads::springDay())->toHaveCount(23)->not->toContain('03:00');
-});
-
 it('reads the obtain method with spaces and knows every spelling of an estimate', function (string $method, bool $real, bool $estimated) {
     $reading = ConsumptionReading::fromRow(['date' => '2026/01/01', 'time' => '01:00', 'consumptionKWh' => 1, 'obtainMethod' => $method], new DateTimeZone('Europe/Madrid'), MeasurementType::Hourly);
 

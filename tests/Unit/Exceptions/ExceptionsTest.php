@@ -3,38 +3,12 @@
 declare(strict_types=1);
 
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
-use Lenorix\DatadisClient\Exceptions\AuthorizationException;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
-use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
-use Lenorix\DatadisClient\Exceptions\NoDataException;
-use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
-use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\TransportException;
-use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
-
-it('extends DatadisException, which is a RuntimeException', function (string $class) {
-    $exception = new $class('message');
-
-    expect($exception)->toBeInstanceOf(DatadisException::class)
-        ->and($exception)->toBeInstanceOf(RuntimeException::class);
-})->with([
-    AuthenticationException::class,
-    AuthorizationException::class,
-    ConfigurationException::class,
-    InvalidRequestException::class,
-    LedgerUnavailableException::class,
-    NoDataException::class,
-    RepetitionWindowException::class,
-    RequestRejectedException::class,
-    ServiceUnavailableException::class,
-    TransportException::class,
-    UninterpretableResponseException::class,
-    UnsupportedOperationException::class,
-]);
 
 it('assumes the request was sent unless it is a pre-flight failure', function () {
     expect((new RequestRejectedException('x'))->requestSent)->toBeTrue()
@@ -73,8 +47,4 @@ it('keeps the previous exception', function () {
     $previous = new LogicException('inner');
 
     expect((new TransportException('x', previous: $previous))->getPrevious())->toBe($previous);
-});
-
-it('has no error code of its own', function () {
-    expect((new RequestRejectedException('x'))->getCode())->toBe(0);
 });

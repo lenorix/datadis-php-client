@@ -33,21 +33,22 @@ function autoQuery(): SelfConsumptionSearchQuery
     return new SelfConsumptionSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid]);
 }
 
-it('calls each public endpoint without logging in', function (string $method, string $path, Closure $query) {
-    $http = (new FakeHttpClient)->queue(Responses::json(datadisFixture('public/search.json')));
+it('calls each public endpoint without logging in and reads its answer', function (string $method, string $path, Closure $query, string $fixture, Closure $check) {
+    $http = (new FakeHttpClient)->queue(Responses::json(datadisFixture($fixture)));
 
     $result = publicApi($http)->{$method}($query());
 
     expect($http->requests())->toHaveCount(1)
         ->and($http->lastRequest()->getUri()->getPath())->toBe($path)
         ->and($http->lastRequest()->hasHeader('Authorization'))->toBeFalse()
-        ->and($result->records)->toHaveCount(1)
-        ->and($result->records[0]->energy())->toBe('30300495.000');
+        ->and($result->records)->toHaveCount(1);
+
+    $check($result->records[0]);
 })->with([
-    ['search', '/api-public/api-search', fn () => searchQuery()],
-    ['sumSearch', '/api-public/api-sum-search', fn () => searchQuery()],
-    ['searchSelfConsumption', '/api-public/api-search-auto', fn () => autoQuery()],
-    ['sumSearchSelfConsumption', '/api-public/api-sum-search-auto', fn () => autoQuery()],
+    'search' => ['search', '/api-public/api-search', fn () => searchQuery(), 'public/search.json', fn ($r) => expect($r->energy())->toBe('30300495.000')],
+    'sum' => ['sumSearch', '/api-public/api-sum-search', fn () => searchQuery(), 'public/sum-search.json', fn ($r) => expect($r->energy())->toBe('1093523120.000')->and($r->contracts())->toBe(5977431)],
+    'self-consumption search' => ['searchSelfConsumption', '/api-public/api-search-auto', fn () => autoQuery(), 'public/search-auto.json', fn ($r) => expect($r->power())->toBe('121843.000')->and($r->contracts())->toBe(1609)],
+    'self-consumption sum' => ['sumSearchSelfConsumption', '/api-public/api-sum-search-auto', fn () => autoQuery(), 'public/sum-search-auto.json', fn ($r) => expect($r->energy())->toBe('55304627.000')->and($r->power())->toBe('3247427.000')->and($r->contracts())->toBe(16577)],
 ]);
 
 it('sends the query as built', function () {
@@ -122,18 +123,6 @@ it('stops walking at the page limit', function () {
     expect($records)->toHaveCount(3)->and($http->requests())->toHaveCount(3);
 });
 
-it('builds with the default Guzzle transport and default settings', function () {
-    expect(new PublicApi)->toBeInstanceOf(PublicApi::class);
-});
-
-it('yields unique keys across pages so iterator_to_array keeps every record', function () {
-    $page = fn (int $n) => json_encode(array_fill(0, $n, ['sumEnergy' => 1]));
-    $http = (new FakeHttpClient)->queue(Responses::json($page(2)), Responses::json($page(2)), Responses::json($page(1)));
-    $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], pageSize: 2);
-
-    expect(iterator_to_array(publicApi($http)->searchAll($query)))->toHaveCount(5);
-});
-
 it('walks every page of the self-consumption search', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},{"a":2}]'), Responses::json('[{"a":3}]'));
     $query = new SelfConsumptionSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], pageSize: 2);
@@ -183,20 +172,16 @@ it('reads an empty 200 as an empty page but fails on an envelope key that is not
 it('builds public requests with the PSR-17 factories it is given', function () {
     $factory = new class implements RequestFactoryInterface
     {
-        public int $calls = 0;
-
         public function createRequest(string $method, $uri): RequestInterface
         {
-            $this->calls++;
-
-            return (new HttpFactory)->createRequest($method, $uri);
+            return (new HttpFactory)->createRequest($method, $uri)->withHeader('X-Built-By', 'app');
         }
     };
     $http = (new FakeHttpClient)->queue(Responses::json('[]'));
 
     (new PublicApi(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http, $factory))->search(searchQuery());
 
-    expect($factory->calls)->toBe(1);
+    expect($http->lastRequest()->getHeaderLine('X-Built-By'))->toBe('app');
 });
 
 it('uses the public Datadis host by default', function () {

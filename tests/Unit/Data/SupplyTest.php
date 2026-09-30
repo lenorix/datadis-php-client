@@ -23,12 +23,12 @@ it('decodes a v2 supply', function () use ($zone, $rows) {
 
 it('decodes a closed contract and a v1 row with code fields', function () use ($zone, $rows) {
     $closed = Supply::fromRow($rows('v2/supplies.json')['supplies'][1], $zone);
-    $v1 = Supply::fromRow($rows('v1/supplies.json')[0], $zone);
+    $v1 = Supply::fromRow($rows('v1/supplies-authorized.json')[0], $zone);
 
     expect($closed->validTo?->format('Y-m-d'))->toBe('2021-12-31')
         ->and($closed->isOpenEnded())->toBeFalse()
         ->and($v1->provinceCode)->toBe('28')
-        ->and($v1->municipalityCode)->toBe('001');
+        ->and($v1->municipalityCode)->toBe('079');
 });
 
 it('accepts a distributor code and a point type that arrive with another type', function () use ($zone) {

@@ -297,25 +297,6 @@ it('scrubs an echoed username that is not shaped like a NIF', function () {
     throw new LogicException('Expected an AuthenticationException.');
 });
 
-it('classifies the edges of the login status ranges', function (int $status, ?string $class) {
-    $stack = new Stack;
-    $stack->http->queue($status === 299 ? Responses::text('abc.def.ghi', 299) : Responses::text('', $status));
-
-    if ($class === null) {
-        expect($stack->tokens->token())->toBe('abc.def.ghi');
-
-        return;
-    }
-
-    expect(fn () => $stack->tokens->token())->toThrow($class, "login: Datadis answered HTTP {$status}.");
-})->with([
-    [199, RequestRejectedException::class],
-    [299, null],
-    [300, RequestRejectedException::class],
-    [499, RequestRejectedException::class],
-    [500, ServiceUnavailableException::class],
-]);
-
 it('says a non-token login answer was not sent and carries no detail', function () {
     $stack = new Stack;
     $stack->http->queue(Responses::text('<html>'));

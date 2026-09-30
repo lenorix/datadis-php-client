@@ -1,7 +1,0 @@
-{
-    "maxPower": [
-        {"cups": "ES0031300000000001JN0F", "date": "2022/01/11", "time": "09:45", "maxPower": 15.228, "period": "1"},
-        {"cups": "ES0031300000000001JN0F", "date": "2022/01/12", "time": "24:00", "maxPower": 3.4, "period": "P3"}
-    ],
-    "distributorError": []
-}

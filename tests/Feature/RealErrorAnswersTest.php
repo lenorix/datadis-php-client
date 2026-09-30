@@ -82,9 +82,9 @@ it('reads an unknown path as a refusal without logging in again', function () us
 it('logs in once more after the real 401 and gives up on a second one', function () use ($consumption) {
     $s = Scenario::make(ApiVersion::V1);
     $s->http->queue(
-        Responses::json(datadisFixture('errors/401-spring.json'), 401),
+        Responses::datadisError(datadisFixture('errors/401-spring.json'), 401),
         Responses::text(Tokens::datadis(time())),
-        Responses::json(datadisFixture('errors/401-spring.json'), 401),
+        Responses::datadisError(datadisFixture('errors/401-spring.json'), 401),
     );
 
     try {
@@ -105,7 +105,7 @@ it('logs in once more after the real 401 and gives up on a second one', function
 it('logs in once more after the real 401 and carries on when the new token works', function () use ($consumption) {
     $s = Scenario::make(ApiVersion::V1);
     $s->http->queue(
-        Responses::json(datadisFixture('errors/401-spring.json'), 401),
+        Responses::datadisError(datadisFixture('errors/401-spring.json'), 401),
         Responses::text(Tokens::datadis(time())),
         Responses::datadis('[]'),
     );

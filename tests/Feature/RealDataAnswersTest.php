@@ -82,9 +82,13 @@ it('reads a real month of hourly consumption, every hour in place', function (in
 
 it('reads the current month, which has data up to about two days ago', function () {
     $s = realScenario();
-    $s->http->queue(Responses::text((string) json_encode(Payloads::realMonth(2026, 9, untilDay: 28)), 200, ['Content-Type' => 'text/plain']));
+    // "Now" is 2026-09-15: the answer ends on the 13th.
+    $s->http->queue(Responses::datadis(Payloads::realMonth(2026, 9, untilDay: 13)));
 
-    expect($s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 9), Month::of(2026, 9))->records)->toHaveCount(672);
+    $readings = $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 9), Month::of(2026, 9))->records;
+
+    expect($readings)->toHaveCount(312)
+        ->and(end($readings)->end?->format('Y-m-d H:i'))->toBe('2026-09-14 00:00');
 });
 
 it('reads real maximum power rows, one per period, in kW', function () {

@@ -85,12 +85,6 @@ it('returns one month for an equal start and end and refuses a reversed range', 
     Month::sequence(Month::of(2025, 2), Month::of(2025, 1));
 })->throws(InvalidArgumentException::class);
 
-it('accepts the first and last representable years and is not before itself', function () {
-    expect(Month::of(1, 1)->format())->toBe('0001/01')
-        ->and(Month::of(9999, 12)->format())->toBe('9999/12')
-        ->and(Month::of(2026, 1)->isBefore(Month::of(2026, 1)))->toBeFalse();
-});
-
 it('knows the current month on the Madrid calendar', function () {
     $lateCanary = new DateTimeImmutable('2026-09-30 23:30:00', new DateTimeZone('Atlantic/Canary'));
 

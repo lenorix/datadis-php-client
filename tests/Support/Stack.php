@@ -43,9 +43,11 @@ final class Stack
 
     public readonly ApiCaller $caller;
 
-    /** A login answer carrying a token that expires in $lifetime seconds from the frozen clock. */
-    public function loginOk(int $lifetime = 3600, string $subject = 'user'): ResponseInterface
+    /** A login answer carrying a token issued now that expires in $lifetime seconds (24 hours, like the real one). */
+    public function loginOk(int $lifetime = 86400, string $subject = 'user'): ResponseInterface
     {
-        return Responses::text(Tokens::jwt(['sub' => $subject, 'exp' => $this->clock->now()->getTimestamp() + $lifetime]));
+        $now = $this->clock->now()->getTimestamp();
+
+        return Responses::text(Tokens::jwt(['sub' => $subject, 'iat' => $now, 'exp' => $now + $lifetime]));
     }
 }

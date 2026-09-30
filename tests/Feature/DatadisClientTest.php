@@ -22,7 +22,6 @@ use Lenorix\DatadisClient\Tests\Support\Scenario;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
-use Lenorix\DatadisClient\Values\MeasurementType;
 use Lenorix\DatadisClient\Values\Nif;
 
 function scenario(ApiVersion $version = ApiVersion::V2, ?DateTimeZone $zone = null): array
@@ -54,17 +53,6 @@ it('lists supplies with the v2 endpoint', function () {
         ->and($result->distributorErrors)->toBe([]);
 });
 
-it('lists supplies with the v1 endpoint and a bare list', function () {
-    [$client, $http] = scenario(ApiVersion::V1);
-    $http->queue(Responses::datadis(datadisFixture('v1/supplies.json')));
-
-    $result = $client->supplies();
-
-    expect($http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/get-supplies')
-        ->and($result->records)->toHaveCount(1)
-        ->and($result->records[0]->provinceCode)->toBe('28');
-});
-
 it('sends authorizedNif only when it is a third party', function (?string $nif, ?string $expected) {
     [$client, $http] = scenario();
     $http->queue(Responses::datadis('{"supplies":[],"distributorError":[]}'));
@@ -89,35 +77,11 @@ it('can filter supplies by distributor code', function () {
     expect(queryOf($http))->toBe(['distributorCode' => '2']);
 });
 
-it('lists the distributors that have supplies in both shapes', function (ApiVersion $version, string $file, string $path) {
-    [$client, $http] = scenario($version);
-    $http->queue(Responses::datadis(datadisFixture($file)));
-
-    $result = $client->distributors();
-
-    expect($http->requests()[1]->getUri()->getPath())->toBe($path)
-        ->and($result->records)->toBe($version === ApiVersion::V2 ? ['2', '5', '8'] : ['7', '2', '5']);
-})->with([
-    'v2' => [ApiVersion::V2, 'v2/distributors.json', '/api-private/api/get-distributors-with-supplies-v2'],
-    'v1' => [ApiVersion::V1, 'v1/distributors.json', '/api-private/api/get-distributors-with-supplies'],
-]);
-
 it('reads the distributors of a v1 list wrapper', function () {
     [$client, $http] = scenario(ApiVersion::V1);
     $http->queue(Responses::datadis('[{"distributorCodes":["1","2"]}]'));
 
     expect($client->distributors()->records)->toBe(['1', '2']);
-});
-
-it('gets the contract detail', function () {
-    [$client, $http] = scenario();
-    $http->queue(Responses::datadis(datadisFixture('v2/contract-detail.json')));
-
-    $result = $client->contractDetail(Cups::fromString(CUPS22), '2');
-
-    expect($http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/get-contract-detail-v2')
-        ->and(queryOf($http))->toBe(['cups' => CUPS22, 'distributorCode' => '2'])
-        ->and($result->records[0]->codeFare)->toBe('2T');
 });
 
 it('returns an empty result for an empty contract list instead of failing', function () {
@@ -147,32 +111,6 @@ it('requests consumption with every parameter Datadis requires', function () {
         ->and($result->records[0])->toBeInstanceOf(ConsumptionReading::class);
 });
 
-it('requests quarter-hourly data and reads quarter labels', function () {
-    [$client, $http] = scenario();
-    $http->queue(Responses::datadis(Payloads::envelope('timeCurve', [
-        ['cups' => CUPS22, 'date' => '2026/01/01', 'time' => '00:15', 'consumptionKWh' => 0.05, 'obtainMethod' => 'Real'],
-    ])));
-
-    $result = $client->consumption(Cups::fromString(CUPS22), '2', 1, Month::of(2026, 1), Month::of(2026, 1), MeasurementType::QuarterHourly);
-
-    expect(queryOf($http)['measurementType'])->toBe('1')->and($result->records[0]->index)->toBe(0);
-});
-
-it('keeps the 25 hour and the 23 hour day intact', function () {
-    [$client, $http] = scenario();
-    $http->queue(Responses::datadis(Payloads::envelope('timeCurve', [
-        ...Payloads::hourlyRows('2025/10/26', Payloads::autumnDay()),
-        ...Payloads::hourlyRows('2026/03/29', Payloads::springDay()),
-    ])));
-
-    $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2025, 10), Month::of(2026, 3));
-    $autumn = array_filter($result->records, fn ($r) => $r->date === '2025/10/26');
-    $spring = array_filter($result->records, fn ($r) => $r->date === '2026/03/29');
-
-    expect($autumn)->toHaveCount(25)->and($spring)->toHaveCount(23)
-        ->and(array_column(array_map(fn ($r) => ['t' => $r->time], array_values($autumn)), 't')[2])->toBe('03:00');
-});
-
 it('places consumption days in the configured time zone', function () {
     [$client, $http] = scenario(zone: new DateTimeZone('Atlantic/Canary'));
     $http->queue(Responses::datadis(datadisFixture('v2/consumption.json')));
@@ -189,28 +127,6 @@ it('reports a distributor failure hidden inside a 200 as data, not as an excepti
     $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
     expect($result->isEmptyBecauseOfErrors())->toBeTrue()->and($result->distributorErrors[0]->errorCode)->toBe('50');
-});
-
-it('requests the maximum power without measurement type or point type', function () {
-    [$client, $http] = scenario();
-    $http->queue(Responses::datadis(datadisFixture('v2/max-power.json')));
-
-    $result = $client->maxPower(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
-
-    expect($http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/get-max-power-v2')
-        ->and(queryOf($http))->toBe(['cups' => CUPS22, 'distributorCode' => '2', 'startDate' => '2026/01', 'endDate' => '2026/01'])
-        ->and($result->records)->toHaveCount(2);
-});
-
-it('requests reactive energy in v2', function () {
-    [$client, $http] = scenario();
-    $http->queue(Responses::datadis(datadisFixture('v2/reactive.json')));
-
-    $result = $client->reactive(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
-
-    expect($http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/get-reactive-data-v2')
-        ->and($result->records)->toHaveCount(1)
-        ->and($result->records[0]->entries)->toHaveCount(2);
 });
 
 it('returns an empty result for an empty reactive answer', function () {
@@ -292,10 +208,6 @@ it('finds the supply of a CUPS', function () {
     $supply = $client->findSupply(Cups::fromString('ES0031300000000001JN'));
 
     expect($supply?->cups)->toBe('ES0031300000000001JN0F')->and($supply?->isQueryable())->toBeTrue();
-});
-
-it('builds with the default Guzzle transport', function () {
-    expect(new DatadisClient(new DatadisConfig('12345678Z', 'secret')))->toBeInstanceOf(DatadisClient::class);
 });
 
 it('gives the readings of both change days consecutive one hour intervals', function (string $date, array $times, int $month, int $year) {

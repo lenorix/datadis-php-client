@@ -18,10 +18,6 @@ function guzzleWith(MockHandler $mock, ?DatadisConfig $config = null): ClientInt
     );
 }
 
-it('is a PSR-18 client', function () {
-    expect(guzzleWith(new MockHandler))->toBeInstanceOf(ClientInterface::class);
-});
-
 it('applies the configured timeouts and disables Guzzle magic', function () {
     $mock = new MockHandler([new Response(200, [], '[]')]);
 

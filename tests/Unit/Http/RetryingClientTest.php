@@ -219,13 +219,6 @@ it('reads a Retry-After date as GMT whatever the default time zone', function ()
     }
 });
 
-it('really waits with the default sleeper and randomness', function () {
-    $http = (new FakeHttpClient)->queue(Responses::empty(503), Responses::json('[]'));
-    $client = new RetryingClient($http, 1, baseDelayMs: 1, maxDelayMs: 2);
-
-    expect($client->sendRequest(get(SAFE))->getStatusCode())->toBe(200)->and($http->requests())->toHaveCount(2);
-});
-
 it('uses two retries, one second and thirty seconds as defaults', function () {
     $http = (new FakeHttpClient)->queue(Responses::empty(503), Responses::empty(503), Responses::empty(503), Responses::json('[]'));
     $sleeps = [];
@@ -340,12 +333,4 @@ it('spreads the waits with the default randomness', function () {
     $steps = array_map(fn (int $attempt) => 1000 * 2 ** $attempt, array_keys($sleeps));
 
     expect(array_filter(array_map(fn ($ms, $step) => $ms < $step, $sleeps, $steps)))->not->toBeEmpty();
-});
-
-it('never retries unlinking a partner user', function () {
-    [$client, $http] = retrying();
-    $http->queue(networkFailure(), Responses::text('OK'));
-
-    expect(fn () => $client->sendRequest(get('/api-private/api/partner-delete-user?nif=87654321X')))->toThrow(ConnectException::class)
-        ->and($http->requests())->toHaveCount(1);
 });

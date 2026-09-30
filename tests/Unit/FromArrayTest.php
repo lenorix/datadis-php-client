@@ -50,8 +50,9 @@ it('treats empty values from an unset environment variable as not given', functi
 });
 
 it('ignores keys it does not know, so an application can keep its own settings alongside', function () {
-    expect(DatadisConfig::fromArray(['username' => '12345678Z', 'password' => 'secret', 'retry' => ['enabled' => true], 'guard_store' => 'redis']))
-        ->toBeInstanceOf(DatadisConfig::class);
+    $config = DatadisConfig::fromArray(['username' => '12345678Z', 'password' => 'secret', 'retry' => ['enabled' => true], 'guard_store' => 'redis', 'timeout' => '30']);
+
+    expect($config->username)->toBe('12345678Z')->and($config->timeout)->toBe(30.0);
 });
 
 it('reads the settings also when their names are spelt with dashes', function () {

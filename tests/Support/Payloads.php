@@ -26,7 +26,9 @@ final class Payloads
                 'time' => $time,
                 'consumptionKWh' => round(0.1 + $i / 100, 3),
                 'obtainMethod' => 'Real',
-                'surplusEnergyKWh' => 0,
+                'surplusEnergyKWh' => null,
+                'generationEnergyKWh' => null,
+                'selfConsumptionEnergyKWh' => null,
             ];
         }
 

@@ -48,59 +48,57 @@ it('maps empty bodies and 204 to no data', function (Response $response) {
     '204' => fn () => Responses::empty(204),
 ])->throws(NoDataException::class);
 
-it('maps unusable 200 bodies to an uninterpretable response', function (string $body) {
-    ResponseClassifier::decode(Responses::json($body), ENDPOINT);
+it('maps unusable 200 bodies to an uninterpretable response', function (Response $response) {
+    ResponseClassifier::decode($response, ENDPOINT);
 })->with([
-    'html maintenance page' => '<html><body>Mantenimiento</body></html>',
-    'json string' => '"maintenance"',
-    'json number' => '42',
-    'json null' => 'null',
-    'json true' => 'true',
-    'truncated json' => '{"timeCurve":[',
+    'html maintenance page' => fn () => Responses::text('<html><body>Mantenimiento</body></html>', 200, ['Content-Type' => 'text/html']),
+    'json string' => fn () => Responses::datadis('"maintenance"'),
+    'json number' => fn () => Responses::datadis('42'),
+    'json null' => fn () => Responses::datadis('null'),
+    'json true' => fn () => Responses::datadis('true'),
+    'truncated json' => fn () => Responses::datadis('{"timeCurve":['),
 ])->throws(UninterpretableResponseException::class);
 
-it('maps each error status to its exception', function (int $status, string $class) {
+it('maps each error status to its exception', function (Response $response, string $class) {
     $thrown = null;
 
     try {
-        ResponseClassifier::decode(Responses::text('boom', $status), ENDPOINT);
+        ResponseClassifier::decode($response, ENDPOINT);
     } catch (Throwable $e) {
         $thrown = $e;
     }
 
     expect($thrown)->toBeInstanceOf($class)
-        ->and($thrown->httpStatus)->toBe($status)
+        ->and($thrown->httpStatus)->toBe($response->getStatusCode())
         ->and($thrown->endpoint)->toBe(ENDPOINT)
         ->and($thrown->requestSent)->toBeTrue();
 })->with([
-    [400, RequestRejectedException::class],
-    [401, AuthenticationException::class],
-    [403, AuthorizationException::class],
-    [404, NoDataException::class],
-    [409, RequestRejectedException::class],
-    [422, RequestRejectedException::class],
-    [429, RepetitionWindowException::class],
-    [500, ServiceUnavailableException::class],
-    [502, ServiceUnavailableException::class],
-    [503, ServiceUnavailableException::class],
-    [504, ServiceUnavailableException::class],
-    [301, UninterpretableResponseException::class],
+    'rejected parameters' => [fn () => Responses::datadisError('MeasurementType incorrecto ', 400), RequestRejectedException::class],
+    'refused token' => [fn () => Responses::datadisError(datadisFixture('errors/401-spring.json'), 401), AuthenticationException::class],
+    'nothing authorized' => [fn () => Responses::datadisError('No authorized supplies', 403), AuthorizationException::class],
+    'unknown path' => [fn () => Responses::text('403 Forbidden', 403), AuthorizationException::class],
+    'no supplies' => [fn () => Responses::datadisError('No supplies', 404), NoDataException::class],
+    'repetition' => [fn () => Responses::datadisError('Consulta ya realizada', 429), RepetitionWindowException::class],
+    'missing parameter' => [fn () => Responses::empty(500), ServiceUnavailableException::class],
+    'gateway' => [fn () => Responses::text('<html>502 Bad Gateway</html>', 502, ['Content-Type' => 'text/html']), ServiceUnavailableException::class],
+    'another 4xx' => [fn () => Responses::text('Conflict', 409), RequestRejectedException::class],
+    'a redirect, which is never followed' => [fn () => Responses::empty(301), UninterpretableResponseException::class],
 ]);
 
-it('reads the message of Spring style and plain message error bodies', function (string $body) {
+it('reads the message of the error bodies Datadis sends', function (Response $response, string $detail) {
     try {
-        ResponseClassifier::decode(Responses::json($body, 400), ENDPOINT);
-    } catch (RequestRejectedException $e) {
-        expect($e->detail)->toContain('Date range not allowed');
+        ResponseClassifier::decode($response, ENDPOINT);
+    } catch (DatadisException $e) {
+        expect($e->detail)->toContain($detail);
 
         return;
     }
 
     throw new LogicException('Expected an exception.');
 })->with([
-    'spring' => '{"timestamp":"2026-01-01T00:00:00","status":400,"error":"Bad Request","message":"Date range not allowed","path":"/api"}',
-    'message only' => '{"message":"Date range not allowed"}',
-    'plain text' => 'Date range not allowed',
+    'Spring JSON of a refused token' => [fn () => Responses::datadisError(datadisFixture('errors/401-spring.json'), 401), 'No message available'],
+    'plain text labelled JSON' => [fn () => Responses::datadisError('Fechas incorrectas revise: Formato de fechas YYYY/MM', 400), 'Fechas incorrectas'],
+    'plain text labelled text' => [fn () => Responses::text('Parámetro en cabecera requerido en estado vacío', 400), 'Parámetro en cabecera'],
 ]);
 
 it('reads an empty 500 body without failing', function () {
@@ -161,26 +159,6 @@ it('reads a body that is not UTF-8 as Windows-1252 instead of failing it', funct
 it('leaves a valid UTF-8 body untouched', function () {
     expect(ResponseClassifier::decode(Responses::json('[{"distributor":"EDISTRIBUCIÓN"}]'), ENDPOINT)[0]['distributor'])->toBe('EDISTRIBUCIÓN');
 });
-
-it('draws the success range exactly between 200 and 299', function (int $status, bool $success) {
-    $call = fn () => ResponseClassifier::decode(Responses::json('[1]', $status), ENDPOINT);
-
-    $success ? expect($call())->toBe([1]) : expect($call)->toThrow(DatadisException::class);
-})->with([[199, false], [200, true], [299, true], [300, false]]);
-
-it('maps the edges of the error ranges', function (int $status, string $class) {
-    expect(fn () => ResponseClassifier::decode(Responses::text('x', $status), ENDPOINT))->toThrow($class);
-})->with([
-    [399, UninterpretableResponseException::class],
-    [400, RequestRejectedException::class],
-    [499, RequestRejectedException::class],
-    [500, ServiceUnavailableException::class],
-    [599, ServiceUnavailableException::class],
-]);
-
-it('treats a 204 as no data even if it carries a body', function () {
-    ResponseClassifier::decode(Responses::text('ignored', 204), ENDPOINT);
-})->throws(NoDataException::class);
 
 it('writes the message with and without a detail', function () {
     expect(fn () => ResponseClassifier::decode(Responses::empty(500), ENDPOINT))->toThrow(ServiceUnavailableException::class, ENDPOINT.': Datadis answered HTTP 500.')

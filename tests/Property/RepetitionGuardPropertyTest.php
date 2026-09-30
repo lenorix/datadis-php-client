@@ -33,10 +33,11 @@ it('sends a guarded query only when the model says the window is free', function
             $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
             $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 365 * 86400])));
 
+            $success = ['{"timeCurve":[],"distributorError":[]}', '{"maxPower":[],"distributorError":[]}', '{"reactiveEnergy":{},"distributorError":[]}', '{"maxPower":[],"distributorError":[]}'];
             $answers = [
-                fn () => Responses::datadis('{"maxPower":[],"timeCurve":[],"distributorError":[]}'),
-                fn () => Responses::text('', 500),
-                fn () => Responses::text('bad', 400),
+                fn (int $call) => Responses::datadis($success[$call]),
+                fn () => Responses::empty(500),
+                fn () => Responses::datadisError('CUPS o distributor no válido ', 400),
                 fn () => Responses::text('again', 429),
                 fn () => new ConnectException('timeout', new Request('GET', 'https://datadis.test')),
             ];
@@ -58,7 +59,7 @@ it('sends a guarded query only when the model says the window is free', function
                 $free = ! isset($model[$key]) || $now - $model[$key] >= RequestLedger::WINDOW_SECONDS;
 
                 if ($free) {
-                    $http->queue($answers[$answer]());
+                    $http->queue($answers[$answer]($call));
                 }
 
                 try {

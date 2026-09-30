@@ -97,28 +97,23 @@ it('builds requests with the PSR-17 factories it is given', function () {
     $guzzle = new HttpFactory;
     $requests = new class($guzzle) implements RequestFactoryInterface
     {
-        public int $calls = 0;
-
         public function __construct(private HttpFactory $inner) {}
 
         public function createRequest(string $method, $uri): RequestInterface
         {
-            $this->calls++;
-
-            return $this->inner->createRequest($method, $uri);
+            return $this->inner->createRequest($method, $uri)->withHeader('X-Built-By', 'app');
         }
     };
     $streams = new class($guzzle) implements StreamFactoryInterface
     {
-        public int $calls = 0;
+        /** @var list<StreamInterface> */
+        public array $created = [];
 
         public function __construct(private HttpFactory $inner) {}
 
         public function createStream(string $content = ''): StreamInterface
         {
-            $this->calls++;
-
-            return $this->inner->createStream($content);
+            return $this->created[] = $this->inner->createStream($content);
         }
 
         public function createStreamFromFile(string $filename, string $mode = 'r'): StreamInterface
@@ -131,11 +126,14 @@ it('builds requests with the PSR-17 factories it is given', function () {
             return $this->inner->createStreamFromResource($resource);
         }
     };
-    $http = (new FakeHttpClient)->queue(Responses::text(Tokens::jwt(['exp' => time() + 3600])), Responses::datadis('{"supplies":[]}'));
+    $http = (new FakeHttpClient)->queue(Responses::text(Tokens::datadis(time())), Responses::datadis('{"supplies":[]}'));
     $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, requestFactory: $requests, streamFactory: $streams);
 
     $client->supplies();
 
-    // Streams: the login body, then each answer's body kept in memory by the transport.
-    expect($requests->calls)->toBe(2)->and($streams->calls)->toBe(3);
+    [$login, $supplies] = $http->requests();
+
+    expect($login->getHeaderLine('X-Built-By'))->toBe('app')
+        ->and($supplies->getHeaderLine('X-Built-By'))->toBe('app')
+        ->and(in_array($login->getBody(), $streams->created, true))->toBeTrue();
 });

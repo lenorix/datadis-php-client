@@ -14,12 +14,15 @@ use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Stack;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
+use Psr\Http\Message\ResponseInterface;
 
 const SUPPLIES = '/api-private/api/get-supplies-v2';
 
+const CONSUMPTION = '/api-private/api/get-consumption-data-v2';
+
 it('logs in, calls the endpoint with the bearer token and returns decoded JSON', function () {
     $stack = new Stack;
-    $stack->http->queue($stack->loginOk(), Responses::json('{"supplies":[],"distributorError":[]}'));
+    $stack->http->queue($stack->loginOk(), Responses::datadis('{"supplies":[],"distributorError":[]}'));
 
     $decoded = $stack->caller->get(SUPPLIES, ['authorizedNif' => null], 'get-supplies-v2');
 
@@ -32,9 +35,9 @@ it('re-logs in exactly once when the token is rejected and retries the call', fu
     $stack = new Stack;
     $stack->http->queue(
         $stack->loginOk(subject: 'first'),
-        Responses::text('expired', 401),
+        refusedToken(),
         $stack->loginOk(subject: 'second'),
-        Responses::json('[{"cups":"x"}]'),
+        Responses::datadis('[{"cups":"x"}]'),
     );
 
     $decoded = $stack->caller->get(SUPPLIES, [], 'get-supplies-v2');
@@ -49,7 +52,7 @@ it('re-logs in exactly once when the token is rejected and retries the call', fu
 
 it('gives up after a second 401 and does not loop', function () {
     $stack = new Stack;
-    $stack->http->queue($stack->loginOk(), Responses::text('no', 401), $stack->loginOk(), Responses::text('no', 401));
+    $stack->http->queue($stack->loginOk(), refusedToken(), $stack->loginOk(), refusedToken());
 
     try {
         $stack->caller->get(SUPPLIES, [], 'get-supplies-v2');
@@ -82,7 +85,7 @@ it('treats a network failure on a data call as possibly sent and does not retry'
     $stack->http->queue($stack->loginOk(), new ConnectException('cURL error 28: Operation timed out', new Request('GET', 'https://datadis.test')));
 
     try {
-        $stack->caller->get(SUPPLIES, [], 'get-consumption-data-v2');
+        $stack->caller->get(CONSUMPTION, [], 'get-consumption-data-v2');
     } catch (TransportException $e) {
         expect($e->requestSent)->toBeTrue()
             ->and($e->endpoint)->toBe('get-consumption-data-v2')
@@ -100,7 +103,7 @@ it('does not leak query identifiers through a transport failure', function () {
     $stack->http->queue($stack->loginOk(), new ConnectException("cURL error 28 for {$uri}", new Request('GET', $uri)));
 
     try {
-        $stack->caller->get(SUPPLIES, [], 'get-consumption-data-v2');
+        $stack->caller->get(CONSUMPTION, [], 'get-consumption-data-v2');
     } catch (TransportException $e) {
         expect($e->getMessage())->not->toContain('ES0031300000000001JN0F')->not->toContain('12345678Z')
             ->and((string) $e->detail)->not->toContain('ES0031300000000001JN0F')->not->toContain('12345678Z')
@@ -138,7 +141,7 @@ it('never lets the password or the token reach an exception message', function (
 
 it('returns the raw text of an answer that is allowed to be empty', function () {
     $stack = new Stack;
-    $stack->http->queue($stack->loginOk(), Responses::text('', 401), $stack->loginOk(), Responses::empty(200));
+    $stack->http->queue($stack->loginOk(), refusedToken(), $stack->loginOk(), Responses::empty(200));
 
     expect($stack->caller->getText('/api-private/api/cancel-authorization', [], 'cancel-authorization'))->toBe('')
         ->and($stack->http->requests())->toHaveCount(4);
@@ -146,10 +149,10 @@ it('returns the raw text of an answer that is allowed to be empty', function () 
 
 it('reports the call as sent when logging in again after a 401 fails', function () {
     $stack = new Stack;
-    $stack->http->queue($stack->loginOk(), Responses::text('expired', 401), Responses::text('bad credentials', 401));
+    $stack->http->queue($stack->loginOk(), refusedToken(), Responses::text('bad credentials', 401));
 
     try {
-        $stack->caller->get(SUPPLIES, [], 'get-consumption-data-v2');
+        $stack->caller->get(CONSUMPTION, [], 'get-consumption-data-v2');
     } catch (AuthenticationException $e) {
         expect($e->requestSent)->toBeTrue()
             ->and($e->httpStatus)->toBe(401)
@@ -164,10 +167,10 @@ it('reports the call as sent when logging in again after a 401 fails', function 
 
 it('reports the call as sent when the network fails while logging in again', function () {
     $stack = new Stack;
-    $stack->http->queue($stack->loginOk(), Responses::text('expired', 401), new ConnectException('down', new Request('POST', 'https://datadis.test')));
+    $stack->http->queue($stack->loginOk(), refusedToken(), new ConnectException('down', new Request('POST', 'https://datadis.test')));
 
     try {
-        $stack->caller->get(SUPPLIES, [], 'get-consumption-data-v2');
+        $stack->caller->get(CONSUMPTION, [], 'get-consumption-data-v2');
     } catch (DatadisException $e) {
         expect($e->requestSent)->toBeTrue();
 
@@ -191,3 +194,9 @@ it('wraps whatever a misbehaving HTTP client throws', function (bool $preflight)
 
     throw new LogicException('Expected a TransportException.');
 })->with([true, false]);
+
+/** The answer Datadis gives to a token it does not accept (verified). */
+function refusedToken(): ResponseInterface
+{
+    return Responses::datadisError(datadisFixture('errors/401-spring.json'), 401);
+}

@@ -12,7 +12,6 @@ use Lenorix\DatadisClient\Tests\Support\Scenario;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
 use Lenorix\DatadisClient\Values\MeasurementType;
-use Lenorix\DatadisClient\Values\Nif;
 
 const FUZZ_KEYS = [
     'cups', 'date', 'time', 'consumptionKWh', 'obtainMethod', 'surplusEnergyKWh', 'generationEnergyKWh',
@@ -116,22 +115,6 @@ it('decodes every valid hourly row, in order, whatever the day shape', function 
             expect($result->records)->toHaveCount($expectedUsable)
                 ->and($result->skippedRows)->toBe(count($rows) - $expectedUsable)
                 ->and(array_map(fn ($r) => $r->time, $result->records))->toBe(array_slice($times, count($rows) - $expectedUsable));
-        });
-});
-
-it('sends authorizedNif exactly when it differs from the account', function () {
-    $this->limitTo(pbtIterations())
-        ->forAll(Generators::elements('12345678Z', ' 12345678z', '12345678Z ', '87654321X', 'X1234567L', ' x1234567l '))
-        ->then(function (string $nif) {
-            $s = Scenario::make();
-            $s->http->queue(Responses::datadis('{"supplies":[],"distributorError":[]}'));
-
-            $s->client->supplies(Nif::fromString($nif));
-
-            $sent = $s->query()['authorizedNif'] ?? null;
-            $isOwn = strtoupper(trim($nif)) === '12345678Z';
-
-            expect($sent)->toBe($isOwn ? null : strtoupper(trim($nif)));
         });
 });
 

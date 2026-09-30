@@ -32,7 +32,7 @@ final class Scenario
             clock: $clock,
             timeZone: $zone,
         );
-        $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 3600])));
+        $http->queue(Responses::text(Tokens::datadis($clock->now()->getTimestamp())));
 
         return new self($client, $http, $clock);
     }

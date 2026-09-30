@@ -16,7 +16,7 @@ function ledger(FrozenClock $clock): RequestLedger
     return new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
 }
 
-it('remembers an attempt for the whole repetition window', function () use ($query) {
+it('remembers an attempt for 24 hours and a margin for clock differences with Datadis', function () use ($query) {
     $clock = new FrozenClock;
     $ledger = ledger($clock);
 
@@ -25,15 +25,14 @@ it('remembers an attempt for the whole repetition window', function () use ($que
     $ledger->record('12345678Z', $query);
     expect($ledger->lastAttempt('12345678Z', $query)?->getTimestamp())->toBe($clock->now()->getTimestamp());
 
-    $clock->advance(RequestLedger::WINDOW_SECONDS - 1);
+    $clock->advance(86400 + 60);
+    expect($ledger->lastAttempt('12345678Z', $query))->not->toBeNull();
+
+    $clock->advance(RequestLedger::WINDOW_SECONDS - 86400 - 60 - 1);
     expect($ledger->lastAttempt('12345678Z', $query))->not->toBeNull();
 
     $clock->advance(1);
     expect($ledger->lastAttempt('12345678Z', $query))->toBeNull();
-});
-
-it('keeps a safety margin beyond 24 hours', function () {
-    expect(RequestLedger::WINDOW_SECONDS)->toBeGreaterThan(86400);
 });
 
 it('forgets an attempt on demand', function () use ($query) {
