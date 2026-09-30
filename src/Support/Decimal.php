@@ -19,7 +19,7 @@ final class Decimal
             throw new InvalidArgumentException('The scale must not be negative.');
         }
 
-        return BigDecimal::of(self::literal($value))->toScale($scale, RoundingMode::HalfUp)->toString();
+        return (string) BigDecimal::of(self::literal($value))->toScale($scale, RoundingMode::HalfUp);
     }
 
     public static function isNumeric(mixed $value): bool

@@ -17,8 +17,9 @@
     ],
     "require": {
         "php": "^8.4",
-        "brick/math": "^1.0",
+        "brick/math": "^0.14.2 || ^0.15 || ^0.16 || ^0.17 || ^0.18 || ^0.19 || ^0.20 || ^1.0",
         "guzzlehttp/guzzle": "^8.2",
+        "guzzlehttp/psr7": "^3.1",
         "psr/clock": "^1.0",
         "psr/http-client": "^1.0",
         "psr/http-factory": "^1.1",
