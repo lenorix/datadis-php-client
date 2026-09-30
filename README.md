@@ -331,21 +331,21 @@ The client uses API v2 by default. Pass `version: ApiVersion::V1` for the older 
 
 ## Using it in a Laravel application
 
-The package does not depend on any framework, but it is ready to be configured from one: `DatadisClient::fromArray()` and `DatadisConfig::fromArray()` take the same array you would keep in a configuration file, with the values as the environment gives them (text such as `"120"` or `"v1"` is fine, empty values count as not given, and keys the package does not know are ignored).
+The package does not depend on any framework, but it is ready to be configured from one: `DatadisClient::fromArray()` and `DatadisConfig::fromArray()` take the same array you keep in your configuration, with the values as the environment gives them (text such as `"120"` or `"v1"` is fine, empty values count as not given, and keys the package does not know are ignored, so your own Datadis settings can live next to them).
 
-`config/datadis.php`:
+Datadis is a third-party service, so its credentials go in `config/services.php`, like any other:
 
 ```php
-return [
+'datadis' => [
     'username' => env('DATADIS_USERNAME'),
     'password' => env('DATADIS_PASSWORD'),
     'api_version' => env('DATADIS_API_VERSION', 'v2'),
     'timezone' => env('DATADIS_TIMEZONE', 'Europe/Madrid'),
     'timeout' => env('DATADIS_TIMEOUT', 120),
-];
+],
 ```
 
-`app/Providers/AppServiceProvider.php`:
+Then bind the client in `app/Providers/AppServiceProvider.php`:
 
 ```php
 use Illuminate\Support\Facades\Cache;
@@ -358,10 +358,10 @@ public function register(): void
 {
     // bind, not singleton: each resolution picks up the current configuration and any Http::fake().
     $this->app->bind(DatadisClient::class, fn () => DatadisClient::fromArray(
-        config('datadis'),
+        config('services.datadis'),
         // Laravel's own Guzzle client, so Http::fake() and Http::assertSent() see every call.
         http: Http::withOptions(['allow_redirects' => false, 'decode_content' => false])
-            ->timeout((float) config('datadis.timeout', 120))
+            ->timeout((float) config('services.datadis.timeout', 120))
             ->buildClient(),
         // The token and the 24 hour guard live in the cache every worker shares.
         tokenCache: Cache::store(),
