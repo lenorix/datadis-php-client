@@ -189,15 +189,19 @@ it('lets the HTTP failures through as typed exceptions', function (Closure $resp
     try {
         $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
     } catch (Throwable $e) {
-        expect($e)->toBeInstanceOf($class);
+        expect($e)->toBeInstanceOf($class)
+            ->and($e->requestSent)->toBeTrue()
+            ->and($e->endpoint)->toBe('get-consumption-data-v2')
+            ->and($http->requests())->toHaveCount(2)
+            ->and($http->pending())->toBe(0);
 
         return;
     }
 
     throw new LogicException('Expected an exception.');
 })->with([
-    'no data' => [fn () => Responses::text('Data not found', 404), NoDataException::class],
-    'repetition window' => [fn () => Responses::text('Consulta ya realizada en las últimas 24 horas', 429), RepetitionWindowException::class],
+    'no data' => [fn () => Responses::datadisError('Data not found', 404), NoDataException::class],
+    'repetition window' => [fn () => Responses::datadisError('Consulta ya realizada en las últimas 24 horas', 429), RepetitionWindowException::class],
     'network failure' => [fn () => new ConnectException('cURL error 28', new Request('GET', 'https://datadis.test')), TransportException::class],
 ]);
 

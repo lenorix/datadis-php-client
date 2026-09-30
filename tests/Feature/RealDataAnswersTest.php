@@ -65,7 +65,11 @@ it('reads a real month of hourly consumption, every hour in place', function (in
 
     $readings = $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of($year, $from), Month::of($year, $to))->records;
 
+    $madrid = new DateTimeZone('Europe/Madrid');
+
     expect($readings)->toHaveCount($rows)
+        ->and($readings[0]->start?->getTimestamp())->toBe((new DateTimeImmutable(sprintf('%04d-%02d-01', $year, $from), $madrid))->getTimestamp())
+        ->and(end($readings)->end?->getTimestamp())->toBe((new DateTimeImmutable(sprintf('%04d-%02d-01', $year, $to + 1), $madrid))->getTimestamp())
         ->and($readings[0]->surplusKWh)->toBeNull()
         ->and($readings[0]->isReal())->toBeTrue();
 
