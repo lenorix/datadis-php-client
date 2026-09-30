@@ -42,7 +42,7 @@ use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
 
-$client = new DatadisClient(new DatadisConfig('B12345678', 'your-password'));
+$client = new DatadisClient(new DatadisConfig('B12345674', 'your-password'));
 
 // 1. Find the supply: it carries the codes every other call needs.
 $supply = $client->findSupply(Cups::fromString('ES0031300000000001JN0F'));
@@ -130,6 +130,9 @@ The 3.0TD and 6.XTD calendars depend on regulated season tables; implement the `
 
 ```php
 use Lenorix\DatadisClient\Values\MeasurementType;
+
+$startDate = Month::of(2026, 5);
+$endDate = Month::of(2026, 7);
 
 $quarters = $client->getConsumptionDataOf($supply, $startDate, $endDate, MeasurementType::QuarterHourly);
 $peaks = $client->getMaxPowerOf($supply, $startDate, $endDate);         // one row per tariff period, in kW
@@ -224,7 +227,7 @@ Some conventions hold everywhere:
 
 - **Names are Datadis's own.** Methods are named after the endpoints (`get-consumption-data` is `getConsumptionData()`, `api-search` is `apiSearch()`), and every field Datadis sends keeps its key exactly, odd spelling included (`consumptionKWh`, `contractedPowerkW`, `municipioCode`, `code_desc`), so anything in the official documentation can be found here by its name. Only values the client works out itself have names of their own (`start`, `end`, `hourOfDay`, `day`).
 
-- **Numbers are decimal strings, never floats, and never rounded**: every digit Datadis sends is kept, written with at least three decimals for energy (kWh), maximum power (kW) and installed capacity, and at least two for contracted power (`3.45`, `1.725`). Installed capacity comes in whatever unit Datadis sends: the documentation says kW, its only sample looks like W, so check it against your own data.
+- **Numbers are decimal strings, never floats, and never rounded**: every digit Datadis sends is kept (numbers sent as JSON numbers go through PHP's float on the way, which is exact up to about 15 significant digits, far beyond any real value), written with at least three decimals for energy (kWh), maximum power (kW) and installed capacity, and at least two for contracted power (`3.45`, `1.725`). Installed capacity comes in whatever unit Datadis sends: the documentation says kW, its only sample looks like W, so check it against your own data.
 - **Dates and times are `DateTimeImmutable`** in the zone the client was given (Europe/Madrid by default). A contract or supply without an end has `null` there and `isOpenEnded()` returns `true`.
 - **Consumption rows keep the order Datadis sent them in**, and each one knows its real interval: `start`, `end`, `index` (hour 0 to 23, or quarter 0 to 95) and `hourOfDay` (0 to 23 for both).
 
@@ -307,10 +310,10 @@ $client = new DatadisClient($config, tokenCache: $psr16Cache);
 Datadis can be slow, and a request that times out may still have counted. The default timeout is 120 seconds; do not go much lower.
 
 ```php
-$config = new DatadisConfig('B12345678', 'your-password', timeout: 120.0, connectTimeout: 10.0);
+$config = new DatadisConfig('B12345674', 'your-password', timeout: 120.0, connectTimeout: 10.0);
 
 // or from the settings your application already keeps
-$config = DatadisConfig::fromArray(['username' => 'B12345678', 'password' => 'your-password', 'timeout' => '120']);
+$config = DatadisConfig::fromArray(['username' => 'B12345674', 'password' => 'your-password', 'timeout' => '120']);
 ```
 
 ### Retry transient failures safely

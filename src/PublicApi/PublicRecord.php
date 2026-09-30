@@ -57,13 +57,13 @@ final readonly class PublicRecord
         return new DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day), new DateTimeZone(Month::SERVICE_TIME_ZONE));
     }
 
-    /** Energy in kWh with three decimals. */
+    /** Energy in kWh, every digit kept, with at least three decimals. */
     public function sumEnergy(): ?string
     {
         return $this->decimal('sumEnergy');
     }
 
-    /** Generation power in kW (self-consumption searches only), with three decimals. */
+    /** Generation power in kW (self-consumption searches only), every digit kept, with at least three decimals. */
     public function sumPower(): ?string
     {
         return $this->decimal('sumPower');
@@ -75,7 +75,7 @@ final readonly class PublicRecord
         return Fields::integer($this->raw, 'sumContracts', 'sumContract');
     }
 
-    /** @return array<int, string|null> bucket number (1 to 25) => decimal string with scale 3, or null */
+    /** @return array<int, string|null> bucket number (1 to 25) => exact decimal string with at least three decimals, or null */
     public function hourly(): array
     {
         $buckets = [];
