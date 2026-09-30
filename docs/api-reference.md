@@ -123,7 +123,7 @@ Assumptions: dates are sent as `YYYY/MM/DD`; a list is sent by repeating the key
 
 `/api-public/api-search`, `api-sum-search`, `api-search-auto`, `api-sum-search-auto`.
 
-- Authentication: the official manual tells to send the login token on these calls too, and the implementations seen in the wild do. `PublicApi` sends it when given a `DatadisConfig` and calls without it when given only `ConnectionSettings`.
+- Authentication: the official manual tells to send the login token on these calls too, and the implementations seen in the wild do. `PublicApiClient` sends it when given a `DatadisConfig` and calls without it when given only `ConnectionSettings`.
 - Required: `startDate`, `endDate` (`YYYY/MM/DD`), `community` (one or two of `01`..`19`); searches (not sums) also require `page` (from 0) and `pageSize` (1-2000). The sums take no paging.
 - `api-search` / `api-sum-search`: optional `measurementType` (`01`..`05`; the 2023 manual calls it `measurementPointType`, the current documentation `measurementType`), `distributor` (CNMC 4 digit codes), `fare`, `provinceMunicipality` (2 or 5 digits), `groupByPostalCode` (integer), `postalCode`, `economicSector` (`1`..`4`), `tension` (`E0`..`E6`), `timeDiscrimination` (`G0`, `E1`, `E2`, `E3`), `sort`.
 - `api-search-auto` / `api-sum-search-auto`: `distributor`, `selfConsumption` (modality codes), `province` (2 digits); `sort` only on the search.

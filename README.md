@@ -194,10 +194,10 @@ Aggregated consumption by region, tariff, sector and more, with no supply involv
 
 ```php
 use Lenorix\DatadisClient\PublicApi\Community;
-use Lenorix\DatadisClient\PublicApi\PublicApi;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
+use Lenorix\DatadisClient\PublicApiClient;
 
-$api = new PublicApi($config);   // the official manual asks for your login token here too
+$api = new PublicApiClient($config);   // the official manual asks for your login token here too
 $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid]);
 
 foreach ($api->apiSearchAll($query) as $record) {
@@ -205,7 +205,7 @@ foreach ($api->apiSearchAll($query) as $record) {
 }
 ```
 
-There are also `apiSumSearch()`, `apiSearchAuto()` and `apiSumSearchAuto()`. `new PublicApi()` calls without credentials.
+There are also `apiSumSearch()`, `apiSearchAuto()` and `apiSumSearchAuto()`. `new PublicApiClient()` calls without credentials.
 
 ## Working with the results
 

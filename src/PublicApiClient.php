@@ -2,12 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Lenorix\DatadisClient\PublicApi;
+namespace Lenorix\DatadisClient;
 
 use Generator;
-use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\Data\ApiResult;
-use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Http\ApiCaller;
@@ -15,6 +13,9 @@ use Lenorix\DatadisClient\Http\Connection;
 use Lenorix\DatadisClient\Http\RequestFactory;
 use Lenorix\DatadisClient\Http\ResponseClassifier;
 use Lenorix\DatadisClient\Http\Transport;
+use Lenorix\DatadisClient\PublicApi\PublicRecord;
+use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
+use Lenorix\DatadisClient\PublicApi\SelfConsumptionSearchQuery;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -32,7 +33,7 @@ use SensitiveParameter;
  * wild send it. Give a DatadisConfig to log in and send it; give only ConnectionSettings to call
  * without credentials.
  */
-final class PublicApi
+final class PublicApiClient
 {
     private const string PATH = '/api-public/';
 

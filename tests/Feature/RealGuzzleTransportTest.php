@@ -11,8 +11,8 @@ use Lenorix\DatadisClient\Http\GuzzleClientFactory;
 use Lenorix\DatadisClient\Http\RequestFactory;
 use Lenorix\DatadisClient\Http\Transport;
 use Lenorix\DatadisClient\PublicApi\Community;
-use Lenorix\DatadisClient\PublicApi\PublicApi;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
+use Lenorix\DatadisClient\PublicApiClient;
 
 it('turns a real Guzzle connection failure into a TransportException without leaking the url', function () {
     // Port 1 on localhost refuses connections immediately, so no external network is involved.
@@ -52,7 +52,7 @@ it('builds a working Guzzle client when none is given', function (Closure $call,
         false,
     ],
     'public API' => [
-        fn () => (new PublicApi(new ConnectionSettings(baseUrl: 'https://127.0.0.1:1', timeout: 5.0, connectTimeout: 2.0)))
+        fn () => (new PublicApiClient(new ConnectionSettings(baseUrl: 'https://127.0.0.1:1', timeout: 5.0, connectTimeout: 2.0)))
             ->apiSearch(new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid])),
         true,
     ],

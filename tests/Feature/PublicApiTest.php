@@ -9,18 +9,18 @@ use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\PublicApi\Community;
-use Lenorix\DatadisClient\PublicApi\PublicApi;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApi\SelfConsumptionSearchQuery;
+use Lenorix\DatadisClient\PublicApiClient;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
 
-function publicApi(FakeHttpClient $http): PublicApi
+function publicApi(FakeHttpClient $http): PublicApiClient
 {
-    return new PublicApi(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http);
+    return new PublicApiClient(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http);
 }
 
 function searchQuery(): PublicSearchQuery
@@ -179,7 +179,7 @@ it('builds public requests with the PSR-17 factories it is given', function () {
     };
     $http = (new FakeHttpClient)->queue(Responses::json('[]'));
 
-    (new PublicApi(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http, $factory))->apiSearch(searchQuery());
+    (new PublicApiClient(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http, $factory))->apiSearch(searchQuery());
 
     expect($http->lastRequest()->getHeaderLine('X-Built-By'))->toBe('app');
 });
@@ -187,7 +187,7 @@ it('builds public requests with the PSR-17 factories it is given', function () {
 it('uses the public Datadis host by default', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('[]'));
 
-    (new PublicApi(http: $http))->apiSearch(searchQuery());
+    (new PublicApiClient(http: $http))->apiSearch(searchQuery());
 
     expect($http->lastRequest()->getUri()->getHost())->toBe('datadis.es');
 });
@@ -222,7 +222,7 @@ it('logs in and sends the token when it is given credentials', function () {
         Responses::text(Tokens::jwt(['exp' => time() + 3600])),
         Responses::json(datadisFixture('public/search.json')),
     );
-    $api = new PublicApi(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), $http);
+    $api = new PublicApiClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), $http);
 
     $result = $api->apiSearch(searchQuery());
 

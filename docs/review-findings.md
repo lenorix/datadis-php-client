@@ -55,7 +55,9 @@ Done since: the decoding helpers moved out of `Data` into the internal `Decoding
 
 Decided: the constructor and `fromArray()` stay as two ways in (plain code and application settings); their parameter names are final for 1.0. The wiring both APIs need is shared in the internal `Http\Connection`.
 
-Still open: `PublicApi\PublicApi` repeating its namespace.
+Decided: the public API client is `PublicApiClient`, at the root next to `DatadisClient`; its queries and records stay in `PublicApi`.
+
+Nothing from this review is left open.
 
 ## Bugs of other implementations checked
 

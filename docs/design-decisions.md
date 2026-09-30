@@ -15,6 +15,7 @@ The architecture as built. Each decision states the reason so it can be revisite
 - **A client per holder** (`forHolder()`), since reading supplies of people who authorized the account is the professional use: a copy of the client that sends the holder's NIF on every supply and data call and refuses a different one. It is optional; `authorizedNif` per call still works.
 - **No client interface.** Applications fake Datadis over HTTP in their tests; an interface would turn every new endpoint into a breaking change.
 - **Two ways to build the client, kept apart**: the constructor for plain code and `fromArray()` for application settings. Their parameter names are part of the 1.0 API. The wiring shared with the public API lives in the internal `Http\Connection`.
+- **Both entry points at the root**: `DatadisClient` for the private API and `PublicApiClient` for the public one; the public API's queries and records live in `PublicApi`.
 - **Kept as they are:** tolerated answer shapes no source documents (marked `TOLERATED, NO SOURCE` in the code), contract detail as a list like Datadis's answer, raw answers of the calls never captured (typed once a real answer is seen), and one time zone per client.
 
 ## Dependencies
