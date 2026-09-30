@@ -64,7 +64,6 @@ it('refuses invalid queries', function (Closure $build) use ($from, $to) {
     'no community' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [], ['05'])],
     'three communities' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid, Community::Ceuta, Community::Melilla], ['05'])],
     'repeated community' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid, Community::Madrid], ['05'])],
-    'no measurement type' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], [])],
     'measurement type 06' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['06'])],
     'measurement type 5' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['5'])],
     'reversed dates' => [fn ($f, $t) => new PublicSearchQuery($t, $f, [Community::Madrid], ['05'])],
@@ -100,4 +99,23 @@ it('moves to another page without changing the filters', function () use ($from,
 it('accepts a single day and refuses a doubled minus in sort', function () use ($from) {
     expect((new PublicSearchQuery($from, $from, [Community::Madrid], ['05']))->toQuery()['endDate'])->toBe('2026/01/01')
         ->and(fn () => new PublicSearchQuery($from, $from, [Community::Madrid], ['05'], sort: ['--dataDate']))->toThrow(InvalidRequestException::class);
+});
+
+it('does not require a measurement type and can group by postal code', function () use ($from, $to) {
+    $query = new PublicSearchQuery($from, $to, [Community::Madrid], groupByPostalCode: true);
+
+    expect($query->toQuery())->not->toHaveKey('measurementType')
+        ->and($query->toQuery()['groupByPostalCode'])->toBe(1)
+        ->and((new PublicSearchQuery($from, $to, [Community::Madrid], groupByPostalCode: false))->toQuery()['groupByPostalCode'])->toBe(0);
+});
+
+it('leaves paging out of the sum query', function () use ($from, $to) {
+    $query = new PublicSearchQuery($from, $to, [Community::Madrid], ['05'], page: 3, sort: ['-sumEnergy']);
+
+    expect($query->toSumQuery())->not->toHaveKey('page')->not->toHaveKey('pageSize')
+        ->and($query->toSumQuery()['sort'])->toBe('-sumEnergy');
+});
+
+it('accepts the date fields of the answers as sort fields', function () use ($from, $to) {
+    expect((new PublicSearchQuery($from, $to, [Community::Madrid], sort: ['dataYear', '-dataMonth', 'dataDay']))->toQuery()['sort'])->toBe('dataYear,-dataMonth,dataDay');
 });

@@ -21,6 +21,7 @@ use Lenorix\DatadisClient\Tests\Support\Scenario;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
+use Lenorix\DatadisClient\Values\Nif;
 use Psr\Http\Message\ResponseInterface;
 
 /** @return array{DatadisClient, FakeHttpClient, FrozenClock} */
@@ -184,4 +185,24 @@ it('keeps the original failure when the ledger cannot forget an unsent query', f
     $http->queue(Responses::text('bad credentials', 401));
 
     expect(fn () => $consumption($client))->toThrow(AuthenticationException::class);
+});
+
+it('treats max power queries with and without authorizedNif as the same query, as the manual keys them', function () {
+    [$client, $http, $clock] = guarded();
+    $http->queue(login($clock), Responses::json('{"maxPower":[]}'));
+
+    $client->maxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1), Nif::fromString('87654321X'));
+
+    expect(fn () => $client->maxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1)))
+        ->toThrow(RepetitionWindowException::class);
+});
+
+it('keeps consumption queries with and without authorizedNif apart, as the manual keys them', function () {
+    [$client, $http, $clock] = guarded();
+    $http->queue(login($clock), Responses::json('{"timeCurve":[]}'), Responses::json('{"timeCurve":[]}'));
+
+    $client->consumption(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: Nif::fromString('87654321X'));
+    $client->consumption(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+
+    expect($http->requests())->toHaveCount(3);
 });

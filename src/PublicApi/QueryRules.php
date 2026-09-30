@@ -19,6 +19,8 @@ final class QueryRules
     public const array SORT_FIELDS = [
         'dataDate', 'community', 'province', 'municipality', 'postalCode', 'fare', 'measurePointType',
         'tension', 'economicSector', 'timeDiscrimination', 'distributor', 'sumEnergy', 'sumContracts',
+        // Field names of the answers, which the current documentation lists as sort options.
+        'dataDay', 'dataMonth', 'dataYear', 'selfConsumption', 'sumPower', 'measurePointType',
     ];
 
     public static function dates(DateTimeInterface $from, DateTimeInterface $to): void
@@ -60,13 +62,9 @@ final class QueryRules
      *
      * @param  array<mixed>  $values  checked at runtime: callers may pass anything
      */
-    public static function list(string $name, array $values, string $pattern, bool $required = false): ?string
+    public static function list(string $name, array $values, string $pattern): ?string
     {
         if ($values === []) {
-            if ($required) {
-                throw new InvalidRequestException("The public API requires at least one {$name}.");
-            }
-
             return null;
         }
 

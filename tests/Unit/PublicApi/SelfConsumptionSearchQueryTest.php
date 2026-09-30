@@ -51,3 +51,9 @@ it('validates dates and paging like the other query', function (Closure $build) 
     [fn ($f, $t) => new SelfConsumptionSearchQuery($t, $f, [Community::Madrid])],
     [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], page: -1)],
 ])->throws(InvalidRequestException::class);
+
+it('leaves paging and sorting out of the sum query', function () use ($from, $to) {
+    $query = new SelfConsumptionSearchQuery($from, $to, [Community::Madrid], page: 2, sort: ['-sumPower']);
+
+    expect($query->toSumQuery())->toBe(['startDate' => '2026/01/01', 'endDate' => '2026/01/31', 'community' => '13']);
+});

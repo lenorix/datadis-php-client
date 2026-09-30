@@ -321,3 +321,11 @@ it('spreads the waits with the default randomness', function () {
 
     expect(array_filter(array_map(fn ($ms, $step) => $ms < $step, $sleeps, $steps)))->not->toBeEmpty();
 });
+
+it('never retries unlinking a partner user', function () {
+    [$client, $http] = retrying();
+    $http->queue(networkFailure(), Responses::text('OK'));
+
+    expect(fn () => $client->sendRequest(get('/api-private/api/partner-delete-user?nif=87654321X')))->toThrow(ConnectException::class)
+        ->and($http->requests())->toHaveCount(1);
+});

@@ -16,6 +16,7 @@ use Lenorix\DatadisClient\Data\ConsumptionReading;
 use Lenorix\DatadisClient\Data\ContractDetail;
 use Lenorix\DatadisClient\Data\DistributorCodes;
 use Lenorix\DatadisClient\Data\Envelope;
+use Lenorix\DatadisClient\Data\Group;
 use Lenorix\DatadisClient\Data\MaxPowerReading;
 use Lenorix\DatadisClient\Data\ReactiveEnergy;
 use Lenorix\DatadisClient\Data\Supply;
@@ -292,6 +293,51 @@ final class DatadisClient
     }
 
     /**
+     * The supply groups defined in the account (v2 only).
+     *
+     * @return ApiResult<Group>
+     */
+    public function groups(): ApiResult
+    {
+        if ($this->version !== ApiVersion::V2) {
+            throw new UnsupportedOperationException('Groups exist only in API v2.');
+        }
+
+        $decoded = $this->caller->get(self::API.'get-groups-v2', [], 'get-groups-v2');
+
+        return Envelope::build($decoded, 'groups', 'get-groups-v2', static fn (array $row) => Group::fromRow($row));
+    }
+
+    /**
+     * The users linked to the partner account (Datadis partner programme). UNVERIFIED: the official
+     * documentation does not describe the answer, so the decoded JSON is returned as is.
+     *
+     * @return array<array-key, mixed>
+     */
+    public function partnerUsers(): array
+    {
+        return $this->caller->get(self::API.'partner-user-list', [], 'partner-user-list');
+    }
+
+    /**
+     * Unlinks a user from the partner account. It changes data, so it is never retried
+     * automatically. UNVERIFIED: returns the raw answer text.
+     */
+    public function partnerDeleteUser(Nif $nif): string
+    {
+        return $this->caller->getText(self::API.'partner-delete-user', ['nif' => $nif->value()], 'partner-delete-user');
+    }
+
+    /**
+     * The date the partner agreement started. `$nif` is only for callers allowed to consult another
+     * partner. UNVERIFIED: returns the raw answer text.
+     */
+    public function partnerAgreementDate(?Nif $nif = null): string
+    {
+        return $this->caller->getText(self::API.'partner-agreement-date', ['nif' => $nif?->value()], 'partner-agreement-date');
+    }
+
+    /**
      * @param  array<string, string|int|list<string>|null>  $query
      * @return array<array-key, mixed>
      */
@@ -304,7 +350,8 @@ final class DatadisClient
         }
 
         $account = $this->config->username;
-        $last = $this->ledger->lastAttempt($account, $query);
+        $key = $this->repetitionKey($name, $query);
+        $last = $this->ledger->lastAttempt($account, $key);
 
         if ($last !== null) {
             throw new RepetitionWindowException(
@@ -314,14 +361,14 @@ final class DatadisClient
             );
         }
 
-        $this->ledger->record($account, $query);
+        $this->ledger->record($account, $key);
 
         try {
             return $this->caller->get(self::API.$endpoint, $query, $endpoint);
         } catch (DatadisException $e) {
             if (! $e->requestSent) {
                 try {
-                    $this->ledger->forget($account, $query);
+                    $this->ledger->forget($account, $key);
                 } catch (\Throwable) {
                     // The original failure matters more; the entry expires with the window.
                 }
@@ -329,6 +376,19 @@ final class DatadisClient
 
             throw $e;
         }
+    }
+
+    /**
+     * The parameters Datadis keys its 24 hour rule on. The official manual lists authorizedNif for
+     * consumption but not for maximum power, so for maximum power and reactive data (same
+     * parameters) it is left out: two such queries that differ only in authorizedNif collide.
+     *
+     * @param  array<string, string|int|list<string>|null>  $query
+     * @return array<string, string|int|list<string>|null>
+     */
+    private function repetitionKey(string $name, #[SensitiveParameter] array $query): array
+    {
+        return $name === 'get-consumption-data' ? $query : array_merge($query, ['authorizedNif' => null]);
     }
 
     private function endpoint(string $name): string

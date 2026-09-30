@@ -20,4 +20,6 @@ Identifiers are fictitious: CUPS `ES0031300000000001JN0F` (22 chars) and `ES0031
 | `v2/distributors.json`, `v1/distributors.json` | SPEC | Both envelope shapes. |
 | DST day payloads | SYNTHETIC values, VERIFIED shape | Built in `tests/Support/Payloads.php`: 25 rows with `03:00` twice, 23 rows without `03:00`. |
 | `v1/list-authorization.json` | SPEC | Field names from the manual only; no real capture exists. Mixed id and date types on purpose. |
-| `public/search.json` | SYNTHETIC | Public API shape is unknown: no source has a success body. Field names follow the documented sort fields and the `mi1`..`mi25` hourly totals. |
+| `public/search.json`, `public/search-auto.json` | SPEC | Copied from the sample answers of the official API manual (aggregated open data, no personal data). Numbers arrive as strings; the date is `dataDay`/`dataMonth`/`dataYear`. |
+| `public/sum-search.json`, `public/sum-search-auto.json` | SPEC | Sample answers of the official manual: note `sumContract` in singular and numbers as JSON numbers. |
+| `v2/groups.json` | SYNTHETIC | The official documentation lists only `name` and `description`; one implementation reads a bare list. |

@@ -63,6 +63,16 @@ final readonly class SelfConsumptionSearchQuery
         return $this->query;
     }
 
+    /**
+     * The query for `api-sum-search-auto`, which takes no paging and no sorting.
+     *
+     * @return array<string, string|int>
+     */
+    public function toSumQuery(): array
+    {
+        return array_diff_key($this->query, ['page' => true, 'pageSize' => true, 'sort' => true]);
+    }
+
     public function withPage(int $page): self
     {
         return new self(

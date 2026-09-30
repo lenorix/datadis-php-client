@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use GuzzleHttp\Psr7\HttpFactory;
 use Lenorix\DatadisClient\ConnectionSettings;
+use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
@@ -13,6 +14,7 @@ use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApi\SelfConsumptionSearchQuery;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\Responses;
+use Lenorix\DatadisClient\Tests\Support\Tokens;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
 
@@ -40,7 +42,7 @@ it('calls each public endpoint without logging in', function (string $method, st
         ->and($http->lastRequest()->getUri()->getPath())->toBe($path)
         ->and($http->lastRequest()->hasHeader('Authorization'))->toBeFalse()
         ->and($result->records)->toHaveCount(1)
-        ->and($result->records[0]->decimal('sumEnergy'))->toBe('1234.567');
+        ->and($result->records[0]->energy())->toBe('30300495.000');
 })->with([
     ['search', '/api-public/api-search', fn () => searchQuery()],
     ['sumSearch', '/api-public/api-sum-search', fn () => searchQuery()],
@@ -216,3 +218,31 @@ it('sends public requests to the configured host', function () {
 it('refuses an empty object, which says nothing about the page', function () {
     publicApi((new FakeHttpClient)->queue(Responses::json('{}')))->search(searchQuery());
 })->throws(UninterpretableResponseException::class);
+
+it('sends sums without paging', function () {
+    $http = (new FakeHttpClient)->queue(Responses::json(datadisFixture('public/sum-search.json')), Responses::json(datadisFixture('public/sum-search-auto.json')));
+
+    $sum = publicApi($http)->sumSearch(searchQuery());
+    publicApi($http)->sumSearchSelfConsumption(autoQuery());
+
+    parse_str($http->requests()[0]->getUri()->getQuery(), $first);
+    parse_str($http->requests()[1]->getUri()->getQuery(), $second);
+
+    expect($first)->not->toHaveKey('page')->and($second)->not->toHaveKey('pageSize')
+        ->and($sum->records[0]->contracts())->toBe(5977431);
+});
+
+it('logs in and sends the token when it is given credentials', function () {
+    $http = (new FakeHttpClient)->queue(
+        Responses::text(Tokens::jwt(['exp' => time() + 3600])),
+        Responses::json(datadisFixture('public/search.json')),
+    );
+    $api = new PublicApi(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), $http);
+
+    $result = $api->search(searchQuery());
+
+    expect($http->requests())->toHaveCount(2)
+        ->and($http->requests()[0]->getUri()->getPath())->toBe('/nikola-auth/tokens/login')
+        ->and($http->lastRequest()->getHeaderLine('Authorization'))->toStartWith('Bearer ')
+        ->and($result->records[0]->date()?->format('Y-m-d'))->toBe('2022-04-16');
+});

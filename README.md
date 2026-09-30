@@ -175,7 +175,7 @@ v2 is the default. Use `ApiVersion::V1` for the older endpoints (bare lists, no 
 $client = new DatadisClient($config, version: ApiVersion::V1);
 ```
 
-Authorizations exist only in the v1 style and are available whatever the version: `newAuthorization()`, `cancelAuthorization()` and `authorizations()`.
+Authorizations exist only in the v1 style and are available whatever the version: `newAuthorization()`, `cancelAuthorization()` and `authorizations()`. v2 also has `groups()`, and partner accounts have `partnerUsers()`, `partnerDeleteUser()` and `partnerAgreementDate()` (their answers are returned raw).
 
 ## Helpers
 
@@ -193,11 +193,13 @@ use Lenorix\DatadisClient\PublicApi\Community;
 use Lenorix\DatadisClient\PublicApi\PublicApi;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 
-$api = new PublicApi();
-$query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05']);
+// The official manual asks for the login token on these calls too: pass your DatadisConfig.
+// new PublicApi() calls without credentials.
+$api = new PublicApi($config);
+$query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid]);
 
 foreach ($api->searchAll($query) as $record) {
-    echo $record->decimal('sumEnergy'), PHP_EOL;
+    echo $record->date()?->format('Y-m-d'), ' ', $record->energy(), ' kWh', PHP_EOL;
 }
 ```
 
@@ -205,8 +207,9 @@ foreach ($api->searchAll($query) as $record) {
 
 Some behaviour could not be checked against real answers and is read tolerantly:
 
-- The authorization endpoints and the public API: no real answer has been captured.
-- Reactive energy and maximum power: the shapes follow the manual.
+- The answers of the authorization and partner endpoints (not described anywhere) and whether the public API works without the token.
+- Reactive energy: the shape follows the official documentation, no real answer has been seen.
+- The unit of maximum power: the documentation says W, real household data says kW.
 - The quarter-hourly label format.
 - The token lifetime (the JWT `exp` claim decides) and whether Datadis judges its month window in Madrid time (assumed).
 

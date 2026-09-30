@@ -13,7 +13,9 @@ use SensitiveParameter;
 /**
  * The maximum power of a day, with the instant it was reached.
  *
- * The unit is kW in practice (one implementation documents W, contradicted by every fixture).
+ * The official documentation says the unit is W, but household answers seen by several
+ * implementations (2 to 4 against 3.45 to 4.6 kW contracted) only make sense in kW, so it is
+ * named kW here; the untouched value stays in `raw`.
  * `period` is kept as received: it appears as `"1"`..`"6"`, and some sources show `P1` or
  * VALLE/LLANO/PUNTA. `periodNumber()` understands the numeric spellings.
  */

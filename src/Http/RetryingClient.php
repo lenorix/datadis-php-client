@@ -23,7 +23,8 @@ use Psr\Http\Message\ResponseInterface;
  * honouring Retry-After when it is not longer than the maximum wait.
  *
  * It never retries the guarded endpoints (consumption, max power, reactive) nor the authorization
- * changes: a request that may have reached Datadis burns the 24 hour repetition window, and a
+ * changes nor unlinking a partner user: a request that may have reached Datadis burns the 24 hour
+ * repetition window or changes data, and a
  * network failure cannot tell whether it did. It never retries 4xx (429 included) nor a plain 500,
  * which Datadis answers consistently for some supplies.
  *
@@ -40,6 +41,7 @@ final class RetryingClient implements ClientInterface
         '/get-reactive-data',
         '/new-authorization',
         '/cancel-authorization',
+        '/partner-delete-user',
     ];
 
     private readonly Closure $sleep;

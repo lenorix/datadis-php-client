@@ -4,7 +4,7 @@
 
 Datadis refuses an identical query made within 24 hours with **HTTP 429** ("Consulta ya realizada en las últimas 24 horas").
 
-- The key is the user plus the query parameters. One implementation reports that the key **ignores the endpoint**, so max-power and reactive with the same window collide; the manual lists `cups, distributorCode, startDate, endDate, measurementType, pointType, authorizedNif`. Assume the stricter reading.
+- The key is the user plus the query parameters. The official manual lists `cups, distributorCode, startDate, endDate, measurementType, pointType, authorizedNif` for consumption but only `cups, distributorCode, startDate, endDate` for maximum power (no `authorizedNif`). One implementation reports that the key **ignores the endpoint**, so max power and reactive with the same window collide. The guard takes the stricter reading of both: endpoint ignored, and `authorizedNif` ignored for maximum power and reactive.
 - It counts calls **made**, not calls that succeeded. A response caused by a user error (bad parameters, missing authorization) also burns the tuple.
 - It applies to consumption, max power and reactive. It does not apply to supplies, contract detail or distributors (VERIFIED for supplies/contract in practice).
 - Two ranges inside the same month are the same query, because the wire only carries `YYYY/MM`.

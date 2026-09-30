@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\PublicApi;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use Lenorix\DatadisClient\Data\Fields;
 use SensitiveParameter;
 
 /**
  * One aggregated row of the public API.
  *
- * UNVERIFIED: no source has a real success body, so the row is kept whole (`raw`) and read through
- * generic accessors. The documented aggregates are `sumEnergy`, `sumContracts` and the hourly
- * totals `mi1`..`mi25` (25 buckets, the last one for the extra hour of the autumn change).
+ * Shapes from the official manual's sample answers: searches carry `dataDay`, `dataMonth`,
+ * `dataYear`, the filters, `sumEnergy`, `sumContracts` (and `sumPower` for self-consumption) and
+ * the hourly totals `mi1`..`mi25` (the last one for the extra hour of the autumn change), all
+ * numbers as strings; sums carry `sumEnergy`, `sumContract` (singular) and `sumPower` as numbers.
+ * The row is kept whole in `raw`.
  */
 final readonly class PublicRecord
 {
@@ -35,6 +39,38 @@ final readonly class PublicRecord
     public function decimal(string $field, int $scale = 3): ?string
     {
         return Fields::decimal($this->raw, $scale, $field);
+    }
+
+    /** The day of an aggregated row, from `dataDay`, `dataMonth` and `dataYear`; null for sums. */
+    public function date(): ?DateTimeImmutable
+    {
+        $day = Fields::integer($this->raw, 'dataDay');
+        $month = Fields::integer($this->raw, 'dataMonth');
+        $year = Fields::integer($this->raw, 'dataYear');
+
+        if ($day === null || $month === null || $year === null || ! checkdate($month, $day, $year)) {
+            return null;
+        }
+
+        return new DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day), new DateTimeZone('Europe/Madrid'));
+    }
+
+    /** Energy in kWh with three decimals. */
+    public function energy(): ?string
+    {
+        return $this->decimal('sumEnergy');
+    }
+
+    /** Generation power in kW (self-consumption searches only), with three decimals. */
+    public function power(): ?string
+    {
+        return $this->decimal('sumPower');
+    }
+
+    /** Number of contracts; searches spell it `sumContracts` and sums `sumContract`. */
+    public function contracts(): ?int
+    {
+        return Fields::integer($this->raw, 'sumContracts') ?? Fields::integer($this->raw, 'sumContract');
     }
 
     /** @return array<int, string|null> bucket number (1 to 25) => decimal string with scale 3, or null */

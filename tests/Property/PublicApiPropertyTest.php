@@ -31,12 +31,6 @@ it('accepts every valid combination and sends exactly what it validated', functi
             $from = new DateTimeImmutable('2025-01-01');
             $to = $from->modify("+{$days} days");
 
-            if ($types === []) {
-                expect(fn () => new PublicSearchQuery($from, $to, $picked, $types))->toThrow(InvalidRequestException::class);
-
-                return;
-            }
-
             $query = new PublicSearchQuery($from, $to, $picked, array_values($types), $page, $size, economicSectors: array_values($sectors), tensions: array_values($tensions));
             $http = (new FakeHttpClient)->queue(Responses::json('[]'));
             (new PublicApi(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http))->search($query);
@@ -44,7 +38,7 @@ it('accepts every valid combination and sends exactly what it validated', functi
 
             expect($sent)->toBe(array_map('strval', $query->toQuery()))
                 ->and($sent['community'])->toBe(implode(',', array_map(fn ($c) => $c->value, $picked)))
-                ->and(explode(',', $sent['measurementType']))->toBe(array_values($types));
+                ->and(isset($sent['measurementType']) ? explode(',', $sent['measurementType']) : [])->toBe(array_values($types));
         });
 });
 

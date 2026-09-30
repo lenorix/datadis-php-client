@@ -6,10 +6,13 @@ namespace Lenorix\DatadisClient\PublicApi;
 
 use Generator;
 use GuzzleHttp\Psr7\HttpFactory;
+use Lenorix\DatadisClient\Auth\TokenProvider;
 use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\Data\ApiResult;
+use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
+use Lenorix\DatadisClient\Http\ApiCaller;
 use Lenorix\DatadisClient\Http\GuzzleClientFactory;
 use Lenorix\DatadisClient\Http\RequestFactory;
 use Lenorix\DatadisClient\Http\ResponseClassifier;
@@ -17,14 +20,19 @@ use Lenorix\DatadisClient\Http\Transport;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use Psr\SimpleCache\CacheInterface;
 use SensitiveParameter;
 
 /**
- * The public, unauthenticated Datadis API: aggregated open data by territory, tariff, sector...
+ * The public Datadis API: aggregated open data by territory, tariff, sector...
  *
- * It exists only in the v1 style. UNVERIFIED: the parameters come from the captured specification,
- * but no source has a real success body, so the answer is read tolerantly (a list, a list inside
- * `content`, `data` or `results`, or a single object) and every row is kept whole.
+ * It exists only in the v1 style. The answer shapes follow the official manual's samples (see
+ * PublicRecord); the answer is still read tolerantly (a list, a list inside `content`, `data`,
+ * `results` or `items`, or a single object) and every row is kept whole.
+ *
+ * The official manual asks for the login token on these calls too, and the clients seen in the
+ * wild send it. Give a DatadisConfig to log in and send it; give only ConnectionSettings to call
+ * without credentials.
  */
 final class PublicApi
 {
@@ -37,11 +45,15 @@ final class PublicApi
 
     private readonly Transport $transport;
 
+    /** Set when credentials were given: calls then carry the login token. */
+    private readonly ?ApiCaller $caller;
+
     public function __construct(
-        ?ConnectionSettings $settings = null,
+        DatadisConfig|ConnectionSettings|null $settings = null,
         ?ClientInterface $http = null,
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
+        ?CacheInterface $tokenCache = null,
     ) {
         $settings ??= new ConnectionSettings;
         $factory = new HttpFactory;
@@ -49,6 +61,9 @@ final class PublicApi
         $streamFactory ??= $factory;
         $this->requests = new RequestFactory($settings, $requestFactory ?? $factory, $streamFactory);
         $this->transport = new Transport($http ?? GuzzleClientFactory::create($settings), $streamFactory);
+        $this->caller = $settings instanceof DatadisConfig
+            ? new ApiCaller($this->requests, $this->transport, new TokenProvider($settings, $this->requests, $this->transport, $tokenCache))
+            : null;
     }
 
     /** @return ApiResult<PublicRecord> */
@@ -60,7 +75,7 @@ final class PublicApi
     /** @return ApiResult<PublicRecord> */
     public function sumSearch(PublicSearchQuery $query): ApiResult
     {
-        return $this->call('api-sum-search', $query->toQuery());
+        return $this->call('api-sum-search', $query->toSumQuery());
     }
 
     /** @return ApiResult<PublicRecord> */
@@ -72,7 +87,7 @@ final class PublicApi
     /** @return ApiResult<PublicRecord> */
     public function sumSearchSelfConsumption(SelfConsumptionSearchQuery $query): ApiResult
     {
-        return $this->call('api-sum-search-auto', $query->toQuery());
+        return $this->call('api-sum-search-auto', $query->toSumQuery());
     }
 
     /**
@@ -124,10 +139,10 @@ final class PublicApi
      */
     private function call(string $endpoint, array $query): ApiResult
     {
-        $response = $this->transport->send($this->requests->publicGet(self::PATH.$endpoint, $query), $endpoint);
-
         try {
-            $decoded = ResponseClassifier::decode($response, $endpoint);
+            $decoded = $this->caller === null
+                ? ResponseClassifier::decode($this->transport->send($this->requests->publicGet(self::PATH.$endpoint, $query), $endpoint), $endpoint)
+                : $this->caller->get(self::PATH.$endpoint, $query, $endpoint);
         } catch (NoDataException $e) {
             if ($e->httpStatus !== null && $e->httpStatus >= 200 && $e->httpStatus < 300) {
                 return new ApiResult([]);

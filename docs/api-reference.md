@@ -2,7 +2,14 @@
 
 Base URL: `https://datadis.es`. Use HTTPS only.
 
-Sources: a captured request specification (May 2025, best evidence for parameters), the official manual, and real captured payloads from a production consumer (mostly v1-shaped but the item fields are shared). Where sources disagree the table says so.
+Sources, strongest first:
+
+1. Real captured payloads and status codes from a production consumer of v1 (the item fields are shared with v2).
+2. The official documentation on the Datadis website (the private API page, current; v1, v2, reactive, groups, authorizations, partners, public API parameters and code lists).
+3. The official "Manual de usuario API" PDF (June 2023, v1 only), whose sample answers are images: they are the only official samples of every answer, including the public API.
+4. A captured request specification (May 2025) and third-party implementations.
+
+Where sources disagree the text says so.
 
 ## Authentication
 
@@ -34,6 +41,7 @@ Strip `null` parameters and use `http_build_query` so values are URL-encoded.
 | `/api-private/api/get-consumption-data-v2` | `cups`, `distributorCode`, `startDate`, `endDate`, `measurementType`, `pointType` | `authorizedNif` | `{timeCurve:[...], distributorError:[...]}` |
 | `/api-private/api/get-max-power-v2` | `cups`, `distributorCode`, `startDate`, `endDate` | `authorizedNif` | `{maxPower:[...], distributorError:[...]}` |
 | `/api-private/api/get-reactive-data-v2` | `cups`, `distributorCode`, `startDate`, `endDate` | `authorizedNif` | `{reactiveEnergy:{...}, distributorError:[...]}` |
+| `/api-private/api/get-groups-v2` | none | none | `[{name, description}]` (one implementation reads a bare list; an envelope is accepted too) |
 
 The v1 equivalents drop the `-v2` suffix and return bare JSON arrays with no `distributorError`. Decoders should tolerate a bare list as well as the envelope.
 
@@ -43,6 +51,8 @@ The v1 equivalents drop the `-v2` suffix and return bare JSON arrays with no `di
 - Window: the last **24 months**. The boundary month (exactly two years back) is refused ("la fecha inicio no puede ser superior a dos años"). Future months are refused ("las fechas deben ser anteriores o iguales al mes actual").
 - `measurementType`: `0` hourly, `1` quarter-hourly (SPEC). Quarter-hourly is only offered for point types 1 and 2 (and 3 for one distributor). The quarter-hour `time` format is undocumented anywhere.
 - `pointType` (int 1-5) and `distributorCode` (string, `"1"`-`"8"`) come only from `get-supplies-v2`. Send them as they came.
+- `distributorCode` on `get-supplies` is optional: "si se pone este parámetro, se irá directo contra la distribuidora" (official manual).
+- A NIF without its final letter is reported to give 401, not 400 (third-party note).
 - `authorizedNif`: omit it for the account's own supplies. Send it only when reading a third party's supplies. Sending it for an own supply was rejected and misclassified as an authorization error in production (VERIFIED). Compare NIFs after `trim` and uppercase; send the normalised value.
 - `get-contract-detail-v2` takes one CUPS per call.
 - No documented maximum range per call. Distributors time out on long ranges, so one month per consumption call is the safe default.
@@ -67,6 +77,8 @@ The list can be transiently empty or truncated for very large accounts, and a ne
 
 ### contract detail
 
+The official documentation spells two keys `accesFare` and `installedCapacityKW`; the official sample answer and real payloads use `accessFare` and `installedCapacity` (sent as `1.12E7` in the sample). Both spellings are accepted.
+
 `cups`, `distributor`, `marketer` (may be `"-"` or absent), `tension` (free text, "Baja tensión" or "BAJA TENSION"), `accessFare` (free text, the voltage/power band, **not** a tariff code; a v1 typo `accesFare` exists, accept both), `province`, `municipality`, `postalCode`, `contractedPowerkW` (array of numbers, one per power period: 2 for 2.0TD, 6 for the others), `timeDiscrimination` (`""` or "TARIFA DE TRES/SEIS PERIODOS"), `modePowerControl` ("ICP", "MAXIMETRO", "Maxímetro", `""`), `startDate`, `endDate` (`YYYY/MM/DD`, `""` or null when open), `codeFare` ("2T", "61", "03"), `selfConsumptionTypeCode`, `selfConsumptionTypeDesc`, `section`, `subsection`, `partitionCoefficient`, `cau`, `installedCapacity` (also seen as `installedCapacityKW`; accept both), `dateOwner` (`[{startDate,endDate}]`, **dash dates** `YYYY-MM-DD`), `lastMarketerDate`, `maxPowerInstall` (a **string**, e.g. `"5.5"`). Many fields are nullable.
 
 ### consumption (`timeCurve` item)
@@ -75,7 +87,7 @@ The list can be transiently empty or truncated for very large accounts, and a ne
 
 ### max power (`maxPower` item)
 
-`cups`, `date` (`YYYY/MM/DD`), `time` (`HH:MM`, quarter-hour values such as `09:45`), `maxPower` (number, **kW** in practice; one implementation documents W, contradicted by every fixture), `period` (string: `"1"`-`"6"` per manual and most fixtures, also `VALLE/LLANO/PUNTA` per manual, `"P1"` in one unverified fixture; normalise defensively).
+`cups`, `date` (`YYYY/MM/DD`), `time` (`HH:MM`, quarter-hour values such as `09:45`), `maxPower` (number; the official documentation says **W**, but household answers seen by several implementations are 2 to 4 against 3.45 to 4.6 kW contracted, which only makes sense in kW; the official sample is `15.228`; the client names it kW and keeps the raw value), `period` (string: `"1"`-`"6"` per manual and most fixtures, also `VALLE/LLANO/PUNTA` per manual, `"P1"` in one unverified fixture; normalise defensively).
 
 ### reactive (`reactiveEnergy`)
 
@@ -93,9 +105,9 @@ The list can be transiently empty or truncated for very large accounts, and a ne
 
 `1` Viesgo, `2` E-distribución, `3` E-redes, `4` ASEME, `5` UFD, `6` EOSA, `7` CIDE, `8` i-DE. Consistent across several implementations and real responses, but treat codes as **opaque strings**: one library had to relax its own validation.
 
-## v1-only functionality (UNVERIFIED)
+## Functionality outside the v2 endpoints
 
-Implemented because v2 has no equivalent. Everything below comes from the manual and a captured request specification; **no real answer has been captured**, so the client reads answers tolerantly and keeps them raw.
+Implemented because v2 has no equivalent. The authorization and partner endpoints are documented on the official website but their answers are not, so the client reads them tolerantly and keeps them raw.
 
 ### Authorizations (private, authenticated, GET)
 
@@ -107,12 +119,24 @@ Implemented because v2 has no equivalent. Everything below comes from the manual
 
 Assumptions: dates are sent as `YYYY/MM/DD`; a list is sent by repeating the key (`cups=A&cups=B`, the usual binding of array parameters). Both are isolated in one place each so they can be changed once verified. Authorizing the account itself is refused locally.
 
-### Public API (no authentication, GET)
+### Public API (GET)
 
 `/api-public/api-search`, `api-sum-search`, `api-search-auto`, `api-sum-search-auto`.
 
-- Common: `startDate`, `endDate` (`YYYY/MM/DD`, required), `page` (from 0, required), `pageSize` (1-2000, required), `community` (required, one or two of `01`..`19`), `distributor` (CNMC 4 digit codes), `sort` (`dataDate`, `community`, `province`, `municipality`, `postalCode`, `fare`, `measurePointType`, `tension`, `economicSector`, `timeDiscrimination`, `distributor`, `sumEnergy`, `sumContracts`; `-` prefix for descending).
-- `api-search` / `api-sum-search`: `measurementType` (required, `01`..`05`), `fare`, `provinceMunicipality` (2 or 5 digits), `postalCode`, `economicSector` (`1`..`4`), `tension` (`E0`..`E6`), `timeDiscrimination` (`G0`, `E1`, `E2`, `E3`).
-- `api-search-auto` / `api-sum-search-auto`: `selfConsumption` (modality codes 31-33, 41-43, 51-58, 61-64, 71-74, 77), `province` (2 digits).
-- Several values in one parameter are comma-separated.
-- Answer: unknown. Rows are expected to carry the sort fields plus `sumEnergy`, `sumContracts` and hourly totals `mi1`..`mi25` (the 25th for the extra autumn hour). The client accepts a bare list, a list under `content`/`data`/`results`/`items`, or a single object.
+- Authentication: the official manual tells to send the login token on these calls too, and the implementations seen in the wild do. `PublicApi` sends it when given a `DatadisConfig` and calls without it when given only `ConnectionSettings`.
+- Required: `startDate`, `endDate` (`YYYY/MM/DD`), `community` (one or two of `01`..`19`); searches (not sums) also require `page` (from 0) and `pageSize` (1-2000). The sums take no paging.
+- `api-search` / `api-sum-search`: optional `measurementType` (`01`..`05`; the 2023 manual calls it `measurementPointType`, the current documentation `measurementType`), `distributor` (CNMC 4 digit codes), `fare`, `provinceMunicipality` (2 or 5 digits), `groupByPostalCode` (integer), `postalCode`, `economicSector` (`1`..`4`), `tension` (`E0`..`E6`), `timeDiscrimination` (`G0`, `E1`, `E2`, `E3`), `sort`.
+- `api-search-auto` / `api-sum-search-auto`: `distributor`, `selfConsumption` (modality codes), `province` (2 digits); `sort` only on the search.
+- Several values in one parameter are comma-separated. `sort` takes field names, `-` for descending.
+- Answers (official samples): searches are lists of rows with `dataDay`, `dataMonth`, `dataYear` (integers), the filter fields (`community` as a name, empty strings when not grouped), `sumEnergy`, `sumContracts` (and `sumPower`, `selfConsumption` for self-consumption), and hourly totals `mi1`..`mi25`, all numbers as **strings**. Sums are `[{sumEnergy, sumContract}]` (singular) and `sumPower` for self-consumption, as JSON numbers.
+
+### Partner programme (GET, authenticated)
+
+From the current official documentation; answers are not described, so the client returns them raw (UNVERIFIED).
+
+| Endpoint | Parameters | Meaning |
+|----------|------------|---------|
+| `/api-private/api/partner-user-list` | none | users linked to the partner |
+| `/api-private/api/partner-delete-user` | `nif` (required) | unlinks a user; changes data, never retried |
+| `/api-private/api/partner-agreement-date` | `nif` (optional, for callers allowed to consult another partner) | start date of the partner agreement |
+

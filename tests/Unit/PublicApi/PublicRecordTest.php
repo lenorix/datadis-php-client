@@ -9,10 +9,10 @@ $row = fn () => json_decode((string) file_get_contents(__DIR__.'/../../Fixtures/
 it('exposes the documented aggregate fields', function () use ($row) {
     $record = PublicRecord::fromRow($row());
 
-    expect($record->text('community'))->toBe('13')
-        ->and($record->text('dataDate'))->toBe('2026/01/01')
-        ->and($record->decimal('sumEnergy'))->toBe('1234.567')
-        ->and($record->decimal('sumContracts'))->toBe('42.000')
+    expect($record->text('community'))->toBe('Andalucía')
+        ->and($record->date()?->format('Y-m-d'))->toBe('2022-04-16')
+        ->and($record->decimal('sumEnergy'))->toBe('30300495.000')
+        ->and($record->contracts())->toBe(5062835)
         ->and($record->text('missing'))->toBeNull()
         ->and($record->raw)->toBe($row());
 });
@@ -21,10 +21,9 @@ it('exposes the 25 hourly buckets, the 25th being the extra hour of the autumn c
     $hours = PublicRecord::fromRow($row())->hourly();
 
     expect($hours)->toHaveCount(25)
-        ->and($hours[1])->toBe('10.500')
-        ->and($hours[2])->toBe('9.750')
-        ->and($hours[24])->toBe('11.000')
-        ->and($hours[25])->toBeNull()
+        ->and($hours[1])->toBe('3140388.000')
+        ->and($hours[24])->toBe('3536777.000')
+        ->and($hours[25])->toBe('3.000')
         ->and(array_keys($hours))->toBe(range(1, 25));
 });
 
@@ -37,3 +36,20 @@ it('reads an absurd number as missing instead of failing', function () {
 
     expect($record->decimal('sumEnergy'))->toBeNull()->and($record->hourly()[1])->toBeNull();
 });
+
+it('reads the day, the energy, the power and the contracts in every documented spelling', function () {
+    $search = PublicRecord::fromRow(json_decode((string) file_get_contents(__DIR__.'/../../Fixtures/public/search-auto.json'), true)[0]);
+    $sum = PublicRecord::fromRow(json_decode((string) file_get_contents(__DIR__.'/../../Fixtures/public/sum-search-auto.json'), true)[0]);
+
+    expect($search->date()?->format('Y-m-d'))->toBe('2022-04-25')
+        ->and($search->energy())->toBe('4332298.000')
+        ->and($search->power())->toBe('121843.000')
+        ->and($search->contracts())->toBe(1609)
+        ->and($sum->date())->toBeNull()
+        ->and($sum->energy())->toBe('55304627.000')
+        ->and($sum->contracts())->toBe(16577);
+});
+
+it('has no date when the parts are missing or impossible', function (array $row) {
+    expect(PublicRecord::fromRow($row)->date())->toBeNull();
+})->with([[['dataDay' => 31, 'dataMonth' => 2, 'dataYear' => 2022]], [['dataDay' => 1, 'dataMonth' => 1]], [['dataDay' => 'x', 'dataMonth' => 1, 'dataYear' => 2022]]]);
