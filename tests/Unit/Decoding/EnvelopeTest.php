@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Lenorix\DatadisClient\Data\DistributorError;
-use Lenorix\DatadisClient\Data\Envelope;
+use Lenorix\DatadisClient\Decoding\Envelope;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 
 $decoder = fn (array $row): ?array => isset($row['ok']) ? $row : null;

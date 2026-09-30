@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Data;
 
+use Lenorix\DatadisClient\Decoding\Fields;
 use SensitiveParameter;
 
 /** Reactive energy of one date, per power period (`energy_p1`..`energy_p6`), decimal strings with scale 3. */

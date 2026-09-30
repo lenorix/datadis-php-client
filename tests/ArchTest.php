@@ -1,9 +1,6 @@
 <?php
 
 declare(strict_types=1);
-use Lenorix\DatadisClient\Data\DistributorCodes;
-use Lenorix\DatadisClient\Data\Envelope;
-use Lenorix\DatadisClient\Data\Fields;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Http\GuzzleClientFactory;
@@ -40,14 +37,11 @@ arch('only the default wiring knows about Guzzle')
         PublicApi::class,
     ]);
 
-arch('results and values are immutable')
+arch('results and values are immutable, and Data holds only results')
     ->expect(['Lenorix\DatadisClient\Data', 'Lenorix\DatadisClient\Values', 'Lenorix\DatadisClient\Time'])
     ->classes()
     ->toBeReadonly()
     ->ignoring([
-        Envelope::class,
-        Fields::class,
-        DistributorCodes::class,
         WallClock::class,
         DatadisDate::class,
         TimeInstant::class,

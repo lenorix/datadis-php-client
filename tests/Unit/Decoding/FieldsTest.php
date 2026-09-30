@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Lenorix\DatadisClient\Data\Fields;
+use Lenorix\DatadisClient\Decoding\Fields;
 
 it('reads text from strings, integers and floats, and nothing else', function (mixed $value, ?string $expected) {
     expect(Fields::text(['k' => $value], 'k'))->toBe($expected);

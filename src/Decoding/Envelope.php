@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Lenorix\DatadisClient\Data;
+namespace Lenorix\DatadisClient\Decoding;
 
+use Lenorix\DatadisClient\Data\ApiResult;
+use Lenorix\DatadisClient\Data\DistributorError;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use SensitiveParameter;

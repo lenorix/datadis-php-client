@@ -6,6 +6,7 @@ namespace Lenorix\DatadisClient\Data;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use Lenorix\DatadisClient\Decoding\Fields;
 use Lenorix\DatadisClient\Time\DatadisDate;
 use Lenorix\DatadisClient\Time\TimeInstant;
 use SensitiveParameter;

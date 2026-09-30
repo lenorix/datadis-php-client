@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Lenorix\DatadisClient\Data;
+namespace Lenorix\DatadisClient\Decoding;
 
 use DateTimeImmutable;
 use DateTimeZone;

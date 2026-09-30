@@ -6,7 +6,7 @@ namespace Lenorix\DatadisClient\PublicApi;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use Lenorix\DatadisClient\Data\Fields;
+use Lenorix\DatadisClient\Decoding\Fields;
 use Lenorix\DatadisClient\Time\Month;
 use SensitiveParameter;
 

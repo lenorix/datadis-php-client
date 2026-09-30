@@ -51,7 +51,9 @@ Decided with the maintainer afterwards (see [design-decisions.md](design-decisio
 
 Also decided: a client per holder (`forHolder()`).
 
-Still open: `PublicApi\PublicApi` repeating its namespace, moving the decoding helpers out of `Data`, and merging the constructor with `fromArray()`.
+Done since: the decoding helpers moved out of `Data` into the internal `Decoding` namespace.
+
+Still open: `PublicApi\PublicApi` repeating its namespace, and merging the constructor with `fromArray()`.
 
 ## Bugs of other implementations checked
 

@@ -6,6 +6,7 @@ namespace Lenorix\DatadisClient\Data;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use Lenorix\DatadisClient\Decoding\Fields;
 use Lenorix\DatadisClient\Support\Decimal;
 use Lenorix\DatadisClient\Tariff\AccessFareParser;
 use Lenorix\DatadisClient\Tariff\AccessTariff;

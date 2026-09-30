@@ -14,12 +14,13 @@ use Lenorix\DatadisClient\Data\ApiResult;
 use Lenorix\DatadisClient\Data\Authorization;
 use Lenorix\DatadisClient\Data\ConsumptionReading;
 use Lenorix\DatadisClient\Data\ContractDetail;
-use Lenorix\DatadisClient\Data\DistributorCodes;
-use Lenorix\DatadisClient\Data\Envelope;
 use Lenorix\DatadisClient\Data\Group;
 use Lenorix\DatadisClient\Data\MaxPowerReading;
 use Lenorix\DatadisClient\Data\ReactiveEnergy;
 use Lenorix\DatadisClient\Data\Supply;
+use Lenorix\DatadisClient\Decoding\DistributorCodes;
+use Lenorix\DatadisClient\Decoding\Envelope;
+use Lenorix\DatadisClient\Decoding\ReactiveEnergyAnswer;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
@@ -307,7 +308,7 @@ final class DatadisClient
             'authorizedNif' => $this->authorized($authorizedNif),
         ]);
 
-        return ReactiveEnergy::result($decoded, $this->name(Endpoint::Reactive));
+        return ReactiveEnergyAnswer::result($decoded, $this->name(Endpoint::Reactive));
     }
 
     /**

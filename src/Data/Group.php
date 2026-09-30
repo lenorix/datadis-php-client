@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Data;
 
+use Lenorix\DatadisClient\Decoding\Fields;
 use SensitiveParameter;
 
 /**
