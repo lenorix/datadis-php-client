@@ -351,12 +351,12 @@ it('counts unusable distributor codes and keeps reading after them', function ()
     expect($result->records)->toBe(['2', '5', '8'])->and($result->skippedRows)->toBe(2);
 });
 
-it('refuses an empty object where an envelope was expected', function () {
+it('refuses an empty object where an envelope was expected', function (string $body) {
     [$client, $http] = scenario();
-    $http->queue(Responses::datadis('{}'));
+    $http->queue(Responses::datadis($body));
 
     $client->getConsumptionData(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
-})->throws(UninterpretableResponseException::class);
+})->with(['{}', "\n{ }\n"])->throws(UninterpretableResponseException::class);
 
 it('keeps a distributor error sent as plain text', function () {
     [$client, $http] = scenario();

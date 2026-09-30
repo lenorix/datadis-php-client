@@ -49,7 +49,7 @@ final readonly class PublicRecord
         $month = Fields::integer($this->raw, 'dataMonth');
         $year = Fields::integer($this->raw, 'dataYear');
 
-        if ($day === null || $month === null || $year === null || ! checkdate($month, $day, $year)) {
+        if ($day === null || $month === null || $year === null || $year > 9999 || ! checkdate($month, $day, $year)) {
             return null;
         }
 

@@ -159,6 +159,10 @@ final class PublicApiClient
             }
         }
 
+        if ($records === [] && $skipped > 0) {
+            throw new UninterpretableResponseException("{$endpoint}: none of the {$skipped} rows could be read.", endpoint: $endpoint);
+        }
+
         return new ApiResult($records, [], $skipped, $decoded);
     }
 

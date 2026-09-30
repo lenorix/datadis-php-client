@@ -29,6 +29,7 @@ use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Http\ApiCaller;
 use Lenorix\DatadisClient\Http\Connection;
 use Lenorix\DatadisClient\Http\Endpoint;
+use Lenorix\DatadisClient\Support\PersonalDataRedactor;
 use Lenorix\DatadisClient\Support\SystemClock;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
@@ -168,7 +169,7 @@ final class DatadisClient
 
         // Not found while a distributor failed is not "not your supply": it may be behind that failure.
         if ($supply === null && $result->hasDistributorErrors()) {
-            $reasons = implode('; ', array_map(static fn ($error) => (string) $error->errorDescription, $result->distributorErrors));
+            $reasons = PersonalDataRedactor::excerpt(implode('; ', array_map(static fn ($error) => (string) $error->errorDescription, $result->distributorErrors)));
             $endpoint = $this->name(Endpoint::Supplies);
 
             throw new ServiceUnavailableException("{$endpoint}: the supply was not found and a distributor failed: {$reasons}", 200, $reasons, $endpoint);

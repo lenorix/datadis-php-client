@@ -85,3 +85,16 @@ it('writes excerpts of 300 characters by default, trimmed, and nothing for a neg
         ->and(PersonalDataRedactor::excerpt("  x  \n"))->toBe('x')
         ->and(PersonalDataRedactor::excerpt('abc', -5))->toBe('');
 });
+
+it('redacts identifiers whatever the whitespace inside them, and an excerpt stays redacted', function (string $text) {
+    $excerpt = PersonalDataRedactor::excerpt($text);
+
+    expect(PersonalDataRedactor::redact($text))->not->toMatch('/\d{7}/')
+        ->and($excerpt)->not->toMatch('/\d{7}/')
+        ->and(PersonalDataRedactor::redact($excerpt))->toBe($excerpt);
+})->with([
+    'NIF with two spaces' => ['Titular 87654321  X sin permiso'],
+    'NIF with a tab' => ["Titular 87654321\tX"],
+    'NIE with spaces' => ['NIE X  1234567  L'],
+    'CIF glued to its label' => ['Sin permiso para CIFB1234567J'],
+]);

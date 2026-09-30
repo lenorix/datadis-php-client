@@ -28,3 +28,7 @@ it('ends the last quarter at the next midnight', function () {
 
     expect($end->format('Y-m-d H:i'))->toBe('2025-01-16 00:00');
 });
+
+it('refuses with a clear error to parse a label that is not a quarter', function (string $label) {
+    QuarterHourLabel::parse($label);
+})->with(['00:00', '24:15', '10:05'])->throws(InvalidArgumentException::class);

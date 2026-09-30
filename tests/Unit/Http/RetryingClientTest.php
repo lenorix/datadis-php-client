@@ -83,6 +83,8 @@ it('never retries a call that may count or change data, nor one it does not know
     '/api-private/api/partner-delete-user',
     'a call added to Datadis later' => '/api-private/api/get-something-new-v2',
     'a path outside the API' => '/api-private/other/get-supplies',
+    'a guarded call behind a base path that mentions the public API' => '/api-public/gateway/api-private/api/get-consumption-data-v2',
+    'an unknown public call' => '/api-public/api-delete-everything',
 ])->with([
     'network failure' => [fn () => networkFailure()],
     'bad gateway' => [fn () => Responses::empty(502)],
@@ -102,6 +104,8 @@ it('retries every call that is safe to repeat, in both versions and behind a bas
     '/api-private/api/partner-user-list',
     '/api-private/api/partner-agreement-date',
     '/api-public/api-search',
+    '/api-public/api-sum-search-auto',
+    '/proxy/datadis/api-public/api-search-auto',
     '/proxy/datadis/api-private/api/get-supplies-v2',
 ]);
 

@@ -53,3 +53,7 @@ it('reads the day, the energy, the power and the contracts in every documented s
 it('has no date when the parts are missing or impossible', function (array $row) {
     expect(PublicRecord::fromRow($row)->date())->toBeNull();
 })->with([[['dataDay' => 31, 'dataMonth' => 2, 'dataYear' => 2022]], [['dataDay' => 1, 'dataMonth' => 1]], [['dataDay' => 'x', 'dataMonth' => 1, 'dataYear' => 2022]]]);
+
+it('has no date for a year beyond four digits', function () {
+    expect(PublicRecord::fromRow(['dataDay' => 1, 'dataMonth' => 1, 'dataYear' => '10000'])->date())->toBeNull();
+});

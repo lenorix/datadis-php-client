@@ -24,6 +24,10 @@ it('reads decimals and ignores empty or non numeric values', function (mixed $va
     expect(Fields::decimal(['k' => $value], 2, 'k'))->toBe($expected);
 })->with([['', null], ['abc', null], [null, null], ['1.5', '1.50'], [2, '2.00'], [true, null]]);
 
+it('reads no integer from a number too big for one', function (mixed $value) {
+    expect(Fields::integer(['k' => $value], 'k'))->toBeNull();
+})->with([1e19, -1e19, 9.2233720368547758E18, '99999999999999999999']);
+
 it('reads integers only when they are whole', function (mixed $value, ?int $expected) {
     expect(Fields::integer(['k' => $value], 'k'))->toBe($expected);
 })->with([[5, 5], [5.0, 5], [5.5, null], [INF, null], [NAN, null], [' 7 ', 7], ['-3', -3], ['7.0', null], ['x', null], [null, null]]);

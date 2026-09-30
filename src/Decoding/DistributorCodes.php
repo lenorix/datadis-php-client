@@ -54,6 +54,10 @@ final class DistributorCodes
             }
         }
 
+        if ($codes === [] && $skipped > 0) {
+            throw new UninterpretableResponseException("{$endpoint}: none of the {$skipped} distributor codes could be read.", endpoint: $endpoint);
+        }
+
         return new ApiResult($codes, Envelope::distributorErrors($decoded), $skipped, $decoded);
     }
 

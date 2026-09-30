@@ -9,6 +9,7 @@ use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\PublicApi\Community;
+use Lenorix\DatadisClient\PublicApi\PublicRecord;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApi\SelfConsumptionSearchQuery;
 use Lenorix\DatadisClient\PublicApiClient;
@@ -111,7 +112,9 @@ it('walks every page until an empty or short page', function () {
 
     parse_str($http->requests()[2]->getUri()->getQuery(), $third);
 
-    expect($records)->toHaveCount(5)->and($http->requests())->toHaveCount(3)->and($third['page'])->toBe('2');
+    expect($records)->toHaveCount(5)->each->toBeInstanceOf(PublicRecord::class)
+        ->and($records[4]->sumEnergy())->toBe('1.000')
+        ->and($http->requests())->toHaveCount(3)->and($third['page'])->toBe('2');
 });
 
 it('stops walking at the page limit', function () {
@@ -228,6 +231,7 @@ it('logs in and sends the token when it is given credentials', function () {
 
     expect($http->requests())->toHaveCount(2)
         ->and($http->requests()[0]->getUri()->getPath())->toBe('/nikola-auth/tokens/login')
+        ->and($http->lastRequest()->getUri()->getPath())->toBe('/api-public/api-search')
         ->and($http->lastRequest()->getHeaderLine('Authorization'))->toStartWith('Bearer ')
         ->and($result->records[0]->date()?->format('Y-m-d'))->toBe('2022-04-16');
 });

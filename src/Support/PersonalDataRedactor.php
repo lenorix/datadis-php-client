@@ -19,11 +19,11 @@ final class PersonalDataRedactor
         '/eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/',
         // No boundaries on purpose: over-redacting a CUPS glued to other text is the safe side.
         '/ES\d{16}[A-Z]{2}(?:\d[A-Z])?/i',
-        // NIF, NIE and CIF may be written with a dash or a space before the letter, or glued to a
-        // label such as "NIF12345678Z". Only digits around them are ruled out.
-        '/(?<!\d)\d{8}[\s-]?[A-Z](?![0-9])/i',
-        '/(?<!\d)[XYZ][\s-]?\d{7}[\s-]?[A-Z](?![0-9])/i',
-        '/(?<![A-Z0-9])[A-HJ-NP-SUVW][\s-]?\d{7}[\s-]?[0-9A-J](?![0-9])/i',
+        // NIF, NIE and CIF may be written with a dash or any whitespace before the letter, or glued
+        // to a label such as "NIF12345678Z" or "CIFB1234567J". Only digits around them are ruled out.
+        '/(?<!\d)\d{8}(?:\s+|-)?[A-Z](?![0-9])/i',
+        '/(?<!\d)[XYZ](?:\s+|-)?\d{7}(?:\s+|-)?[A-Z](?![0-9])/i',
+        '/(?<!\d)[A-HJ-NP-SUVW](?:\s+|-)?\d{7}(?:\s+|-)?[0-9A-J](?![0-9])/i',
     ];
 
     public static function redact(string $text): string
@@ -53,8 +53,8 @@ final class PersonalDataRedactor
     /** A redacted, single-line, valid UTF-8 excerpt of at most $max characters. */
     public static function excerpt(string $text, int $max = 300): string
     {
-        $clean = self::redact(mb_scrub($text));
-        $clean = trim(preg_replace('/\s+/', ' ', $clean) ?? '');
+        // Whitespace is collapsed first: collapsing after redacting could join the parts of an identifier again.
+        $clean = self::redact(trim(preg_replace('/\s+/u', ' ', mb_scrub($text)) ?? ''));
 
         return mb_substr($clean, 0, max(0, $max));
     }

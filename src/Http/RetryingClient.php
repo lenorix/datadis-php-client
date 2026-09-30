@@ -120,7 +120,13 @@ final class RetryingClient implements ClientInterface
         }
 
         // Only the calls known to be safe: one added later must not be retried until it is known.
-        return str_contains($path, '/api-public/') || (Endpoint::fromPath($path)?->isSafeToRepeat() ?? false);
+        $endpoint = Endpoint::fromPath($path);
+
+        if ($endpoint !== null) {
+            return $endpoint->isSafeToRepeat();
+        }
+
+        return preg_match('#/api-public/api-(?:sum-)?search(?:-auto)?$#D', $path) === 1;
     }
 
     /** Exponential, capped, with "equal jitter": between half and all of the step. */

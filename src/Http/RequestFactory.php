@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Http;
 
+use Closure;
 use InvalidArgumentException;
 use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisConfig;
+use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use LogicException;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use SensitiveParameter;
+use Throwable;
 
 /**
  * Builds the PSR-7 requests Datadis needs, with the headers it insists on.
@@ -53,10 +56,10 @@ final class RequestFactory
             'password' => $this->credentials->password(),
         ], '', '&', PHP_QUERY_RFC1738);
 
-        return $this->common($this->requests->createRequest('POST', $this->settings->baseUrl.self::LOGIN_PATH))
+        return $this->build(fn () => $this->common($this->requests->createRequest('POST', $this->settings->baseUrl.self::LOGIN_PATH))
             ->withHeader('Accept', 'text/plain, */*;q=0.8')
             ->withHeader('Content-Type', 'application/x-www-form-urlencoded')
-            ->withBody($this->streams->createStream($body));
+            ->withBody($this->streams->createStream($body)));
     }
 
     /**
@@ -82,8 +85,23 @@ final class RequestFactory
         $queryString = self::queryString($query);
         $uri = $this->settings->baseUrl.$path.($queryString === '' ? '' : '?'.$queryString);
 
-        return $this->common($this->requests->createRequest('GET', $uri))
-            ->withHeader('Accept', 'application/json');
+        return $this->build(fn () => $this->common($this->requests->createRequest('GET', $uri))
+            ->withHeader('Accept', 'application/json'));
+    }
+
+    /**
+     * A request the PSR-17 factory cannot build never leaves, so its failure is a setup problem
+     * with `requestSent = false`. The original is not chained: its message may carry the URL.
+     *
+     * @param  Closure(): RequestInterface  $build
+     */
+    private function build(Closure $build): RequestInterface
+    {
+        try {
+            return $build();
+        } catch (Throwable $e) {
+            throw new ConfigurationException('The request could not be built ('.$e::class.').');
+        }
     }
 
     /** @param  array<string, mixed>  $query */

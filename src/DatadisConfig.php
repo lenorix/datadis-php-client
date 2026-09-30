@@ -146,7 +146,7 @@ final readonly class DatadisConfig
     }
 
     /** @param  array<array-key, mixed>  $settings */
-    private static function seconds(array $settings, string $key, float $default): float
+    private static function seconds(#[SensitiveParameter] array $settings, string $key, float $default): float
     {
         $value = self::raw($settings, $key);
 

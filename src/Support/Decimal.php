@@ -37,6 +37,20 @@ final class Decimal
         }
     }
 
+    /** The shortest text that reads back as the same float, whatever the `precision` and `serialize_precision` settings. */
+    public static function shortest(float $value): string
+    {
+        $previous = ini_set('serialize_precision', '-1');
+
+        try {
+            return json_encode($value, JSON_THROW_ON_ERROR);
+        } finally {
+            if ($previous !== false) {
+                ini_set('serialize_precision', $previous);
+            }
+        }
+    }
+
     private static function literal(mixed $value): string
     {
         if (is_int($value)) {
@@ -48,8 +62,7 @@ final class Decimal
                 throw new InvalidArgumentException('Not a finite number.');
             }
 
-            // The shortest round-trip form; a plain string cast would use the `precision` ini setting.
-            return json_encode($value, JSON_THROW_ON_ERROR);
+            return self::shortest($value);
         }
 
         // Bounded on purpose: an exponent like 1e300000000 would need gigabytes of digits. Three

@@ -42,7 +42,7 @@ final class Fields
             }
 
             if (is_float($value) && is_finite($value)) {
-                return json_encode($value, JSON_THROW_ON_ERROR);
+                return Decimal::shortest($value);
             }
         }
 
@@ -84,10 +84,11 @@ final class Fields
     {
         $value = $row[$key] ?? null;
 
+        // Anything that does not fit an int is unknown rather than wrapped or saturated.
         return match (true) {
             is_int($value) => $value,
-            is_float($value) => is_finite($value) && floor($value) === $value ? (int) $value : null,
-            is_string($value) && preg_match('/^-?\d+$/D', trim($value)) === 1 => (int) trim($value),
+            is_float($value) => is_finite($value) && floor($value) === $value && abs($value) < 2 ** 63 ? (int) $value : null,
+            is_string($value) => ($int = filter_var(trim($value), FILTER_VALIDATE_INT)) === false ? null : $int,
             default => null,
         };
     }

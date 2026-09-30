@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Psr7\HttpFactory;
 use GuzzleHttp\Psr7\Request;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
+use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
@@ -22,6 +24,8 @@ use Lenorix\DatadisClient\Tests\Support\Tokens;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
 use Lenorix\DatadisClient\Values\Nif;
+use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /** @return array{DatadisClient, FakeHttpClient, FrozenClock} */
@@ -209,4 +213,32 @@ it('keeps consumption queries with and without authorizedNif apart, as the manua
     $client->getConsumptionData(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
     expect($http->requests())->toHaveCount(3);
+});
+
+it('does not keep a query blocked when its request could not even be built', function () use ($consumption) {
+    $http = new FakeHttpClient;
+    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $failing = new class implements RequestFactoryInterface
+    {
+        public bool $fail = true;
+
+        public function createRequest(string $method, $uri): RequestInterface
+        {
+            if ($this->fail && str_contains((string) $uri, 'get-consumption-data')) {
+                throw new InvalidArgumentException('Unusable URI.');
+            }
+
+            return (new HttpFactory)->createRequest($method, $uri);
+        }
+    };
+    $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, requestFactory: $failing, ledger: $ledger);
+    $http->queue(login($clock), Responses::datadis('{"timeCurve":[]}'));
+
+    expect(fn () => $consumption($client))->toThrow(ConfigurationException::class);
+
+    $failing->fail = false;
+    $consumption($client);
+
+    expect($http->requests())->toHaveCount(2);
 });

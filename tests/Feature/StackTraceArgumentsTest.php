@@ -6,6 +6,7 @@ use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\Request;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\DatadisConfig;
+use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
@@ -96,4 +97,20 @@ it('never shows the token or the password when the client is dumped', function (
     $dumps = (string) ob_get_clean().print_r($client, true).var_export($client, true);
 
     expect($dumps)->not->toContain($token)->not->toContain('never-dump-this');
+});
+
+it('keeps the password out of stack trace arguments when a setting is wrong', function () {
+    $previous = ini_set('zend.exception_ignore_args', '0');
+
+    try {
+        DatadisClient::fromArray(['username' => '12345678Z', 'password' => 'never-show-this', 'timeout' => '30s']);
+    } catch (ConfigurationException $e) {
+        expect(implode("\n", traceStrings(array_map(fn (array $frame) => $frame['args'] ?? [], $e->getTrace()))))->not->toContain('never-show-this');
+
+        return;
+    } finally {
+        ini_set('zend.exception_ignore_args', (string) $previous);
+    }
+
+    throw new LogicException('Expected a ConfigurationException.');
 });

@@ -3,24 +3,35 @@
 declare(strict_types=1);
 
 use Lenorix\DatadisClient\ApiVersion;
+use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\Data\ApiResult;
 use Lenorix\DatadisClient\Data\Supply;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\TransportException;
+use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
+use Lenorix\DatadisClient\PublicApi\Community;
+use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
+use Lenorix\DatadisClient\PublicApiClient;
+use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
 use Lenorix\DatadisClient\Values\Cups;
 
 it('does not take a distributor failure for "this supply is not yours"', function () {
     $s = Scenario::make();
-    $s->http->queue(Responses::datadis('{"supplies":[],"distributorError":[{"distributorCode":"2","distributorName":"EDISTRIBUCIÓN","errorCode":"50","errorDescription":"Error interno distribuidora"}]}'));
+    $s->http->queue(Responses::datadis('{"supplies":[],"distributorError":['
+        .'{"distributorCode":"2","distributorName":"EDISTRIBUCIÓN","errorCode":"50","errorDescription":"Error interno distribuidora"},'
+        .'{"distributorCode":"8","errorCode":"50","errorDescription":"Titular 87654321  X sin respuesta"}]}'));
 
     try {
         $s->client->findSupply(Cups::fromString(Scenario::CUPS));
     } catch (ServiceUnavailableException $e) {
-        expect($e->requestSent)->toBeTrue()->and($e->getMessage())->toContain('Error interno distribuidora');
+        expect($e->requestSent)->toBeTrue()
+            ->and($e->httpStatus)->toBe(200)
+            ->and($e->getMessage())->toContain('Error interno distribuidora')->toContain('sin respuesta')
+            ->and($e->getMessage().$e->detail)->not->toMatch('/87654321/');
 
         return;
     }
@@ -54,7 +65,22 @@ it('reads a null list of distributor codes as no codes', function (string $body)
     $s->http->queue(Responses::datadis($body));
 
     expect($s->client->getDistributorsWithSupplies()->isEmpty())->toBeTrue();
-})->with(['{"distExistenceUser":{"distributorCodes":null},"distributorError":[]}', '{"distributorCodes":null}']);
+})->with(['{"distExistenceUser":{"distributorCodes":null},"distributorError":[]}', '{"distributorCodes":null}', '{"distExistenceUser":null,"distributorError":[]}']);
+
+it('fails instead of answering "no distributors" when not one code can be read', function (string $body) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis($body));
+
+    expect(fn () => $s->client->getDistributorsWithSupplies())->toThrow(UninterpretableResponseException::class);
+})->with(['{"distExistenceUser":{"distributorCodes":[null,"",{}]},"distributorError":[]}', '{"distributorCodes":[" "]}']);
+
+it('fails instead of answering "no data" when not one public record can be read', function (string $body) {
+    $http = (new FakeHttpClient)->queue(Responses::json($body));
+    $api = new PublicApiClient(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http);
+
+    expect(fn () => $api->apiSearch(new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid])))
+        ->toThrow(UninterpretableResponseException::class);
+})->with(['[null, 1, "x"]', '{"content":[null,[]]}']);
 
 it('reads a 404 on the distributors list as an empty list, like the supplies list', function () {
     $s = Scenario::make(ApiVersion::V1);

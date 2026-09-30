@@ -20,6 +20,15 @@ it('validates like the private configuration', function (array $arguments) {
 })->with([
     'plain http' => [['baseUrl' => 'http://datadis.es']],
     'credentials in url' => [['baseUrl' => 'https://a:b@datadis.es']],
+    'user without password in url' => [['baseUrl' => 'https://someone@datadis.es']],
+    'space in the host' => [['baseUrl' => 'https://datadis .es']],
+    'unclosed IPv6 host' => [['baseUrl' => 'https://[::1']],
+    'IPv6 host that is not an address' => [['baseUrl' => 'https://[::zz]']],
+    'backslash in the host' => [['baseUrl' => 'https://datadis.es\\x']],
+    'zero connect timeout' => [['connectTimeout' => 0.0]],
+    'a timeout that is not a number' => [['timeout' => NAN]],
+    'an infinite timeout' => [['timeout' => INF]],
+    'a timeout Guzzle rounds to zero' => [['timeout' => 0.0001]],
     'query in url' => [['baseUrl' => 'https://datadis.es/?x=1']],
     'zero timeout' => [['timeout' => 0.0]],
     'bad user agent' => [['userAgent' => "x\ny"]],
@@ -44,3 +53,7 @@ it('accepts short timeouts and a base URL with spaces around it', function () {
 it('refuses URLs without a host', function (string $url) {
     new ConnectionSettings(baseUrl: $url);
 })->with(['https://', 'https:///path', '/relative', ''])->throws(ConfigurationException::class);
+
+it('accepts a proxy on an IPv6 address', function () {
+    expect((new ConnectionSettings(baseUrl: 'https://[::1]:8443/datadis'))->baseUrl)->toBe('https://[::1]:8443/datadis');
+});

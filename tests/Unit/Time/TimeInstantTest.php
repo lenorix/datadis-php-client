@@ -31,3 +31,8 @@ it('returns null for malformed times or dates', function (string $date, string $
     ['2025/02/30', '10:00'],
     ['', '10:00'],
 ]);
+
+it('reads a maximum power instant at any minute of the hour', function () use ($madrid) {
+    expect(TimeInstant::tryParse('2025/01/01', '23:59', $madrid)?->format('H:i'))->toBe('23:59')
+        ->and(TimeInstant::tryParse('2025/01/01', '23:60', $madrid))->toBeNull();
+});

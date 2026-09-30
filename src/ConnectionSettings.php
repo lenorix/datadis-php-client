@@ -24,8 +24,9 @@ final readonly class ConnectionSettings
         public float $connectTimeout = 10.0,
         public string $userAgent = DatadisConfig::DEFAULT_USER_AGENT,
     ) {
-        if ($timeout <= 0 || $connectTimeout <= 0) {
-            throw new ConfigurationException('Timeouts must be greater than zero.');
+        // Guzzle works in milliseconds: anything shorter becomes 0, which means "wait forever".
+        if (! is_finite($timeout) || ! is_finite($connectTimeout) || $timeout < 0.001 || $connectTimeout < 0.001) {
+            throw new ConfigurationException('Timeouts must be finite and at least one millisecond.');
         }
 
         if ($userAgent === '' || preg_match('/[\x00-\x1f\x7f]/', $userAgent) === 1) {
@@ -41,12 +42,22 @@ final readonly class ConnectionSettings
 
         if ($parts === false
             || ($parts['scheme'] ?? '') !== 'https'
-            || ($parts['host'] ?? '') === ''
+            || ! self::isHost($parts['host'] ?? '')
             || isset($parts['user']) || isset($parts['pass'])
             || isset($parts['query']) || isset($parts['fragment'])) {
             throw new ConfigurationException('The base URL must be an https URL without credentials, query or fragment.');
         }
 
         return rtrim(trim($baseUrl), '/');
+    }
+
+    /** A host name or a bracketed IPv6 address; anything else would only fail when a request is built. */
+    private static function isHost(string $host): bool
+    {
+        if (str_starts_with($host, '[') && str_ends_with($host, ']')) {
+            return filter_var(substr($host, 1, -1), FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false;
+        }
+
+        return $host !== '' && filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false;
     }
 }

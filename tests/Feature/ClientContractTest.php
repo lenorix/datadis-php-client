@@ -53,6 +53,7 @@ it('refuses malformed arguments of the calls that take them before sending', fun
         ->and($s->http->requests())->toBe([]);
 })->with([
     'supplies distributor code' => [fn ($c) => $c->getSupplies(distributorCode: 'a b')],
+    'distributor code read from a file with its newline' => [fn ($c) => $c->getSupplies(distributorCode: "2\n")],
     'consumption distributor code' => [fn ($c) => $c->getConsumptionData(Cups::fromString(Scenario::CUPS), '', 5, Month::of(2026, 1), Month::of(2026, 1))],
     'consumption range' => [fn ($c) => $c->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 2), Month::of(2026, 1))],
     'consumption future' => [fn ($c) => $c->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 1), Month::of(2026, 10))],

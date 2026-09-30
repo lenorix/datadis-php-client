@@ -45,3 +45,13 @@ it('refuses a negative scale', function () {
 it('accepts a numeric string of exactly the maximum length', function () {
     expect(Decimal::isNumeric(str_repeat('9', 64)))->toBeTrue()->and(Decimal::of(0, 0))->toBe('0');
 });
+
+it('writes the same digits whatever the serialize_precision setting', function () {
+    $previous = ini_set('serialize_precision', '17');
+
+    try {
+        expect(Decimal::of(1.0005, 3))->toBe('1.001')->and(Decimal::of(0.1, 1))->toBe('0.1');
+    } finally {
+        ini_set('serialize_precision', (string) $previous);
+    }
+});
