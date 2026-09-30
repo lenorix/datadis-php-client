@@ -1,0 +1,28 @@
+[
+    {
+        "cups": "ES0031300000000001JN0F",
+        "distributor": "EDISTRIBUCIÓN",
+        "marketer": "-",
+        "tension": "Baja tensión",
+        "accessFare": "BAJA TENSION y POTENCIA <= 15 kW",
+        "province": "Madrid",
+        "municipality": "MADRID",
+        "postalCode": "28001",
+        "contractedPowerkW": [3.45, 3.45],
+        "timeDiscrimination": "TARIFA DE TRES PERIODOS",
+        "modePowerControl": "ICP",
+        "startDate": "2024/02/01",
+        "endDate": "",
+        "codeFare": "2T",
+        "selfConsumptionTypeCode": null,
+        "selfConsumptionTypeDesc": null,
+        "section": null,
+        "subsection": null,
+        "partitionCoefficient": null,
+        "cau": null,
+        "installedCapacity": null,
+        "dateOwner": [{"startDate": "2024-02-01", "endDate": ""}],
+        "lastMarketerDate": "",
+        "maxPowerInstall": "5.5"
+    }
+]

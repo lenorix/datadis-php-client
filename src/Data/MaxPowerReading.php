@@ -13,9 +13,10 @@ use SensitiveParameter;
 /**
  * The maximum power of a day, with the instant it was reached.
  *
- * The official documentation says the unit is W, but household answers seen by several
- * implementations (2 to 4 against 3.45 to 4.6 kW contracted) only make sense in kW, so it is
- * named kW here; the untouched value stays in `raw`.
+ * The unit is kW (verified: 3.516 against 3.45 kW contracted; the official documentation says W,
+ * which is wrong). Datadis sends one row per period. The time seems to mark the END of the quarter
+ * hour, like consumption labels: a real `00:00` row in period 2 only fits 23:45-24:00 of the
+ * previous day. `instant` is that moment either way.
  * `period` is kept as received: it appears as `"1"`..`"6"`, and some sources show `P1` or
  * VALLE/LLANO/PUNTA. `periodNumber()` understands the numeric spellings.
  */

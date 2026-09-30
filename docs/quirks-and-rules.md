@@ -35,6 +35,20 @@ Datadis refuses an identical query made within 24 hours with **HTTP 429** ("Cons
 | A required parameter missing (contract without `distributorCode`, consumption without `measurementType`, max power without dates) | **500** | | empty |
 | Unknown path | **403** | `text/plain` | `403 Forbidden` |
 
+| Supply read with `authorizedNif` of its holder | 200 | `text/plain` | the supply row with `provinceCode` and `municipioCode` |
+| Contract seen by a third party | 200 | `text/plain` | `marketer` is `"-"`, `lastMarketerDate` is `""` (not null), `maxPowerInstall` a string |
+| Consumption of a whole month | 200 | `text/plain` | one row per real hour (744 in July; 1463 for March and April, the 23 hour day included); self-consumption fields present and `null` |
+| Consumption of the current month | 200 | `text/plain` | data up to about two days before the call |
+| Maximum power of a 2.0TD month | 200 | `text/plain` | one row per period (`"1"`, `"2"`, `"3"`), in kW (3.516 with 3.45 kW contracted); one row at `00:00` in period 2 |
+| `authorizedNif` equal to the account's own NIF | 403 (supplies) / 400 (data) | `application/json` | `No authorized supplies` / `No se encuentra autorizado el cups introducido` |
+| CUPS in lowercase, or its 20 character form, or a CUPS the holder did not authorize | 400 | `application/json` | `No se encuentra autorizado el cups introducido` |
+| An existing but wrong `distributorCode` (`1` instead of `2`) | 200 | `text/plain` | `[]`: no error |
+| An unknown `distributorCode` (`99`) on consumption | 400 | `application/json` | `CUPS o distributor no válido ` |
+| `pointType` different from the supply's (`3` instead of `5`) | 200 | `text/plain` | the data: not checked |
+| `measurementType=7` | 400 | `application/json` | `MeasurementType incorrecto ` |
+| `startDate` with a day (`YYYY/MM/DD`) | 400 | `application/json` | the dates message |
+| Maximum power for a month before the window | 400 | `application/json` | the generic `Parámetro requerido en estado vacío...` message, not the dates one |
+
 Consequences in the client: JSON is read whatever the content type; the blank contract row is dropped (an empty result, not a failure); "No supplies" is an empty supplies list; the "no se encuentra autorizado" 400 is an `AuthorizationException`; a 500 is never retried because it can be a client mistake; every required parameter is always sent. Latency in this capture was about one second per call.
 
 ## Status codes as observed
@@ -90,11 +104,17 @@ Dates and hours are local Spanish civil time with no offset.
 - `validDateTo` and `endDate` are `""` when open-ended.
 - `distributorCode` is a string, `pointType` is an int.
 - Real numbers arrive as JSON floats. Converting floats to strings can yield exponent notation (`1.0E-5`); test decimal conversion. Use `JSON_PRESERVE_ZERO_FRACTION` when re-encoding raw rows.
-- CUPS: 20 characters (`ES` + 16 digits + 2 letters), optionally followed by a 2-character frontier suffix (a digit and a letter, e.g. `0F`). Retailers sometimes print extra characters on invoices; the value shown in the Datadis portal is the reference. Match supplies on the first 20 characters, uppercased and trimmed. There is no documented check-letter algorithm; do not claim one.
+- CUPS: 20 characters (`ES` + 16 digits + 2 letters), optionally followed by a 2-character frontier suffix (a digit and a letter, e.g. `0F`). Retailers sometimes print extra characters on invoices. Match supplies on the first 20 characters, uppercased and trimmed, but **send the CUPS exactly as `get-supplies` returns it**: the 20 character form and lowercase are refused as not authorized (verified). There is no documented check-letter algorithm; do not claim one.
 - Multiple supply rows for the same CUPS (successive contracts, distributor change): prefer the one with an empty `validDateTo`, otherwise the greatest `validDateFrom` (compare parsed dates, not strings).
-- Data lag: a month may be incomplete until several days after it ends, and distributors sometimes publish weeks late. Re-asking the last two months is common (mind the 24 h rule: use a different window, not the same query).
+- Data lag: the current month has data up to about two days before (verified); a month may be incomplete until several days after it ends, and distributors sometimes publish weeks late. Re-asking the last two months is common (mind the 24 h rule: use a different window, not the same query).
 - Keep UTF-8 intact. Do not strip accents or "repair" text.
 
 ## Personal data
 
 CUPS, NIF and consumption curves are personal data (curves reveal occupancy habits). Never put raw error bodies, CUPS or NIF in exception messages or logs. Redact by **shape** (CUPS, NIF, NIE, CIF patterns), not by comparing with the values sent, because Datadis may echo another supply's identifiers.
+
+## Easy to misread
+
+- An empty consumption or contract answer can mean a wrong `distributorCode` that happens to exist: Datadis answers `[]`, not an error (verified). Take the code from `get-supplies`.
+- `pointType` is not checked against the supply (verified), so a wrong one does not show.
+- Maximum power times look like the END of a quarter, like consumption labels: a real row at `00:00` in period 2 (llano) only fits the quarter 23:45-24:00 of the previous day, since 00:00-00:15 is valley. The instant is the same either way; mind it when attributing a maximum to a period.

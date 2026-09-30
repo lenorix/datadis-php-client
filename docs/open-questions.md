@@ -21,6 +21,10 @@
 - The token lasts 24 hours.
 - A three month consumption range is accepted.
 - Quarter-hourly data requested for point type 5 is not refused (empty answer), which confirms not refusing it locally.
+- The unit of maximum power is kW (the official documentation says W).
+- Quarter-hourly data is not offered for a type 5 supply: the request is accepted and answered empty.
+- `authorizedNif` equal to the account itself is refused (403 on supplies, 400 on data).
+- The current month has data up to about two days before the call.
 - How Datadis answers a missing consent, an account without supplies, a CUPS it cannot see, missing parameters, wrong codes and dates, and unknown paths (see [quirks-and-rules.md](quirks-and-rules.md)).
 
 ## Unverified facts (do not hard-code without checking the live API)
@@ -28,13 +32,12 @@
 - Whether a repeated query really returns 429 and whether `Retry-After` is ever sent (the status is documented; the repeat behaviour was never observed).
 - Whether the repetition key ignores the endpoint (max power vs reactive): reported by one implementation, not documented.
 - Whether a per-CUPS daily quota exists beyond the identical-query rule.
-- The unit of `maxPower`: the official documentation says W, household data seen by several implementations only makes sense in kW. The client calls it kW and keeps the raw value.
 - Everything above was captured on v1 paths. The v2 envelope key of each answer is known from a captured specification, not from the official documentation, which lists only item fields and `distributorError`.
 - Answers of the authorization and partner endpoints.
 - Whether the public API refuses calls without the token (the manual asks for it; not tested).
 - Quarter-hourly `time` format and row counts.
-- Which point types really return quarter-hourly data (requesting it for type 5 is accepted and answered empty, so it is not refused; whether data ever comes is unknown). The client does not refuse any point type.
-- Whether `authorizedNif` is tolerated for own supplies (the manual says it must not be added), and which NIF formats are accepted (a NIF without its final letter is reported to give 401).
+- Which point types really return quarter-hourly data (type 5 answers empty; types 1 to 4 were not tried). The client does not refuse any point type.
+- Which NIF formats are accepted (a NIF without its final letter is reported to give 401).
 - The largest month range per call and the payload ceiling (three months verified; the manual's own example asks for 13 months of maximum power).
 - Canarias hour-label semantics.
 - Why third-party-authorized consumption sometimes returns an empty `timeCurve`.

@@ -30,7 +30,8 @@ use Lenorix\DatadisClient\Values\Cups;
 $client = new DatadisClient(new DatadisConfig('12345678Z', 'your-password'));
 
 // Every other endpoint needs the distributor code and point type of the supply,
-// and only the supplies list has them.
+// and only the supplies list has them. Always send the CUPS exactly as Datadis
+// returns it there: its 20 character form or lowercase are refused as not authorized.
 $supply = $client->findSupply(Cups::fromString('ES0031300000000001JN0F'));
 
 if ($supply === null || ! $supply->isQueryable()) {
@@ -70,7 +71,7 @@ Every list method returns an `ApiResult`:
 |-------------------|---------|
 | `records` | The decoded DTOs. Each keeps the untouched row in `raw`. |
 | `distributorErrors` | Partial failures Datadis reports inside an HTTP 200 (API v2). |
-| `isEmpty()` | Nothing was returned. This is a normal answer (month not published yet), never zero consumption. |
+| `isEmpty()` | Nothing was returned. This is a normal answer (month not published yet), never zero consumption. It is also what a wrong but existing distributor code gives, so take the codes from the supplies list. |
 | `isEmptyBecauseOfErrors()` | Empty because a distributor failed, not because there is no data. |
 | `skippedRows` | Rows that could not be used (Datadis sends `null` consumption at times). |
 
@@ -209,7 +210,6 @@ Some behaviour could not be checked against real answers and is read tolerantly:
 
 - The answers of the authorization and partner endpoints (not described anywhere) and whether the public API works without the token.
 - Reactive energy: the shape follows the official documentation, no real answer has been seen.
-- The unit of maximum power: the documentation says W, real household data says kW.
 - The quarter-hourly label format.
 - The token lifetime (the JWT `exp` claim decides) and whether Datadis judges its month window in Madrid time (assumed).
 

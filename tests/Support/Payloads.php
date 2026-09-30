@@ -62,4 +62,39 @@ final class Payloads
     {
         return json_encode([$key => $rows, 'distributorError' => $errors], JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);
     }
+
+    /**
+     * A month as Datadis really sends it for a supply without self-consumption (verified shape:
+     * the three self-consumption fields are present and null), with invented values. Days are
+     * built from the real hours of each day in Madrid, so change days have 23 or 25 rows.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function realMonth(int $year, int $month, ?int $untilDay = null, string $cups = self::CUPS): array
+    {
+        $zone = new \DateTimeZone('Europe/Madrid');
+        $rows = [];
+        $days = $untilDay ?? (int) (new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month), $zone))->format('t');
+
+        for ($day = 1; $day <= $days; $day++) {
+            $midnight = new \DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day), $zone);
+            $next = $midnight->modify('+1 day')->getTimestamp();
+
+            for ($t = $midnight->getTimestamp(); $t < $next; $t += 3600) {
+                $offset = $zone->getOffset(new \DateTimeImmutable('@'.($t + 3599)));
+                $rows[] = [
+                    'cups' => $cups,
+                    'date' => $midnight->format('Y/m/d'),
+                    'time' => $t + 3600 === $next ? '24:00' : gmdate('H:00', $t + 3600 + $offset),
+                    'consumptionKWh' => round(0.2 + (count($rows) % 17) / 10, 3),
+                    'obtainMethod' => 'Real',
+                    'surplusEnergyKWh' => null,
+                    'generationEnergyKWh' => null,
+                    'selfConsumptionEnergyKWh' => null,
+                ];
+            }
+        }
+
+        return $rows;
+    }
 }

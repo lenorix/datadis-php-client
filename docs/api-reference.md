@@ -87,7 +87,7 @@ The official documentation spells two keys `accesFare` and `installedCapacityKW`
 
 ### max power (`maxPower` item)
 
-`cups`, `date` (`YYYY/MM/DD`), `time` (`HH:MM`, quarter-hour values such as `09:45`), `maxPower` (number; the official documentation says **W**, but household answers seen by several implementations are 2 to 4 against 3.45 to 4.6 kW contracted, which only makes sense in kW; the official sample is `15.228`; the client names it kW and keeps the raw value), `period` (string: `"1"`-`"6"` per manual and most fixtures, also `VALLE/LLANO/PUNTA` per manual, `"P1"` in one unverified fixture; normalise defensively).
+`cups`, `date` (`YYYY/MM/DD`), `time` (`HH:MM`, quarter-hour values such as `09:45`), `maxPower` (number in **kW**, VERIFIED: 3.516 against 3.45 kW contracted; the official documentation says W, which is wrong), one row per period, `period` (string: `"1"`-`"6"` per manual and most fixtures, also `VALLE/LLANO/PUNTA` per manual, `"P1"` in one unverified fixture; normalise defensively).
 
 ### reactive (`reactiveEnergy`)
 
