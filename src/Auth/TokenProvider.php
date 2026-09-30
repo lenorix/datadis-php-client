@@ -12,7 +12,9 @@ use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Http\RequestFactory;
 use Lenorix\DatadisClient\Http\ResponseClassifier;
 use Lenorix\DatadisClient\Http\Transport;
+use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Support\PersonalDataRedactor;
+use Lenorix\DatadisClient\Support\SystemClock;
 use Psr\Clock\ClockInterface;
 use Psr\SimpleCache\CacheInterface;
 use Throwable;
@@ -20,11 +22,13 @@ use Throwable;
 /**
  * Logs in and keeps the token until shortly before it expires.
  *
- * The real token lifetime is unknown, so the JWT `exp` claim decides, and a conservative lifetime
+ * A token lasts 24 hours (verified), but the JWT `exp` claim decides, and a conservative lifetime
  * is used when the token carries none. The cache can be shared between processes (any PSR-16
  * store): it holds a live credential, so treat it like one.
  *
  * Every failure here is raised with `requestSent = false` because it happens before the data request.
+ *
+ * @internal
  */
 final class TokenProvider
 {
@@ -147,6 +151,6 @@ final class TokenProvider
         $token = trim($token);
         $token = preg_replace('/^Bearer\s+/i', '', $token) ?? $token;
 
-        return preg_match('/^[A-Za-z0-9._~+\/=-]+$/D', $token) === 1 ? $token : null;
+        return preg_match(RequestFactory::TOKEN_PATTERN, $token) === 1 ? $token : null;
     }
 }

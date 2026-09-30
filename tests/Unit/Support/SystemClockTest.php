@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Lenorix\DatadisClient\Auth\SystemClock;
+use Lenorix\DatadisClient\Support\SystemClock;
 
 it('tells the current time', function () {
     $before = time();

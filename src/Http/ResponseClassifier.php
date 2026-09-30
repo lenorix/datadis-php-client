@@ -21,6 +21,8 @@ use Psr\Http\Message\ResponseInterface;
  *
  * Status meanings come from real use, see docs/quirks-and-rules.md. A 2xx with an empty list is a
  * success and is returned as such; deciding what an empty list means belongs to the endpoint layer.
+ *
+ * @internal
  */
 final class ResponseClassifier
 {

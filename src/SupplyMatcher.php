@@ -22,6 +22,7 @@ final class SupplyMatcher
         $best = null;
 
         foreach ($supplies as $supply) {
+            // Compared as text: a listed CUPS with an unexpected shape must not stop the search.
             if (substr(strtoupper(trim($supply->cups)), 0, 20) !== $cups->base()) {
                 continue;
             }

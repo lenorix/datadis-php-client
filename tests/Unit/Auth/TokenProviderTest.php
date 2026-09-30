@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\Request;
-use Lenorix\DatadisClient\Auth\InMemoryCache;
 use Lenorix\DatadisClient\Auth\TokenProvider;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
@@ -12,6 +11,7 @@ use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
 use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\TransportException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
+use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 use Lenorix\DatadisClient\Tests\Support\QuirkyCache;
 use Lenorix\DatadisClient\Tests\Support\Responses;

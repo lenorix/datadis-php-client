@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Lenorix\DatadisClient\Auth\InMemoryCache;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
+use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 use Lenorix\DatadisClient\Tests\Support\QuirkyCache;
 
@@ -104,6 +104,7 @@ it('fails loudly when the store cannot be read or written', function (QuirkyCach
     'get throws' => [fn () => new QuirkyCache(throwOnGet: true), fn ($l, $q) => $l->lastAttempt('12345678Z', $q)],
     'set throws' => [fn () => new QuirkyCache(throwOnSet: true), fn ($l, $q) => $l->record('12345678Z', $q)],
     'set refuses' => [fn () => new QuirkyCache(failSet: true), fn ($l, $q) => $l->record('12345678Z', $q)],
+    'delete throws' => [fn () => new QuirkyCache(throwOnDelete: true), fn ($l, $q) => $l->forget('12345678Z', $q)],
 ]);
 
 it('stores attempts under valid PSR-16 keys', function () use ($query) {

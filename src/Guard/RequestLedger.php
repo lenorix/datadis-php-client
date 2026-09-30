@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Guard;
 
 use DateTimeImmutable;
-use Lenorix\DatadisClient\Auth\SystemClock;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
+use Lenorix\DatadisClient\Support\SystemClock;
 use Psr\Clock\ClockInterface;
 use Psr\SimpleCache\CacheInterface;
 use SensitiveParameter;
@@ -82,10 +82,18 @@ final class RequestLedger
         }
     }
 
-    /** @param array<string, string|int|list<string>|null> $query */
+    /**
+     * @param  array<string, string|int|list<string>|null>  $query
+     *
+     * @throws LedgerUnavailableException when the store cannot remove the record
+     */
     public function forget(string $account, #[SensitiveParameter] array $query): void
     {
-        $this->cache->delete($this->key($account, $query));
+        try {
+            $this->cache->delete($this->key($account, $query));
+        } catch (Throwable $e) {
+            throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
+        }
     }
 
     /** @param array<string, string|int|list<string>|null> $query */

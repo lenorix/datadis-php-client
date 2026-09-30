@@ -10,8 +10,8 @@ use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
 
 /*
- * Applications keep their settings in a configuration file or the environment (for example a
- * Laravel config/datadis.php filled from .env) and hand the array to the package.
+ * Applications keep their settings in a configuration file or the environment (for example the
+ * Laravel config/services.php filled from .env) and hand the array to the package.
  */
 
 it('builds the configuration from the minimum an application needs', function () {
@@ -54,6 +54,14 @@ it('ignores keys it does not know, so an application can keep its own settings a
         ->toBeInstanceOf(DatadisConfig::class);
 });
 
+it('reads the settings also when their names are spelt with dashes', function () {
+    $config = DatadisConfig::fromArray(['username' => '12345678Z', 'password' => 'secret', 'base-url' => 'https://datadis.test', 'connect-timeout' => '3', 'user-agent' => 'app/1']);
+
+    expect($config->baseUrl)->toBe('https://datadis.test')
+        ->and($config->connectTimeout)->toBe(3.0)
+        ->and($config->userAgent)->toBe('app/1');
+});
+
 it('names the setting that is wrong', function (array $settings, string $key) {
     try {
         DatadisConfig::fromArray($settings);
@@ -86,7 +94,7 @@ it('builds a client from the same array, with the API version and time zone', fu
     );
 
     $client = DatadisClient::fromArray(
-        ['username' => '12345678Z', 'password' => 'secret', 'base_url' => 'https://datadis.test', 'api_version' => ' V1 ', 'timezone' => 'Atlantic/Canary'],
+        ['username' => '12345678Z', 'password' => 'secret', 'base_url' => 'https://datadis.test', 'api-version' => ' V1 ', 'timezone' => 'Atlantic/Canary'],
         http: $http,
     );
     $supply = $client->supplies()->records[0];

@@ -11,7 +11,7 @@ it('has sensible defaults', function () {
     expect($config->baseUrl)->toBe('https://datadis.es')
         ->and($config->timeout)->toBe(120.0)
         ->and($config->connectTimeout)->toBe(10.0)
-        ->and($config->userAgent)->toContain('lenorix-datadis-client/');
+        ->and($config->userAgent)->toContain('lenorix-datadis-client');
 });
 
 it('normalises the base url and the username', function () {

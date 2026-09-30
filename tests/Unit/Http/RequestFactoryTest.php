@@ -32,14 +32,14 @@ it('sends the headers Datadis needs on every data call', function () {
         ->and($request->getHeaderLine('Accept'))->toBe('application/json')
         ->and($request->getHeaderLine('Accept-Encoding'))->toBe('identity')
         ->and($request->getHeaderLine('Authorization'))->toBe('Bearer jwt-token')
-        ->and($request->getHeaderLine('User-Agent'))->toContain('lenorix-datadis-client/');
+        ->and($request->getHeaderLine('User-Agent'))->toContain('lenorix-datadis-client');
 });
 
 it('sends the headers on the login request too', function () {
     $request = requests()->login();
 
     expect($request->getHeaderLine('Accept-Encoding'))->toBe('identity')
-        ->and($request->getHeaderLine('User-Agent'))->toContain('lenorix-datadis-client/')
+        ->and($request->getHeaderLine('User-Agent'))->toContain('lenorix-datadis-client')
         ->and($request->hasHeader('Authorization'))->toBeFalse();
 });
 

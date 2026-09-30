@@ -33,11 +33,13 @@ it('refuses unknown self-consumption types and malformed provinces', function (C
     'province 3 digits' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], provinces: ['035'])],
 ])->throws(InvalidRequestException::class);
 
-it('moves to another page without changing the filters', function () use ($from, $to) {
-    $query = new SelfConsumptionSearchQuery($from, $to, [Community::Madrid], selfConsumptionTypes: ['31']);
+it('moves to another page keeping every other argument', function () use ($from, $to) {
+    $query = new SelfConsumptionSearchQuery($from, $to, [Community::Canarias], pageSize: 100, distributors: ['0031'], selfConsumptionTypes: ['31'], provinces: ['35'], sort: ['-sumEnergy']);
     $next = $query->withPage(4);
 
-    expect($next->toQuery())->toEqual(['page' => 4] + $query->toQuery())->and($query->page)->toBe(0);
+    expect(get_object_vars($next))->toEqual(['page' => 4] + get_object_vars($query))
+        ->and($next->toQuery())->toEqual(['page' => 4] + $query->toQuery())
+        ->and($query->page)->toBe(0);
 });
 
 it('builds the minimal query without empty filters', function () use ($from, $to) {

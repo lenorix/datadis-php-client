@@ -8,7 +8,7 @@ use Closure;
 use DateTimeImmutable;
 use DateTimeZone;
 use InvalidArgumentException;
-use Lenorix\DatadisClient\Auth\SystemClock;
+use Lenorix\DatadisClient\Support\SystemClock;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Client\NetworkExceptionInterface;
@@ -22,10 +22,10 @@ use Psr\Http\Message\ResponseInterface;
  * contract detail, authorization list and public API calls, with exponential backoff and jitter,
  * honouring Retry-After when it is not longer than the maximum wait.
  *
- * It never retries the guarded endpoints (consumption, max power, reactive) nor the authorization
- * changes nor unlinking a partner user: a request that may have reached Datadis burns the 24 hour
- * repetition window or changes data, and a
- * network failure cannot tell whether it did. It never retries 4xx (429 included) nor a plain 500,
+ * It never retries the guarded endpoints (consumption, max power, reactive), the authorization
+ * changes, unlinking a partner user, nor any call it does not know: a request that may have reached
+ * Datadis burns the 24 hour repetition window or changes data, and a network failure cannot tell
+ * whether it did. It never retries 4xx (429 included) nor a plain 500,
  * which Datadis answers consistently for some supplies.
  *
  * Usage: new DatadisClient($config, http: new RetryingClient(GuzzleClientFactory::create($config))).
@@ -33,16 +33,6 @@ use Psr\Http\Message\ResponseInterface;
 final class RetryingClient implements ClientInterface
 {
     private const array RETRYABLE_STATUSES = [502, 503, 504];
-
-    /** Path fragments of the calls that must never be repeated automatically. */
-    private const array NEVER_RETRY = [
-        '/get-consumption-data',
-        '/get-max-power',
-        '/get-reactive-data',
-        '/new-authorization',
-        '/cancel-authorization',
-        '/partner-delete-user',
-    ];
 
     private readonly Closure $sleep;
 
@@ -121,13 +111,16 @@ final class RetryingClient implements ClientInterface
     {
         $path = $request->getUri()->getPath();
 
-        foreach (self::NEVER_RETRY as $fragment) {
-            if (str_contains($path, $fragment)) {
-                return false;
-            }
+        if (str_ends_with($path, RequestFactory::LOGIN_PATH)) {
+            return true;
         }
 
-        return $request->getMethod() === 'GET' || str_ends_with($path, RequestFactory::LOGIN_PATH);
+        if ($request->getMethod() !== 'GET') {
+            return false;
+        }
+
+        // Only the calls known to be safe: one added later must not be retried until it is known.
+        return str_contains($path, '/api-public/') || (Endpoint::fromPath($path)?->isSafeToRepeat() ?? false);
     }
 
     /** Exponential, capped, with "equal jitter": between half and all of the step. */

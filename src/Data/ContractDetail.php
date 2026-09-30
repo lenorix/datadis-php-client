@@ -23,6 +23,9 @@ final readonly class ContractDetail
 {
     /**
      * @param  list<string|null>  $contractedPowerKw  decimal strings, scale 2
+     * @param  string|null  $installedCapacity  decimal string, scale 3, in the unit Datadis sends: the
+     *                                          documentation names it in kW, but its only sample (`1.12E7`)
+     *                                          looks like W (UNVERIFIED)
      * @param  list<array{start: DateTimeImmutable|null, end: DateTimeImmutable|null}>  $ownerPeriods
      * @param  array<array-key, mixed>  $raw
      */

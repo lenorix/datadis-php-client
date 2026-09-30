@@ -219,7 +219,7 @@ Every list method returns an `ApiResult`:
 
 Some conventions hold everywhere:
 
-- **Numbers are decimal strings, never floats**: three decimals for energy (kWh), maximum power (kW) and installed capacity, two for contracted power.
+- **Numbers are decimal strings, never floats**: three decimals for energy (kWh), maximum power (kW) and installed capacity, two for contracted power. Installed capacity comes in whatever unit Datadis sends: the documentation says kW, its only sample looks like W, so check it against your own data.
 - **Dates and times are `DateTimeImmutable`** in the zone the client was given (Europe/Madrid by default). A contract or supply without an end has `null` there and `isOpenEnded()` returns `true`.
 - **Consumption rows keep the order Datadis sent them in**, and each one knows its real interval: `start`, `end`, `index` (hour 0 to 23, or quarter 0 to 95) and `hourOfDay` (0 to 23 for both).
 

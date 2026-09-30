@@ -21,6 +21,8 @@ use Throwable;
  *
  * The client's own exception is deliberately NOT chained: its message carries the full URL, and the
  * URL carries the CUPS and the authorizedNif. Only the class name and a redacted excerpt are kept.
+ *
+ * @internal
  */
 final class Transport
 {

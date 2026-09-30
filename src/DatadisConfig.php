@@ -17,12 +17,13 @@ use SensitiveParameter;
  */
 final readonly class DatadisConfig
 {
-    public const string VERSION = '0.1';
-
     public const string DEFAULT_BASE_URL = 'https://datadis.es';
 
-    /** Some hosts refuse unknown or library default agents, so the agent identifies this package but looks ordinary. */
-    public const string DEFAULT_USER_AGENT = 'Mozilla/5.0 (compatible; lenorix-datadis-client/'.self::VERSION.'; +https://github.com/lenorix/datadis-client)';
+    /**
+     * Some hosts refuse unknown or library default agents, so the agent identifies this package but
+     * looks ordinary. It carries no version number, which would go stale with every release.
+     */
+    public const string DEFAULT_USER_AGENT = 'Mozilla/5.0 (compatible; lenorix-datadis-client; +https://github.com/lenorix/datadis-client)';
 
     /** The account's NIF, NIE or CIF, trimmed and uppercase. */
     public string $username;
@@ -74,8 +75,9 @@ final readonly class DatadisConfig
     /**
      * Builds the configuration from a plain array, as an application keeps it in a configuration
      * file or reads it from the environment: `username`, `password`, and optionally `base_url`,
-     * `timeout`, `connect_timeout` (seconds, numbers or numeric text) and `user_agent`. Empty values
-     * count as not given; unknown keys are ignored so the array can hold other settings too.
+     * `timeout`, `connect_timeout` (seconds, numbers or numeric text) and `user_agent`; names with
+     * dashes (`base-url`) work too. Empty values count as not given; unknown keys are ignored so the
+     * array can hold other settings too.
      *
      * @param  array<array-key, mixed>  $settings
      *
@@ -102,7 +104,7 @@ final readonly class DatadisConfig
      */
     public static function setting(#[SensitiveParameter] array $settings, string $key): ?string
     {
-        $value = $settings[$key] ?? null;
+        $value = self::raw($settings, $key);
 
         if ($value === null || $value === '') {
             return null;
@@ -115,6 +117,16 @@ final readonly class DatadisConfig
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    /**
+     * The value of a setting named in snake case (`base_url`) or with dashes (`base-url`).
+     *
+     * @param  array<array-key, mixed>  $settings
+     */
+    private static function raw(#[SensitiveParameter] array $settings, string $key): mixed
+    {
+        return $settings[$key] ?? $settings[str_replace('_', '-', $key)] ?? null;
     }
 
     /**
@@ -136,7 +148,7 @@ final readonly class DatadisConfig
     /** @param  array<array-key, mixed>  $settings */
     private static function seconds(array $settings, string $key, float $default): float
     {
-        $value = $settings[$key] ?? null;
+        $value = self::raw($settings, $key);
 
         if ($value === null || $value === '') {
             return $default;
@@ -149,12 +161,17 @@ final readonly class DatadisConfig
         return (float) $value;
     }
 
+    /** @internal */
     public function connection(): ConnectionSettings
     {
         return $this->connection;
     }
 
-    /** Only the request factory should call this. */
+    /**
+     * Only the login should call this.
+     *
+     * @internal
+     */
     public function password(): string
     {
         return ($this->password)();

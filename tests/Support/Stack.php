@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Tests\Support;
 
 use GuzzleHttp\Psr7\HttpFactory;
-use Lenorix\DatadisClient\Auth\InMemoryCache;
 use Lenorix\DatadisClient\Auth\TokenProvider;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Http\ApiCaller;
 use Lenorix\DatadisClient\Http\RequestFactory;
 use Lenorix\DatadisClient\Http\Transport;
+use Lenorix\DatadisClient\Support\InMemoryCache;
 use Psr\Http\Message\ResponseInterface;
 use Psr\SimpleCache\CacheInterface;
 

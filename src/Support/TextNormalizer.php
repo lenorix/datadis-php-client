@@ -11,6 +11,8 @@ namespace Lenorix\DatadisClient\Support;
  *
  * The transliteration table is explicit on purpose: iconv and intl give different results on
  * different systems.
+ *
+ * @internal
  */
 final class TextNormalizer
 {

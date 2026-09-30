@@ -56,8 +56,11 @@ final readonly class ReactiveEnergy
     }
 
     /**
-     * Reads a whole reactive answer: `{"reactiveEnergy": {...}}`, a list of such objects, or only
-     * distributor errors. Anything else is an error, never an empty result.
+     * Reads a whole reactive answer: `{"reactiveEnergy": {...}}`, `{"reactiveEnergy": [{...}, ...]}`,
+     * or only distributor errors. Anything else, a bare list included, is an error, never an empty
+     * result.
+     *
+     * @internal
      *
      * @param  array<array-key, mixed>  $decoded
      * @return ApiResult<self>

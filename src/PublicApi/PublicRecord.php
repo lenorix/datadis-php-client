@@ -7,6 +7,7 @@ namespace Lenorix\DatadisClient\PublicApi;
 use DateTimeImmutable;
 use DateTimeZone;
 use Lenorix\DatadisClient\Data\Fields;
+use Lenorix\DatadisClient\Time\Month;
 use SensitiveParameter;
 
 /**
@@ -52,7 +53,7 @@ final readonly class PublicRecord
             return null;
         }
 
-        return new DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day), new DateTimeZone('Europe/Madrid'));
+        return new DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day), new DateTimeZone(Month::SERVICE_TIME_ZONE));
     }
 
     /** Energy in kWh with three decimals. */

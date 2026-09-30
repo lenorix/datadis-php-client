@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Lenorix\DatadisClient\Auth\InMemoryCache;
+use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 
 it('keeps values without a ttl until they are deleted', function () {

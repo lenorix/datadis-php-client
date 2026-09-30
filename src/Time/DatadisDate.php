@@ -7,7 +7,11 @@ namespace Lenorix\DatadisClient\Time;
 use DateTimeImmutable;
 use DateTimeZone;
 
-/** Strict parsers for the date shapes Datadis uses. An empty string (open-ended period) gives null. */
+/**
+ * Strict parsers for the date shapes Datadis uses. An empty string (open-ended period) gives null.
+ *
+ * @internal
+ */
 final class DatadisDate
 {
     /** `YYYY/MM/DD`, used by almost every field. */

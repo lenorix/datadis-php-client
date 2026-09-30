@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Lenorix\DatadisClient\Auth;
+namespace Lenorix\DatadisClient\Support;
 
 use Closure;
 use DateInterval;

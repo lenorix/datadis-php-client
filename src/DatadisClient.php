@@ -9,7 +9,6 @@ use DateTimeInterface;
 use DateTimeZone;
 use Exception;
 use GuzzleHttp\Psr7\HttpFactory;
-use Lenorix\DatadisClient\Auth\SystemClock;
 use Lenorix\DatadisClient\Auth\TokenProvider;
 use Lenorix\DatadisClient\Data\ApiResult;
 use Lenorix\DatadisClient\Data\Authorization;
@@ -22,17 +21,18 @@ use Lenorix\DatadisClient\Data\MaxPowerReading;
 use Lenorix\DatadisClient\Data\ReactiveEnergy;
 use Lenorix\DatadisClient\Data\Supply;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
-use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
-use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
+use Lenorix\DatadisClient\Guard\RepetitionGuard;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Http\ApiCaller;
+use Lenorix\DatadisClient\Http\Endpoint;
 use Lenorix\DatadisClient\Http\GuzzleClientFactory;
 use Lenorix\DatadisClient\Http\RequestFactory;
 use Lenorix\DatadisClient\Http\Transport;
+use Lenorix\DatadisClient\Support\SystemClock;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
 use Lenorix\DatadisClient\Values\MeasurementType;
@@ -57,12 +57,9 @@ use SensitiveParameter;
  */
 final class DatadisClient implements DatadisClientInterface
 {
-    private const string API = '/api-private/api/';
-
-    /** The endpoints subject to the 24 hour repetition rule. */
-    private const array GUARDED = ['get-consumption-data', 'get-max-power', 'get-reactive-data'];
-
     private readonly ApiCaller $caller;
+
+    private readonly ?RepetitionGuard $guard;
 
     private readonly ClockInterface $clock;
 
@@ -83,10 +80,10 @@ final class DatadisClient implements DatadisClientInterface
         ?DateTimeZone $timeZone = null,
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
-        private readonly ?RequestLedger $ledger = null,
+        ?RequestLedger $ledger = null,
     ) {
         $this->clock = $clock ?? new SystemClock;
-        $this->timeZone = $timeZone ?? new DateTimeZone('Europe/Madrid');
+        $this->timeZone = $timeZone ?? new DateTimeZone(Month::SERVICE_TIME_ZONE);
 
         $factory = new HttpFactory;
         $streamFactory ??= $factory;
@@ -95,6 +92,7 @@ final class DatadisClient implements DatadisClientInterface
         $tokens = new TokenProvider($config, $requests, $transport, $tokenCache, $this->clock);
 
         $this->caller = new ApiCaller($requests, $transport, $tokens);
+        $this->guard = $ledger === null ? null : new RepetitionGuard($ledger, $config->username);
     }
 
     /**
@@ -115,10 +113,10 @@ final class DatadisClient implements DatadisClientInterface
         ?ClockInterface $clock = null,
     ): self {
         $version = DatadisConfig::setting($settings, 'api_version');
-        $zone = DatadisConfig::setting($settings, 'timezone') ?? 'Europe/Madrid';
+        $zone = DatadisConfig::setting($settings, 'timezone');
 
         try {
-            $timeZone = new DateTimeZone($zone);
+            $timeZone = $zone === null ? null : new DateTimeZone($zone);
         } catch (Exception $e) {
             throw new ConfigurationException("The Datadis setting \"timezone\" is not a time zone: {$zone}.", $e);
         }
@@ -147,9 +145,9 @@ final class DatadisClient implements DatadisClientInterface
             $this->assertDistributorCode($distributorCode);
         }
 
-        $decoded = $this->getList('get-supplies', ['authorizedNif' => $this->authorized($authorizedNif), 'distributorCode' => $distributorCode]);
+        $decoded = $this->fetchList(Endpoint::Supplies, ['authorizedNif' => $this->authorized($authorizedNif), 'distributorCode' => $distributorCode]);
 
-        return Envelope::build($decoded, 'supplies', $this->endpoint('get-supplies'), fn (array $row) => Supply::fromRow($row, $this->timeZone));
+        return Envelope::build($decoded, 'supplies', $this->name(Endpoint::Supplies), fn (array $row) => Supply::fromRow($row, $this->timeZone));
     }
 
     /**
@@ -164,7 +162,7 @@ final class DatadisClient implements DatadisClientInterface
         // Not found while a distributor failed is not "not your supply": it may be behind that failure.
         if ($supply === null && $result->hasDistributorErrors()) {
             $reasons = implode('; ', array_map(static fn ($error) => (string) $error->errorDescription, $result->distributorErrors));
-            $endpoint = $this->endpoint('get-supplies');
+            $endpoint = $this->name(Endpoint::Supplies);
 
             throw new ServiceUnavailableException("{$endpoint}: the supply was not found and a distributor failed: {$reasons}", 200, $reasons, $endpoint);
         }
@@ -179,9 +177,9 @@ final class DatadisClient implements DatadisClientInterface
      */
     public function distributors(?Nif $authorizedNif = null): ApiResult
     {
-        $decoded = $this->getList('get-distributors-with-supplies', ['authorizedNif' => $this->authorized($authorizedNif)]);
+        $decoded = $this->fetchList(Endpoint::Distributors, ['authorizedNif' => $this->authorized($authorizedNif)]);
 
-        return DistributorCodes::result($decoded, $this->endpoint('get-distributors-with-supplies'));
+        return DistributorCodes::result($decoded, $this->name(Endpoint::Distributors));
     }
 
     /**
@@ -193,13 +191,13 @@ final class DatadisClient implements DatadisClientInterface
     {
         $this->assertDistributorCode($distributorCode);
 
-        $decoded = $this->get('get-contract-detail', [
+        $decoded = $this->fetch(Endpoint::ContractDetail, [
             'cups' => $cups->value(),
             'distributorCode' => $distributorCode,
             'authorizedNif' => $this->authorized($authorizedNif),
         ]);
 
-        return Envelope::build($decoded, 'contract', $this->endpoint('get-contract-detail'), fn (array $row) => ContractDetail::fromRow($row, $this->timeZone));
+        return Envelope::build($decoded, 'contract', $this->name(Endpoint::ContractDetail), fn (array $row) => ContractDetail::fromRow($row, $this->timeZone));
     }
 
     /**
@@ -224,7 +222,7 @@ final class DatadisClient implements DatadisClientInterface
         $this->assertPointType($pointType);
         $this->assertRange($from, $to);
 
-        $decoded = $this->get('get-consumption-data', [
+        $decoded = $this->fetch(Endpoint::Consumption, [
             'cups' => $cups->value(),
             'distributorCode' => $distributorCode,
             'startDate' => $from->format(),
@@ -243,7 +241,7 @@ final class DatadisClient implements DatadisClientInterface
             return ConsumptionReading::fromRow($row, $this->timeZone, $measurementType, $occurrence);
         };
 
-        return Envelope::build($decoded, 'timeCurve', $this->endpoint('get-consumption-data'), $decode);
+        return Envelope::build($decoded, 'timeCurve', $this->name(Endpoint::Consumption), $decode);
     }
 
     /**
@@ -257,7 +255,7 @@ final class DatadisClient implements DatadisClientInterface
         $this->assertDistributorCode($distributorCode);
         $this->assertRange($from, $to);
 
-        $decoded = $this->get('get-max-power', [
+        $decoded = $this->fetch(Endpoint::MaxPower, [
             'cups' => $cups->value(),
             'distributorCode' => $distributorCode,
             'startDate' => $from->format(),
@@ -265,7 +263,7 @@ final class DatadisClient implements DatadisClientInterface
             'authorizedNif' => $this->authorized($authorizedNif),
         ]);
 
-        return Envelope::build($decoded, 'maxPower', $this->endpoint('get-max-power'), fn (array $row) => MaxPowerReading::fromRow($row, $this->timeZone));
+        return Envelope::build($decoded, 'maxPower', $this->name(Endpoint::MaxPower), fn (array $row) => MaxPowerReading::fromRow($row, $this->timeZone));
     }
 
     /**
@@ -285,7 +283,7 @@ final class DatadisClient implements DatadisClientInterface
         $this->assertDistributorCode($distributorCode);
         $this->assertRange($from, $to);
 
-        $decoded = $this->get('get-reactive-data', [
+        $decoded = $this->fetch(Endpoint::Reactive, [
             'cups' => $cups->value(),
             'distributorCode' => $distributorCode,
             'startDate' => $from->format(),
@@ -293,7 +291,7 @@ final class DatadisClient implements DatadisClientInterface
             'authorizedNif' => $this->authorized($authorizedNif),
         ]);
 
-        return ReactiveEnergy::result($decoded, $this->endpoint('get-reactive-data'));
+        return ReactiveEnergy::result($decoded, $this->name(Endpoint::Reactive));
     }
 
     /**
@@ -368,12 +366,12 @@ final class DatadisClient implements DatadisClientInterface
             throw new InvalidRequestException('The authorization must not end before it starts.');
         }
 
-        return $this->caller->getText(self::API.'new-authorization', [
+        return $this->fetchText(Endpoint::NewAuthorization, [
             'authorizedNif' => $authorizedNif->value(),
             'startDate' => $from?->format('Y/m/d'),
             'endDate' => $to?->format('Y/m/d'),
             'cups' => $this->cupsList($cups),
-        ], 'new-authorization');
+        ]);
     }
 
     /**
@@ -384,10 +382,10 @@ final class DatadisClient implements DatadisClientInterface
     {
         $this->assertThirdParty($authorizedNif);
 
-        return $this->caller->getText(self::API.'cancel-authorization', [
+        return $this->fetchText(Endpoint::CancelAuthorization, [
             'authorizedNif' => $authorizedNif->value(),
             'cups' => $this->cupsList($cups),
-        ], 'cancel-authorization');
+        ]);
     }
 
     /**
@@ -397,9 +395,9 @@ final class DatadisClient implements DatadisClientInterface
      */
     public function authorizations(?Nif $ownerNif = null): ApiResult
     {
-        $decoded = $this->caller->get(self::API.'list-authorization', ['ownerNif' => $ownerNif?->value()], 'list-authorization');
+        $decoded = $this->fetch(Endpoint::Authorizations, ['ownerNif' => $ownerNif?->value()]);
 
-        return Envelope::build($decoded, 'authorizations', 'list-authorization', fn (array $row) => Authorization::fromRow($row, $this->timeZone));
+        return Envelope::build($decoded, 'authorizations', $this->name(Endpoint::Authorizations), fn (array $row) => Authorization::fromRow($row, $this->timeZone));
     }
 
     /**
@@ -413,9 +411,9 @@ final class DatadisClient implements DatadisClientInterface
             throw new UnsupportedOperationException('Groups exist only in API v2.');
         }
 
-        $decoded = $this->caller->get(self::API.'get-groups-v2', [], 'get-groups-v2');
+        $decoded = $this->fetch(Endpoint::Groups, []);
 
-        return Envelope::build($decoded, 'groups', 'get-groups-v2', static fn (array $row) => Group::fromRow($row));
+        return Envelope::build($decoded, 'groups', $this->name(Endpoint::Groups), static fn (array $row) => Group::fromRow($row));
     }
 
     /**
@@ -426,7 +424,7 @@ final class DatadisClient implements DatadisClientInterface
      */
     public function partnerUsers(): array
     {
-        return $this->caller->get(self::API.'partner-user-list', [], 'partner-user-list');
+        return $this->fetch(Endpoint::PartnerUsers, []);
     }
 
     /**
@@ -435,7 +433,7 @@ final class DatadisClient implements DatadisClientInterface
      */
     public function partnerDeleteUser(Nif $nif): string
     {
-        return $this->caller->getText(self::API.'partner-delete-user', ['nif' => $nif->value()], 'partner-delete-user');
+        return $this->fetchText(Endpoint::PartnerDeleteUser, ['nif' => $nif->value()]);
     }
 
     /**
@@ -444,7 +442,7 @@ final class DatadisClient implements DatadisClientInterface
      */
     public function partnerAgreementDate(?Nif $nif = null): string
     {
-        return $this->caller->getText(self::API.'partner-agreement-date', ['nif' => $nif?->value()], 'partner-agreement-date');
+        return $this->fetchText(Endpoint::PartnerAgreementDate, ['nif' => $nif?->value()]);
     }
 
     /**
@@ -454,10 +452,10 @@ final class DatadisClient implements DatadisClientInterface
      * @param  array<string, string|int|list<string>|null>  $query
      * @return array<array-key, mixed>
      */
-    private function getList(string $name, #[SensitiveParameter] array $query): array
+    private function fetchList(Endpoint $endpoint, #[SensitiveParameter] array $query): array
     {
         try {
-            return $this->get($name, $query);
+            return $this->fetch($endpoint, $query);
         } catch (NoDataException $e) {
             if ($e->httpStatus === 404) {
                 return [];
@@ -471,59 +469,24 @@ final class DatadisClient implements DatadisClientInterface
      * @param  array<string, string|int|list<string>|null>  $query
      * @return array<array-key, mixed>
      */
-    private function get(string $name, #[SensitiveParameter] array $query): array
+    private function fetch(Endpoint $endpoint, #[SensitiveParameter] array $query): array
     {
-        $endpoint = $this->endpoint($name);
+        $name = $this->name($endpoint);
+        $send = fn (): array => $this->caller->get($endpoint->path($this->version), $query, $name);
 
-        if ($this->ledger === null || ! in_array($name, self::GUARDED, true)) {
-            return $this->caller->get(self::API.$endpoint, $query, $endpoint);
-        }
-
-        $account = $this->config->username;
-        $key = $this->repetitionKey($name, $query);
-        $last = $this->ledger->lastAttempt($account, $key);
-
-        if ($last !== null) {
-            throw new RepetitionWindowException(
-                "{$endpoint}: the same query was already sent at {$last->format(DATE_ATOM)}; Datadis refuses repeating it within 24 hours.",
-                endpoint: $endpoint,
-                requestSent: false,
-            );
-        }
-
-        $this->ledger->record($account, $key);
-
-        try {
-            return $this->caller->get(self::API.$endpoint, $query, $endpoint);
-        } catch (DatadisException $e) {
-            if (! $e->requestSent) {
-                try {
-                    $this->ledger->forget($account, $key);
-                } catch (\Throwable) {
-                    // The original failure matters more; the entry expires with the window.
-                }
-            }
-
-            throw $e;
-        }
+        return $this->guard === null ? $send() : $this->guard->call($endpoint, $name, $query, $send);
     }
 
-    /**
-     * The parameters Datadis keys its 24 hour rule on. The official manual lists authorizedNif for
-     * consumption but not for maximum power, so for maximum power and reactive data (same
-     * parameters) it is left out: two such queries that differ only in authorizedNif collide.
-     *
-     * @param  array<string, string|int|list<string>|null>  $query
-     * @return array<string, string|int|list<string>|null>
-     */
-    private function repetitionKey(string $name, #[SensitiveParameter] array $query): array
+    /** @param array<string, string|int|list<string>|null> $query */
+    private function fetchText(Endpoint $endpoint, #[SensitiveParameter] array $query): string
     {
-        return $name === 'get-consumption-data' ? $query : array_merge($query, ['authorizedNif' => null]);
+        return $this->caller->getText($endpoint->path($this->version), $query, $this->name($endpoint));
     }
 
-    private function endpoint(string $name): string
+    /** The endpoint as it appears in the path and in exceptions. */
+    private function name(Endpoint $endpoint): string
     {
-        return $name.$this->version->suffix();
+        return $endpoint->name($this->version);
     }
 
     /** authorizedNif is only for a third party's supplies: for the account itself it must be omitted. */

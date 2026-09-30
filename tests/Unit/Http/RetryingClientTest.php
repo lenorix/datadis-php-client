@@ -63,7 +63,7 @@ it('gives up after the last retry with the last outcome', function () {
     expect(fn () => $client->sendRequest(get(SAFE)))->toThrow(ConnectException::class);
 });
 
-it('never retries a guarded endpoint', function (string $path, Closure $outcome) {
+it('never retries a call that may count or change data, nor one it does not know', function (string $path, Closure $outcome) {
     [$client, $http, $sleeps] = retrying();
     $http->queue($outcome(), Responses::json('[]'));
 
@@ -80,9 +80,29 @@ it('never retries a guarded endpoint', function (string $path, Closure $outcome)
     '/api-private/api/get-reactive-data-v2',
     '/api-private/api/new-authorization',
     '/api-private/api/cancel-authorization',
+    '/api-private/api/partner-delete-user',
+    'a call added to Datadis later' => '/api-private/api/get-something-new-v2',
+    'a path outside the API' => '/api-private/other/get-supplies',
 ])->with([
     'network failure' => [fn () => networkFailure()],
     'bad gateway' => [fn () => Responses::empty(502)],
+]);
+
+it('retries every call that is safe to repeat, in both versions and behind a base path', function (string $path) {
+    [$client, $http] = retrying();
+    $http->queue(Responses::empty(503), Responses::json('[]'));
+
+    expect($client->sendRequest(get($path))->getStatusCode())->toBe(200)->and($http->requests())->toHaveCount(2);
+})->with([
+    '/api-private/api/get-supplies',
+    '/api-private/api/get-distributors-with-supplies-v2',
+    '/api-private/api/get-contract-detail-v2',
+    '/api-private/api/get-groups-v2',
+    '/api-private/api/list-authorization',
+    '/api-private/api/partner-user-list',
+    '/api-private/api/partner-agreement-date',
+    '/api-public/api-search',
+    '/proxy/datadis/api-private/api/get-supplies-v2',
 ]);
 
 it('never retries client errors, 429 or a plain 500', function (int $status) {

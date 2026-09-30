@@ -88,12 +88,17 @@ it('uses the date of the given instant, whatever its time and zone', function ()
     expect($query->toQuery()['startDate'])->toBe('2026/01/01')->and($query->toQuery()['endDate'])->toBe('2026/01/02');
 });
 
-it('moves to another page without changing the filters', function () use ($from, $to) {
-    $query = new PublicSearchQuery($from, $to, [Community::Madrid], ['05'], page: 0, fares: ['2T']);
+it('moves to another page keeping every other argument', function () use ($from, $to) {
+    $query = new PublicSearchQuery(
+        $from, $to, [Community::Madrid], ['05'], page: 0, pageSize: 100, distributors: ['0172'], fares: ['2T'],
+        provinceMunicipalities: ['04'], postalCodes: ['18817'], economicSectors: ['1'], tensions: ['E0'],
+        timeDiscriminations: ['E3'], sort: ['-dataDate'], groupByPostalCode: true,
+    );
     $next = $query->withPage(1);
 
-    expect($next->toQuery())->toEqual(['page' => 1] + $query->toQuery())
-        ->and($query->toQuery()['page'])->toBe(0);
+    expect(get_object_vars($next))->toEqual(['page' => 1] + get_object_vars($query))
+        ->and($next->toQuery())->toEqual(['page' => 1] + $query->toQuery())
+        ->and($query->page)->toBe(0);
 });
 
 it('accepts a single day and refuses a doubled minus in sort', function () use ($from) {

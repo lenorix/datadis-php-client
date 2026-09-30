@@ -21,7 +21,7 @@ final readonly class Month implements Stringable
     /** Months of history the API serves, counting the current month. */
     public const int HISTORY_MONTHS = 24;
 
-    /** Datadis is a Spanish service and is assumed to judge its month window by the Madrid calendar (UNVERIFIED). */
+    /** Datadis is a Spanish service: its dates are Madrid dates, and it is assumed to judge its month window by the Madrid calendar (UNVERIFIED). */
     public const string SERVICE_TIME_ZONE = 'Europe/Madrid';
 
     private function __construct(

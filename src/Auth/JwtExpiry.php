@@ -9,6 +9,8 @@ use JsonException;
 /**
  * Reads the `exp` claim of a JWT without verifying it. The signature is Datadis' business: the only
  * use here is to know when to log in again, and a wrong answer just means an early or a late login.
+ *
+ * @internal
  */
 final class JwtExpiry
 {

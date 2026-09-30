@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use GuzzleHttp\Psr7\Response;
-use Lenorix\DatadisClient\Auth\InMemoryCache;
 use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\DatadisConfig;
@@ -13,6 +12,7 @@ use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\PublicApi\Community;
 use Lenorix\DatadisClient\PublicApi\PublicApi;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
+use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 use Lenorix\DatadisClient\Tests\Support\Responses;

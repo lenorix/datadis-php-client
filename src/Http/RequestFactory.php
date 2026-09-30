@@ -19,10 +19,15 @@ use SensitiveParameter;
  * - `Accept: application/json` is required: without it Datadis answers an empty-body 500 or a 400.
  * - `Accept-Encoding: identity`: some responses are labelled gzip without being gzip.
  * - Credentials travel in the login form body, never in a URL.
+ *
+ * @internal
  */
 final class RequestFactory
 {
     public const string LOGIN_PATH = '/nikola-auth/tokens/login';
+
+    /** What a token may contain to travel in a header: a JWT, or any other base64 or URL-safe text. */
+    public const string TOKEN_PATTERN = '/^[A-Za-z0-9._~+\/=-]+$/D';
 
     private readonly ConnectionSettings $settings;
 
@@ -60,7 +65,7 @@ final class RequestFactory
      */
     public function get(string $path, #[SensitiveParameter] array $query, #[SensitiveParameter] string $token): RequestInterface
     {
-        if (preg_match('/^[A-Za-z0-9._~+\/=-]+$/D', $token) !== 1) {
+        if (preg_match(self::TOKEN_PATTERN, $token) !== 1) {
             throw new InvalidArgumentException('The token contains characters that are not allowed in a header.');
         }
 

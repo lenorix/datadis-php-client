@@ -8,7 +8,11 @@ use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use InvalidArgumentException;
 
-/** Converts the numbers Datadis sends into plain decimal strings with a fixed scale (half-up rounding). */
+/**
+ * Converts the numbers Datadis sends into plain decimal strings with a fixed scale (half-up rounding).
+ *
+ * @internal
+ */
 final class Decimal
 {
     private const int MAX_LENGTH = 64;

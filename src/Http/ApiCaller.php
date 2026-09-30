@@ -16,6 +16,8 @@ use SensitiveParameter;
  * A 401 means the token was rejected: the token is dropped, one new login is made and the call is
  * repeated once. A second 401 is final. A network failure is never retried here, because it may
  * have reached Datadis and Datadis refuses an identical query for 24 hours.
+ *
+ * @internal
  */
 final class ApiCaller
 {

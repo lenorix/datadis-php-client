@@ -20,7 +20,7 @@ final class QueryRules
         'dataDate', 'community', 'province', 'municipality', 'postalCode', 'fare', 'measurePointType',
         'tension', 'economicSector', 'timeDiscrimination', 'distributor', 'sumEnergy', 'sumContracts',
         // Field names of the answers, which the current documentation lists as sort options.
-        'dataDay', 'dataMonth', 'dataYear', 'selfConsumption', 'sumPower', 'measurePointType',
+        'dataDay', 'dataMonth', 'dataYear', 'selfConsumption', 'sumPower',
     ];
 
     public static function dates(DateTimeInterface $from, DateTimeInterface $to): void
