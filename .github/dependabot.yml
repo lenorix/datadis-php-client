@@ -11,12 +11,10 @@ updates:
     labels:
       - "dependencies"
     # Wait a few days after a release before proposing it, so a compromised or broken release
-    # has time to be noticed and pulled.
+    # has time to be noticed and pulled. Actions accept only a default cooldown, not one per
+    # semver level.
     cooldown:
       default-days: 7
-      semver-major-days: 14
-      semver-minor-days: 7
-      semver-patch-days: 3
 
   - package-ecosystem: "composer"
     directory: "/"

@@ -152,8 +152,9 @@ final class RetryingClient implements ClientInterface
             return (int) $value * 1000;
         }
 
-        // The format has GMT as a literal, so the zone must be given or the host default would be used.
-        $date = DateTimeImmutable::createFromFormat(DATE_RFC7231, $value, new DateTimeZone('GMT'));
+        // An HTTP date (`Sun, 06 Nov 1994 08:49:37 GMT`). GMT is a literal in the format, so the zone
+        // must be given or the host default would be used. PHP 8.5 deprecates the DATE_RFC7231 constant.
+        $date = DateTimeImmutable::createFromFormat('D, d M Y H:i:s \G\M\T', $value, new DateTimeZone('GMT'));
 
         if ($date === false) {
             return null;

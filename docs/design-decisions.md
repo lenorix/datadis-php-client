@@ -21,6 +21,7 @@ The architecture as built. Each decision states the reason so it can be revisite
 ## Dependencies
 
 - Runtime: PHP `^8.4`, `guzzlehttp/guzzle` `^8.2` with `guzzlehttp/psr7` `^3.1`, `brick/math` from `0.14.2` to `1.x` (the range the current Laravel accepts, so applications do not have to upgrade it), and the PSR interfaces: `psr/http-client`, `psr/http-factory`, `psr/http-message`, `psr/simple-cache`, `psr/clock`.
+- Development: PHP 8.4 and 8.5 are both supported, and the suite fails on deprecations. Two transitive development packages have explicit floors in `require-dev` only (`phpdocumentor/reflection-docblock` 5.6.3, `sebastian/recursion-context` 7.0.1): earlier versions, which the lowest Pest allows, trigger PHP 8.5 deprecations. They do not affect what users install.
 - The client depends only on `Psr\Http\Client\ClientInterface`, `RequestFactoryInterface`, `StreamFactoryInterface` and friends. Any PSR-18 client works (Symfony HttpClient, Laravel's `Http::buildClient()`, a test double).
 - Guzzle specifics live in one small factory: `http_errors => false`, `decode_content => false`, redirects off, explicit timeouts. The suite runs with both the lowest and the latest allowed dependencies.
 
