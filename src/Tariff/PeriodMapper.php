@@ -17,7 +17,7 @@ interface PeriodMapper
 {
     /**
      * @param  DateTimeInterface  $day  its civil date (in its own time zone) is what counts
-     * @param  int  $hour  hour of the day, 0 to 23 (the `index` of an hourly reading)
+     * @param  int  $hour  hour of the day, 0 to 23 (the `hourOfDay` of a reading)
      * @return int the period number, starting at 1
      */
     public function periodFor(DateTimeInterface $day, int $hour): int;

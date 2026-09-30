@@ -120,8 +120,8 @@ use Lenorix\DatadisClient\Tariff\FixedSchedulePeriods;
 $periods = new FixedSchedulePeriods(Territory::fromPostalCode($supply->postalCode) ?? Territory::Peninsula);
 
 foreach ($result->records as $reading) {
-    if ($reading->index !== null) {
-        $period = $periods->periodFor($reading->day, $reading->index);   // 1, 2 or 3
+    if ($reading->hourOfDay !== null) {
+        $period = $periods->periodFor($reading->day, $reading->hourOfDay);   // 1, 2 or 3
     }
 }
 ```
@@ -155,9 +155,16 @@ $current = Month::current($now);
 foreach (MonthPlanner::ranges($current->addMonths(-23), $current, $now, supply: $supply) as [$from, $to]) {
     try {
         $result = $client->consumption($cups, $supply->distributorCode, $supply->pointType, $from, $to);
-        // store $result->records, including ->raw if you want to reinterpret them later
+
+        if ($result->isEmptyBecauseOfErrors()) {
+            // the distributor failed; the query was sent, so it counts: try again tomorrow
+        } elseif ($result->isEmpty()) {
+            // not published yet: try again another day
+        } else {
+            // store $result->records, including ->raw if you want to reinterpret them later
+        }
     } catch (NoDataException) {
-        // not published yet: try again another day
+        // Datadis said it has nothing (404, 204 or an empty body): same as an empty result
     } catch (RepetitionWindowException) {
         // already asked in the last 24 hours: try again tomorrow
     }
@@ -217,7 +224,7 @@ Some conventions hold everywhere:
 
 - **Numbers are decimal strings, never floats**: three decimals for energy (kWh), maximum power (kW) and installed capacity, two for contracted power.
 - **Dates and times are `DateTimeImmutable`** in the zone the client was given (Europe/Madrid by default). A contract or supply without an end has `null` there and `isOpenEnded()` returns `true`.
-- **Consumption rows keep the order Datadis sent them in**, and each one knows its real interval: `start`, `end`, and `index` (hour 0 to 23, or quarter 0 to 95).
+- **Consumption rows keep the order Datadis sent them in**, and each one knows its real interval: `start`, `end`, `index` (hour 0 to 23, or quarter 0 to 95) and `hourOfDay` (0 to 23 for both).
 
 ### Hours and daylight saving time
 
@@ -237,13 +244,13 @@ Every failure while talking to Datadis is a `DatadisException`. What to do depen
 
 | Exception | What it means | What to do |
 |---|---|---|
-| `NoDataException` | Datadis has nothing for that request. | Usually the month is not published yet: try another day. |
+| `NoDataException` | Datadis answered 404, 204 or an empty body for a data query. | Treat it like an empty result. A month not published yet usually comes back as an empty result instead. |
 | `RepetitionWindowException` | The same query was made in the last 24 hours. | Wait. Retrying does not help. |
 | `AuthorizationException` | You are not authorized for that CUPS, the holder's authorization expired, or the supply codes are stale. | Check the authorization in Datadis; reload the supply. |
 | `AuthenticationException` | Wrong username or password. | Fix the credentials. |
 | `RequestRejectedException` | Datadis refused the parameters. | Fix the request. Never resend it as it was: it would be refused again, and it may count against the 24 hour rule. |
 | `InvalidRequestException` | The client refused the request before sending it (a future month, a reversed range...). | Fix the request. Nothing was sent. |
-| `ServiceUnavailableException` | Datadis or a distributor failed. | Try again later. |
+| `ServiceUnavailableException` | Datadis or a distributor failed. | Try again later. A consumption, maximum power or reactive query that reached Datadis counts against the 24 hour rule: check `requestSent` and treat it as used for today. |
 | `TransportException` | The network failed or timed out. | The request may have reached Datadis: treat a data query as used for today. |
 | `UninterpretableResponseException` | Datadis answered something unreadable (a maintenance page, an unknown shape). | Try again later; if it persists, report it. |
 | `ConfigurationException`, `UnsupportedOperationException`, `LedgerUnavailableException` | A setup problem. Nothing was sent. | Fix the setup. |

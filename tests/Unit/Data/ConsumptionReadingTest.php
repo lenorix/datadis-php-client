@@ -54,6 +54,20 @@ it('parses quarter-hour labels when quarter-hourly data was requested', function
         ->and($reading->end?->format('H:i'))->toBe('01:15');
 });
 
+it('tells the hour of the day of hourly and quarter-hourly rows, for the tariff period', function (string $time, MeasurementType $type, ?int $hour) use ($madrid) {
+    $reading = ConsumptionReading::fromRow(['date' => '2026/01/01', 'time' => $time, 'consumptionKWh' => 0.05], $madrid, $type);
+
+    expect($reading->hourOfDay)->toBe($hour);
+})->with([
+    'first hour' => ['01:00', MeasurementType::Hourly, 0],
+    'last hour' => ['24:00', MeasurementType::Hourly, 23],
+    'first quarter' => ['00:15', MeasurementType::QuarterHourly, 0],
+    'last quarter of an hour' => ['11:00', MeasurementType::QuarterHourly, 10],
+    'first quarter of the next hour' => ['11:15', MeasurementType::QuarterHourly, 11],
+    'last quarter of the day' => ['24:00', MeasurementType::QuarterHourly, 23],
+    'unrecognised label' => ['00:00', MeasurementType::Hourly, null],
+]);
+
 it('drops rows without a usable consumption or date', function (array $row) use ($madrid, $hourly) {
     expect(ConsumptionReading::fromRow($row, $madrid, $hourly))->toBeNull();
 })->with([

@@ -37,6 +37,12 @@ final readonly class HourLabel
         return $this->hour - 1;
     }
 
+    /** The same as index(): kept so hourly and quarter-hourly labels read alike. */
+    public function hourOfDay(): int
+    {
+        return $this->index();
+    }
+
     /**
      * Start and end of the interval on the given day (its date and time zone), or null when the
      * wall clock never showed that hour (the hour skipped by the spring change).

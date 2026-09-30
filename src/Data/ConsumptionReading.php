@@ -19,7 +19,10 @@ use SensitiveParameter;
  * `03:00` appears twice (two different values) and on the 23 hour day it is missing. Rows keep the
  * order in which they arrived.
  *
- * `start`, `end` and `index` are null when the label has an unexpected shape (for example an extra
+ * `index` is the hour (0-23) or the quarter (0-95) of the day the row describes; `hourOfDay` is the
+ * hour (0-23) in both cases, which is what a tariff period mapper takes.
+ *
+ * `start`, `end`, `index` and `hourOfDay` are null when the label has an unexpected shape (for example an extra
  * `00:00`); such a row is kept and flagged instead of failing the whole answer.
  */
 final readonly class ConsumptionReading
@@ -33,6 +36,7 @@ final readonly class ConsumptionReading
         public ?DateTimeImmutable $start,
         public ?DateTimeImmutable $end,
         public ?int $index,
+        public ?int $hourOfDay,
         public string $kWh,
         public string $obtainMethod,
         public ?string $surplusKWh,
@@ -69,6 +73,7 @@ final readonly class ConsumptionReading
             $interval[0] ?? null,
             $interval[1] ?? null,
             $label?->index(),
+            $label?->hourOfDay(),
             $kWh,
             trim(Fields::text($row, 'obtainMethod') ?? ''),
             Fields::decimal($row, 3, 'surplusEnergyKWh'),

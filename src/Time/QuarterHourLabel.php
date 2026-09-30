@@ -39,6 +39,12 @@ final readonly class QuarterHourLabel
         return intdiv($this->minutes, 15) - 1;
     }
 
+    /** Hour of the day the quarter falls in, 0 to 23: `11:00` is the last quarter of hour 10. */
+    public function hourOfDay(): int
+    {
+        return intdiv($this->index(), 4);
+    }
+
     /**
      * Start and end of the quarter on the given day, or null when the wall clock never showed it.
      *
