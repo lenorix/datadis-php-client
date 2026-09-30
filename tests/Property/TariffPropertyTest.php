@@ -68,38 +68,6 @@ it('normalises idempotently into lowercase single-spaced ASCII', function () {
         });
 });
 
-it('accepts contracted powers exactly when they follow the tariff rules', function () {
-    $accepted = 0;
-
-    $this->limitTo(pbtIterations())
-        ->forAll(
-            Generators::elements(...AccessTariff::cases()),
-            Generators::oneOf(
-                Generators::seq(Generators::choose(-5, 60)),
-                Generators::vector(2, Generators::choose(0, 60)),
-                Generators::vector(6, Generators::choose(0, 60)),
-                Generators::map(fn (array $v) => (function (array $v) {
-                    sort($v);
-
-                    return $v;
-                })($v), Generators::vector(6, Generators::choose(1, 60))),
-            ),
-        )
-        ->then(function (AccessTariff $tariff, array $values) use (&$accepted) {
-            $powers = array_map(fn (int $v) => number_format($v / 2, 2, '.', ''), $values);
-            $sorted = $values;
-            sort($sorted);
-            $expected = count($values) === $tariff->powerPeriods()
-                && $values !== [] && min($values) > 0
-                && (! $tariff->requiresNonDecreasingPower() || $values === $sorted);
-
-            expect($tariff->acceptsContractedPower($powers))->toBe($expected);
-            $accepted += $expected ? 1 : 0;
-        });
-
-    expect($accepted)->toBeGreaterThan(0);
-});
-
 it('maps every hour of every day to a 2.0TD period with 8 hours each on working days', function () {
     $this->limitTo(pbtIterations())
         ->forAll(Generators::choose(0, 3650), Generators::elements(...Territory::cases()))

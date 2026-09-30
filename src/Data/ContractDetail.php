@@ -27,7 +27,7 @@ final readonly class ContractDetail
      * @param  string|null  $installedCapacity  decimal string, scale 3, in the unit Datadis sends: the
      *                                          documentation names it in kW, but its only sample (`1.12E7`)
      *                                          looks like W (UNVERIFIED)
-     * @param  list<array{start: DateTimeImmutable|null, end: DateTimeImmutable|null}>  $dateOwner
+     * @param  list<array{startDate: DateTimeImmutable|null, endDate: DateTimeImmutable|null}>  $dateOwner
      * @param  array<array-key, mixed>  $raw
      */
     private function __construct(
@@ -44,7 +44,7 @@ final readonly class ContractDetail
         public ?string $modePowerControl,
         public ?DateTimeImmutable $startDate,
         public ?DateTimeImmutable $endDate,
-        public bool $openEnded,
+        private bool $openEnded,
         public ?string $codeFare,
         public ?string $selfConsumptionTypeCode,
         public ?string $selfConsumptionTypeDesc,
@@ -125,15 +125,10 @@ final readonly class ContractDetail
             return [];
         }
 
-        return array_map(
-            static fn (mixed $power): ?string => $power !== null && $power !== '' && Decimal::isNumeric($power)
-                ? Decimal::of($power, 2)
-                : null,
-            array_values($value),
-        );
+        return array_map(static fn (mixed $power): ?string => Decimal::tryOf($power, 2), array_values($value));
     }
 
-    /** @return list<array{start: DateTimeImmutable|null, end: DateTimeImmutable|null}> */
+    /** @return list<array{startDate: DateTimeImmutable|null, endDate: DateTimeImmutable|null}> */
     private static function dateOwner(mixed $value, DateTimeZone $zone): array
     {
         if (! is_array($value)) {
@@ -144,8 +139,8 @@ final readonly class ContractDetail
         foreach ($value as $period) {
             if (is_array($period)) {
                 $periods[] = [
-                    'start' => self::ownerDate($period['startDate'] ?? null, $zone),
-                    'end' => self::ownerDate($period['endDate'] ?? null, $zone),
+                    'startDate' => self::ownerDate($period['startDate'] ?? null, $zone),
+                    'endDate' => self::ownerDate($period['endDate'] ?? null, $zone),
                 ];
             }
         }

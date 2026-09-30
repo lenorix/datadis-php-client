@@ -32,8 +32,8 @@ it('reads the dash dated ownership periods', function () use ($zone, $row) {
     $contract = ContractDetail::fromRow($row(), $zone);
 
     expect($contract->dateOwner)->toHaveCount(1)
-        ->and($contract->dateOwner[0]['start']?->format('Y-m-d'))->toBe('2022-01-01')
-        ->and($contract->dateOwner[0]['end'])->toBeNull();
+        ->and($contract->dateOwner[0]['startDate']?->format('Y-m-d'))->toBe('2022-01-01')
+        ->and($contract->dateOwner[0]['endDate'])->toBeNull();
 });
 
 it('accepts the alternative spellings seen in the wild', function () use ($zone, $row) {
@@ -98,7 +98,13 @@ it('reads ownership periods with an end, spaces, slashes or no usable date', fun
     ]], $zone);
 
     expect($contract->dateOwner)->toHaveCount(2)
-        ->and($contract->dateOwner[0]['start']?->format('Y-m-d'))->toBe('2020-01-01')
-        ->and($contract->dateOwner[0]['end']?->format('Y-m-d'))->toBe('2021-12-31')
-        ->and($contract->dateOwner[1])->toBe(['start' => null, 'end' => null]);
+        ->and($contract->dateOwner[0]['startDate']?->format('Y-m-d'))->toBe('2020-01-01')
+        ->and($contract->dateOwner[0]['endDate']?->format('Y-m-d'))->toBe('2021-12-31')
+        ->and($contract->dateOwner[1])->toBe(['startDate' => null, 'endDate' => null]);
+});
+
+it('keeps the three decimals of a standard contracted power', function () {
+    $contract = ContractDetail::fromRow(['cups' => 'ES0031300000000001JN0F', 'contractedPowerkW' => [1.725, 3.464]], new DateTimeZone('Europe/Madrid'));
+
+    expect($contract->contractedPowerkW)->toBe(['1.725', '3.464']);
 });

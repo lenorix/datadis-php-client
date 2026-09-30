@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-namespace Lenorix\DatadisClient;
+namespace Lenorix\DatadisClient\Data;
 
-use Lenorix\DatadisClient\Data\Supply;
 use Lenorix\DatadisClient\Values\Cups;
 
 /**
@@ -14,7 +13,7 @@ use Lenorix\DatadisClient\Values\Cups;
  * characters. One CUPS can have several rows (successive contracts, a distributor change): the open
  * contract wins, otherwise the one that started last. Dates are compared as dates, not as strings.
  */
-final class SupplyMatcher
+final readonly class SupplyMatcher
 {
     /** @param list<Supply> $supplies */
     public static function pick(array $supplies, Cups $cups): ?Supply

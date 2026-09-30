@@ -14,7 +14,7 @@ final readonly class ReactiveEnergyEntry
      * @param  array<int, string>  $periods  period number => kVArh, only the periods that had a value
      * @param  array<array-key, mixed>  $raw
      */
-    public function __construct(
+    private function __construct(
         public ?string $date,
         public array $periods,
         public array $raw,

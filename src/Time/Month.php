@@ -119,11 +119,6 @@ final readonly class Month implements Stringable
         return $this->index() > $other->index();
     }
 
-    public function isFuture(DateTimeInterface $now): bool
-    {
-        return $this->isAfter(self::current($now));
-    }
-
     /** Whether the API serves this month: not in the future and not older than the history window. */
     public function isWithinHistory(DateTimeInterface $now): bool
     {

@@ -62,17 +62,18 @@ final class Fields
     }
 
     /**
-     * A decimal string with a fixed scale, or null when the value is missing, empty or not a number.
+     * The exact decimal string of the first numeric key, with at least $minScale decimals, or null
+     * when the value is missing, empty or not a number.
      *
      * @param  array<array-key, mixed>  $row
      */
-    public static function decimal(#[SensitiveParameter] array $row, int $scale, string ...$keys): ?string
+    public static function decimal(#[SensitiveParameter] array $row, int $minScale, string ...$keys): ?string
     {
         foreach ($keys as $key) {
-            $value = $row[$key] ?? null;
+            $decimal = Decimal::tryOf($row[$key] ?? null, $minScale);
 
-            if ($value !== null && $value !== '' && Decimal::isNumeric($value)) {
-                return Decimal::of($value, $scale);
+            if ($decimal !== null) {
+                return $decimal;
             }
         }
 

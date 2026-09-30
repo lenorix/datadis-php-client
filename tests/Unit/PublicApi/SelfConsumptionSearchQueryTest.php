@@ -10,7 +10,7 @@ $from = new DateTimeImmutable('2026-01-01');
 $to = new DateTimeImmutable('2026-01-31');
 
 it('builds the self-consumption query without a measurement type', function () use ($from, $to) {
-    $query = new SelfConsumptionSearchQuery($from, $to, [Community::Canarias], selfConsumptionTypes: ['31', '41'], provinces: ['35', '38'], distributors: ['0031'], sort: ['-sumEnergy']);
+    $query = new SelfConsumptionSearchQuery($from, $to, [Community::Canarias], selfConsumption: ['31', '41'], province: ['35', '38'], distributor: ['0031'], sort: ['-sumEnergy']);
 
     expect($query->toQuery())->toBe([
         'startDate' => '2026/01/01',
@@ -25,22 +25,13 @@ it('builds the self-consumption query without a measurement type', function () u
     ]);
 });
 
-it('refuses unknown self-consumption types and malformed provinces', function (Closure $build) use ($from, $to) {
+it('refuses unknown self-consumption types and malformed province', function (Closure $build) use ($from, $to) {
     $build($from, $to);
 })->with([
-    'type 30' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], selfConsumptionTypes: ['30'])],
-    'type 75' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], selfConsumptionTypes: ['75'])],
-    'province 3 digits' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], provinces: ['035'])],
+    'type 30' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], selfConsumption: ['30'])],
+    'type 75' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], selfConsumption: ['75'])],
+    'province 3 digits' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], province: ['035'])],
 ])->throws(InvalidRequestException::class);
-
-it('moves to another page keeping every other argument', function () use ($from, $to) {
-    $query = new SelfConsumptionSearchQuery($from, $to, [Community::Canarias], pageSize: 100, distributors: ['0031'], selfConsumptionTypes: ['31'], provinces: ['35'], sort: ['-sumEnergy']);
-    $next = $query->withPage(4);
-
-    expect(get_object_vars($next))->toEqual(['page' => 4] + get_object_vars($query))
-        ->and($next->toQuery())->toEqual(['page' => 4] + $query->toQuery())
-        ->and($query->page)->toBe(0);
-});
 
 it('builds the minimal query without empty filters', function () use ($from, $to) {
     expect((new SelfConsumptionSearchQuery($from, $to, [Community::Madrid]))->toQuery())

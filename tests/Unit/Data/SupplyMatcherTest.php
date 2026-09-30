@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Lenorix\DatadisClient\Data\Supply;
-use Lenorix\DatadisClient\SupplyMatcher;
+use Lenorix\DatadisClient\Data\SupplyMatcher;
 use Lenorix\DatadisClient\Values\Cups;
 
 $zone = new DateTimeZone('Europe/Madrid');

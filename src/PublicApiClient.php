@@ -94,7 +94,7 @@ final class PublicApiClient
      */
     public function apiSearchAll(PublicSearchQuery $query, int $maxPages = 1000): Generator
     {
-        return $this->walk(fn (int $page) => $this->apiSearch($query->withPage($page)), $query->page, $query->pageSize, $maxPages);
+        return $this->walk('api-search', $query->toQuery(), $maxPages);
     }
 
     /**
@@ -104,26 +104,26 @@ final class PublicApiClient
      */
     public function apiSearchAutoAll(SelfConsumptionSearchQuery $query, int $maxPages = 1000): Generator
     {
-        return $this->walk(fn (int $page) => $this->apiSearchAuto($query->withPage($page)), $query->page, $query->pageSize, $maxPages);
+        return $this->walk('api-search-auto', $query->toQuery(), $maxPages);
     }
 
     /**
-     * @param  callable(int): ApiResult<PublicRecord>  $fetch
+     * Reads page after page of a search, from the query's page on, until a short page or the limit.
+     *
+     * @param  array<string, string|int>  $query
      * @return Generator<int, PublicRecord>
      */
-    private function walk(callable $fetch, int $firstPage, int $pageSize, int $maxPages): Generator
+    private function walk(string $endpoint, array $query, int $maxPages): Generator
     {
-        $key = 0;
+        for ($read = 0, $page = (int) $query['page']; $read < $maxPages; $read++, $page++) {
+            $result = $this->call($endpoint, ['page' => $page] + $query);
 
-        for ($read = 0, $page = $firstPage; $read < $maxPages; $read++, $page++) {
-            $result = $fetch($page);
-
-            // Plain yields with a running key: `yield from` would restart keys at 0 on every page.
+            // A generator numbers plain yields on its own, so keys run on across pages.
             foreach ($result->records as $record) {
-                yield $key++ => $record;
+                yield $record;
             }
 
-            if ($result->count() + $result->skippedRows < $pageSize) {
+            if ($result->count() + $result->skippedRows < (int) $query['pageSize']) {
                 return;
             }
         }

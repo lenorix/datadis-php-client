@@ -8,9 +8,9 @@ The architecture as built. Each decision states the reason so it can be revisite
 - **Every endpoint in the official documentation is covered**, including groups and the partner programme. Answers the documentation does not describe are returned raw.
 - **No framework dependency.** The package must work without Laravel; applications configure it from their own settings with `fromArray()` and pass their HTTP client and cache. An architecture test keeps Laravel and Symfony classes out.
 - **Guzzle, at its latest line, is the default transport**, but the client only type-hints PSR interfaces so any PSR-18 client can replace it. That agnosticism is kept only while it causes no bugs.
-- **Decimals use `brick/math`** and are exposed as scaled strings.
+- **Decimals use `brick/math`** and are exposed as exact strings: every digit Datadis sends is kept, never rounded, padded to a minimum number of decimals per field (decided September 2026).
 
-- **Names are Datadis's own** (decided September 2026). Methods are the endpoint names in camelCase (`getConsumptionData()`, `listAuthorization()`, `apiSearchAuto()`), parameters are the query parameter names (`startDate`, `endDate`, `authorizedNif`), and DTO fields are the JSON keys exactly as Datadis sends them, odd casing included (`contractedPowerkW`, `municipioCode`, `code_desc`). Values the client derives (intervals, `hourOfDay`, `openEnded`, the grouped reactive `periods`) have their own names.
+- **Names are Datadis's own** (decided September 2026). Methods are the endpoint names in camelCase (`getConsumptionData()`, `listAuthorization()`, `apiSearchAuto()`), parameters are the query parameter names (`startDate`, `endDate`, `authorizedNif`, and on the public queries `community`, `measurementType`, `fare`... in singular, like Datadis, even when they take several values), and DTO fields are the JSON keys exactly as Datadis sends them, odd casing included (`contractedPowerkW`, `municipioCode`, `code_desc`). Values the client derives (intervals, `hourOfDay`, `openEnded`, the grouped reactive `periods`) have their own names.
 - **v2 is the default version**, although every real capture so far came from v1 paths: it is the current API and the only one with reactive data, groups and distributor errors.
 - **A client per holder** (`forHolder()`), since reading supplies of people who authorized the account is the professional use: a copy of the client that sends the holder's NIF on every supply and data call and refuses a different one. It is optional; `authorizedNif` per call still works.
 - **No client interface.** Applications fake Datadis over HTTP in their tests; an interface would turn every new endpoint into a breaking change.
@@ -36,10 +36,11 @@ The architecture as built. Each decision states the reason so it can be revisite
 
 - `Month` (`YYYY/MM`): parse, format, arithmetic, chunking, 24-month window check, no-future check.
 - `HourLabel`: `01:00`..`24:00` to index and interval start/end in a given `DateTimeZone`. Rejects other shapes.
-- `Cups`: normalisation and shape check. Matching on the first 20 characters.
+- `Cups`: normalisation and shape check. Matching on the first 20 characters (`matches()`); `Data\SupplyMatcher` picks the supply of a CUPS from a list.
+- `Nif`: normalisation, shape and control character (NIF/NIE modulo 23, CIF control digit or letter), checked by default because a mistyped NIF would be sent and refused; `checkControl: false` skips the check. Equality is `equals()` on every value object.
 - `MeasurementType`: backed enum (`0` hourly, `1` quarter-hourly).
 - Open values stay open: `pointType` int, `distributorCode` string, `obtainMethod` string with helper predicates.
-- Energy and power values: decimal strings with explicit scale, never floats in derived data. The raw float from JSON is kept in `raw`.
+- Energy and power values: exact decimal strings with a minimum scale, never floats and never rounded in derived data. The raw float from JSON is kept in `raw`.
 
 ## Results, not silent failures
 

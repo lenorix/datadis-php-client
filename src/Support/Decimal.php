@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Support;
 
 use Brick\Math\BigDecimal;
-use Brick\Math\RoundingMode;
 use InvalidArgumentException;
 
 /**
- * Converts the numbers Datadis sends into plain decimal strings with a fixed scale (half-up rounding).
+ * Converts the numbers Datadis sends into plain decimal strings. Every digit Datadis sent is kept,
+ * never rounded; the text is padded with zeros to a minimum number of decimals, so values of one
+ * field read alike, and trailing zeros beyond that minimum are dropped.
  *
  * @internal
  */
@@ -17,13 +18,30 @@ final class Decimal
 {
     private const int MAX_LENGTH = 64;
 
-    public static function of(mixed $value, int $scale): string
+    public static function of(mixed $value, int $minScale): string
     {
-        if ($scale < 0) {
-            throw new InvalidArgumentException('The scale must not be negative.');
+        if ($minScale < 0) {
+            throw new InvalidArgumentException('The minimum scale must not be negative.');
         }
 
-        return (string) BigDecimal::of(self::literal($value))->toScale($scale, RoundingMode::HalfUp);
+        // Plain text without an exponent; trailing zeros of the fraction carry no precision.
+        $text = (string) BigDecimal::of(self::literal($value));
+        $point = strpos($text, '.');
+
+        if ($point !== false) {
+            $text = rtrim(rtrim($text, '0'), '.');
+        }
+
+        $point = strpos($text, '.');
+        $decimals = $point === false ? 0 : strlen($text) - $point - 1;
+
+        return (string) BigDecimal::of($text)->toScale(max($minScale, $decimals));
+    }
+
+    /** Like of(), or null for anything that is not a finite number. */
+    public static function tryOf(mixed $value, int $minScale): ?string
+    {
+        return self::isNumeric($value) ? self::of($value, $minScale) : null;
     }
 
     public static function isNumeric(mixed $value): bool

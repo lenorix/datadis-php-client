@@ -223,7 +223,7 @@ Some conventions hold everywhere:
 
 - **Names are Datadis's own.** Methods are named after the endpoints (`get-consumption-data` is `getConsumptionData()`, `api-search` is `apiSearch()`), and every field Datadis sends keeps its key exactly, odd spelling included (`consumptionKWh`, `contractedPowerkW`, `municipioCode`, `code_desc`), so anything in the official documentation can be found here by its name. Only values the client works out itself have names of their own (`start`, `end`, `hourOfDay`, `day`).
 
-- **Numbers are decimal strings, never floats**: three decimals for energy (kWh), maximum power (kW) and installed capacity, two for contracted power. Installed capacity comes in whatever unit Datadis sends: the documentation says kW, its only sample looks like W, so check it against your own data.
+- **Numbers are decimal strings, never floats, and never rounded**: every digit Datadis sends is kept, written with at least three decimals for energy (kWh), maximum power (kW) and installed capacity, and at least two for contracted power (`3.45`, `1.725`). Installed capacity comes in whatever unit Datadis sends: the documentation says kW, its only sample looks like W, so check it against your own data.
 - **Dates and times are `DateTimeImmutable`** in the zone the client was given (Europe/Madrid by default). A contract or supply without an end has `null` there and `isOpenEnded()` returns `true`.
 - **Consumption rows keep the order Datadis sent them in**, and each one knows its real interval: `start`, `end`, `index` (hour 0 to 23, or quarter 0 to 95) and `hourOfDay` (0 to 23 for both).
 
@@ -275,7 +275,7 @@ try {
 }
 ```
 
-Value objects such as `Cups`, `Nif` and `Month` throw a plain `InvalidArgumentException` for malformed input. Use `Cups::isValid()` first when the value comes from a user or a document.
+Value objects such as `Cups`, `Nif` and `Month` throw a plain `InvalidArgumentException` for malformed input. Use `Cups::isValid()` and `Nif::isValid()` first when the value comes from a user or a document. `Nif` also checks the control letter of a NIF, NIE or CIF, so a typo fails here instead of being sent and refused (a refused data query still counts against the 24 hour rule); pass `checkControl: false` to take one as it is.
 
 ## Setting it up for production
 

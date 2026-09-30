@@ -67,13 +67,6 @@ it('accepts the last 24 months and refuses the boundary month and the future', f
         ->and(Month::of(2026, 10)->isWithinHistory($now))->toBeFalse();
 });
 
-it('knows what is in the future', function () {
-    $now = new DateTimeImmutable('2026-09-15');
-
-    expect(Month::of(2026, 9)->isFuture($now))->toBeFalse()
-        ->and(Month::of(2026, 10)->isFuture($now))->toBeTrue();
-});
-
 it('lists an inclusive sequence of months', function () {
     $months = Month::sequence(Month::of(2025, 11), Month::of(2026, 2));
 
@@ -89,6 +82,6 @@ it('knows the current month on the Madrid calendar', function () {
     $lateCanary = new DateTimeImmutable('2026-09-30 23:30:00', new DateTimeZone('Atlantic/Canary'));
 
     expect(Month::current($lateCanary)->format())->toBe('2026/10')
-        ->and(Month::of(2026, 10)->isFuture($lateCanary))->toBeFalse()
+        ->and(Month::of(2026, 10)->isWithinHistory($lateCanary))->toBeTrue()
         ->and(Month::of(2024, 10)->isWithinHistory($lateCanary))->toBeFalse();
 });

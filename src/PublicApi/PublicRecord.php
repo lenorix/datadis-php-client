@@ -37,9 +37,10 @@ final readonly class PublicRecord
         return Fields::text($this->raw, $field);
     }
 
-    public function decimal(string $field, int $scale = 3): ?string
+    /** Any numeric field as an exact decimal string with at least $minScale decimals. */
+    public function decimal(string $field, int $minScale = 3): ?string
     {
-        return Fields::decimal($this->raw, $scale, $field);
+        return Fields::decimal($this->raw, $minScale, $field);
     }
 
     /** The day of an aggregated row, from `dataDay`, `dataMonth` and `dataYear`; null for sums. */

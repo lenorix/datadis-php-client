@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Tariff;
 
-use Brick\Math\BigDecimal;
-use Lenorix\DatadisClient\Support\Decimal;
-
 /**
  * Access tariffs (peajes de acceso) of Circular CNMC 3/2020.
  *
@@ -31,46 +28,5 @@ enum AccessTariff: string
     public function powerPeriods(): int
     {
         return $this === self::T20TD ? 2 : 6;
-    }
-
-    public function requiresNonDecreasingPower(): bool
-    {
-        return $this !== self::T20TD;
-    }
-
-    /**
-     * Whether a list of contracted powers fits the tariff: one positive value per power period and,
-     * where required, non-decreasing. Real contracts have been seen breaking the ordering rule, so
-     * this is a check for the caller to use, never enforced when reading Datadis.
-     *
-     * @param  array<string|null>  $powers
-     */
-    public function acceptsContractedPower(array $powers): bool
-    {
-        if (count($powers) !== $this->powerPeriods()) {
-            return false;
-        }
-
-        $previous = null;
-
-        foreach ($powers as $power) {
-            if ($power === null || ! Decimal::isNumeric($power)) {
-                return false;
-            }
-
-            $value = BigDecimal::of(Decimal::of($power, 6));
-
-            if (! $value->isPositive()) {
-                return false;
-            }
-
-            if ($this->requiresNonDecreasingPower() && $previous !== null && $value->isLessThan($previous)) {
-                return false;
-            }
-
-            $previous = $value;
-        }
-
-        return true;
     }
 }

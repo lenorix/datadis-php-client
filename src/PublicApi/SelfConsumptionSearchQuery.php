@@ -8,7 +8,7 @@ use DateTimeInterface;
 
 /**
  * Query of the public self-consumption searches (`api-search-auto`, `api-sum-search-auto`).
- * Same rules as PublicSearchQuery, with self-consumption types and provinces as filters.
+ * Same rules as PublicSearchQuery, with self-consumption types and province as filters.
  */
 final readonly class SelfConsumptionSearchQuery
 {
@@ -22,37 +22,37 @@ final readonly class SelfConsumptionSearchQuery
     private array $query;
 
     /**
-     * @param  array<Community>  $communities  one or two
-     * @param  array<string>  $distributors  CNMC distributor codes
-     * @param  array<string>  $selfConsumptionTypes  see SELF_CONSUMPTION_TYPES
-     * @param  array<string>  $provinces  two digit province codes
+     * @param  array<Community>  $community  one or two
+     * @param  array<string>  $distributor  CNMC distributor codes
+     * @param  array<string>  $selfConsumption  see SELF_CONSUMPTION_TYPES
+     * @param  array<string>  $province  two digit province codes
      * @param  array<string>  $sort  field names, a leading `-` for descending
      */
     public function __construct(
-        public DateTimeInterface $from,
-        public DateTimeInterface $to,
-        public array $communities,
+        public DateTimeInterface $startDate,
+        public DateTimeInterface $endDate,
+        public array $community,
         public int $page = 0,
         public int $pageSize = QueryRules::MAX_PAGE_SIZE,
-        public array $distributors = [],
-        public array $selfConsumptionTypes = [],
-        public array $provinces = [],
+        public array $distributor = [],
+        public array $selfConsumption = [],
+        public array $province = [],
         public array $sort = [],
     ) {
-        QueryRules::dates($from, $to);
+        QueryRules::dates($startDate, $endDate);
         QueryRules::paging($page, $pageSize);
 
         $types = '/^('.implode('|', self::SELF_CONSUMPTION_TYPES).')$/D';
 
         $this->query = array_filter([
-            'startDate' => $from->format('Y/m/d'),
-            'endDate' => $to->format('Y/m/d'),
+            'startDate' => $startDate->format('Y/m/d'),
+            'endDate' => $endDate->format('Y/m/d'),
             'page' => $page,
             'pageSize' => $pageSize,
-            'community' => QueryRules::communities($communities),
-            'distributor' => QueryRules::list('distributor', $distributors, '/^[A-Za-z0-9]{1,10}$/D'),
-            'selfConsumption' => QueryRules::list('self-consumption type', $selfConsumptionTypes, $types),
-            'province' => QueryRules::list('province', $provinces, '/^\d{2}$/D'),
+            'community' => QueryRules::communities($community),
+            'distributor' => QueryRules::list('distributor', $distributor, '/^[A-Za-z0-9]{1,10}$/D'),
+            'selfConsumption' => QueryRules::list('self-consumption type', $selfConsumption, $types),
+            'province' => QueryRules::list('province', $province, '/^\d{2}$/D'),
             'sort' => QueryRules::sort($sort),
         ], static fn (string|int|null $value): bool => $value !== null);
     }
@@ -71,13 +71,5 @@ final readonly class SelfConsumptionSearchQuery
     public function toSumQuery(): array
     {
         return array_diff_key($this->query, ['page' => true, 'pageSize' => true, 'sort' => true]);
-    }
-
-    public function withPage(int $page): self
-    {
-        return new self(
-            $this->from, $this->to, $this->communities, $page, $this->pageSize,
-            $this->distributors, $this->selfConsumptionTypes, $this->provinces, $this->sort,
-        );
     }
 }

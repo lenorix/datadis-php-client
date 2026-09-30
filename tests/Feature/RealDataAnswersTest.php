@@ -51,7 +51,7 @@ it('reads a real contract seen by a third party', function () {
         ->and($contract->lastMarketerDate)->toBeNull()
         ->and($contract->maxPowerInstall)->toBe('5.500')
         ->and($contract->installedCapacity)->toBeNull()
-        ->and($contract->dateOwner[0]['start']?->format('Y-m-d'))->toBe('2024-02-01')
+        ->and($contract->dateOwner[0]['startDate']?->format('Y-m-d'))->toBe('2024-02-01')
         ->and($contract->isOpenEnded())->toBeTrue();
 });
 

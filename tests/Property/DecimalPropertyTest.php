@@ -39,7 +39,7 @@ it('reads floats that PHP writes in exponent notation', function () {
         });
 });
 
-it('always produces a plain decimal string with the requested scale', function () {
+it('always produces a plain decimal string with at least the requested decimals', function () {
     $this->limitTo(pbtIterations())
         ->forAll(Generators::float(), Generators::choose(0, 6))
         ->then(function (float $value, int $scale) {
@@ -48,7 +48,7 @@ it('always produces a plain decimal string with the requested scale', function (
             }
 
             $result = Decimal::of($value, $scale);
-            $pattern = $scale === 0 ? '/^-?\d+$/' : '/^-?\d+\.\d{'.$scale.'}$/';
+            $pattern = $scale === 0 ? '/^-?\d+(\.\d+)?$/' : '/^-?\d+\.\d{'.$scale.',}$/';
 
             expect($result)->toMatch($pattern);
         });
@@ -65,7 +65,7 @@ it('never fails in any other way than InvalidArgumentException on arbitrary stri
 
             try {
                 $result = Decimal::of($value, 3);
-                expect($numeric)->toBeTrue()->and($result)->toMatch('/^-?\d+\.\d{3}$/');
+                expect($numeric)->toBeTrue()->and($result)->toMatch('/^-?\d+\.\d{3,}$/');
             } catch (InvalidArgumentException) {
                 expect($numeric)->toBeFalse();
             }

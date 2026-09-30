@@ -30,7 +30,7 @@ final readonly class Supply
         public ?string $distributor,
         public ?DateTimeImmutable $validDateFrom,
         public ?DateTimeImmutable $validDateTo,
-        public bool $openEnded,
+        private bool $openEnded,
         public ?int $pointType,
         public ?string $distributorCode,
         public array $raw,

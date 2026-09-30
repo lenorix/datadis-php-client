@@ -9,7 +9,11 @@ use DateInterval;
 use Psr\Clock\ClockInterface;
 use Psr\SimpleCache\CacheInterface;
 
-/** A process-local PSR-16 cache, the default token store. Expiry follows the injected clock. */
+/**
+ * A process-local PSR-16 cache, the default token store. Expiry follows the injected clock.
+ *
+ * @internal
+ */
 final class InMemoryCache implements CacheInterface
 {
     /**

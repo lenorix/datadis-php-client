@@ -14,12 +14,12 @@ use Lenorix\DatadisClient\Tests\Support\Gen;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 
 it('accepts every valid combination and sends exactly what it validated', function () {
-    $communities = Community::cases();
+    $community = Community::cases();
 
     $this->limitTo(pbtIterations())
         ->forAll(
-            Generators::choose(0, count($communities) - 1),
-            Generators::choose(0, count($communities) - 1),
+            Generators::choose(0, count($community) - 1),
+            Generators::choose(0, count($community) - 1),
             Generators::subset(['01', '02', '03', '04', '05']),
             Generators::choose(0, 5000),
             Generators::choose(1, 2000),
@@ -27,12 +27,12 @@ it('accepts every valid combination and sends exactly what it validated', functi
             Generators::subset(['E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6']),
             Generators::choose(0, 400),
         )
-        ->then(function (int $c1, int $c2, array $types, int $page, int $size, array $sectors, array $tensions, int $days) use ($communities) {
-            $picked = array_values(array_unique([$communities[$c1], $communities[$c2]], SORT_REGULAR));
+        ->then(function (int $c1, int $c2, array $types, int $page, int $size, array $sectors, array $tension, int $days) use ($community) {
+            $picked = array_values(array_unique([$community[$c1], $community[$c2]], SORT_REGULAR));
             $from = new DateTimeImmutable('2025-01-01');
             $to = $from->modify("+{$days} days");
 
-            $query = new PublicSearchQuery($from, $to, $picked, array_values($types), $page, $size, economicSectors: array_values($sectors), tensions: array_values($tensions));
+            $query = new PublicSearchQuery($from, $to, $picked, array_values($types), $page, $size, economicSector: array_values($sectors), tension: array_values($tension));
             $http = (new FakeHttpClient)->queue(Responses::json('[]'));
             (new PublicApiClient(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http))->apiSearch($query);
             parse_str($http->lastRequest()->getUri()->getQuery(), $sent);
@@ -55,7 +55,7 @@ it('never builds a query from a value with a comma, a space or an unknown code',
             $valid = preg_match('/^\d{5}$/D', $value) === 1;
 
             try {
-                new PublicSearchQuery(new DateTimeImmutable('2025-01-01'), new DateTimeImmutable('2025-01-02'), [Community::Madrid], ['05'], postalCodes: [$value]);
+                new PublicSearchQuery(new DateTimeImmutable('2025-01-01'), new DateTimeImmutable('2025-01-02'), [Community::Madrid], ['05'], postalCode: [$value]);
                 expect($valid)->toBeTrue();
             } catch (InvalidRequestException) {
                 expect($valid)->toBeFalse();
@@ -79,7 +79,7 @@ it('reads any JSON answer as records or a DatadisException', function () {
 
                 foreach ($result->records as $record) {
                     // Whatever arrived, the energy is either unknown or an exact decimal, never a float.
-                    expect($record->sumEnergy() ?? '0.000')->toMatch('/^-?\d+\.\d{3}$/');
+                    expect($record->sumEnergy() ?? '0.000')->toMatch('/^-?\d+\.\d{3,}$/');
                 }
             } catch (DatadisException $e) {
                 expect($e->endpoint)->toBe('api-search');
