@@ -28,15 +28,21 @@ enum Territory: string
     {
         $postalCode = $postalCode === null ? '' : trim($postalCode);
 
-        if (preg_match('/^(\d{2})\d{3}$/D', $postalCode, $m) !== 1 || $m[1] < '01' || $m[1] > '52') {
+        if (preg_match('/^(\d{2})\d{3}$/D', $postalCode, $m) !== 1) {
             return null;
         }
 
-        return match ($m[1]) {
-            '07' => self::Baleares,
-            '35', '38' => self::Canarias,
-            '51' => self::Ceuta,
-            '52' => self::Melilla,
+        $province = (int) $m[1];
+
+        if ($province < 1 || $province > 52) {
+            return null;
+        }
+
+        return match ($province) {
+            7 => self::Baleares,
+            35, 38 => self::Canarias,
+            51 => self::Ceuta,
+            52 => self::Melilla,
             default => self::Peninsula,
         };
     }

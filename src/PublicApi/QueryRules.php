@@ -68,24 +68,32 @@ final class QueryRules
             return null;
         }
 
+        $checked = [];
+
         foreach ($values as $value) {
             if (! is_string($value) || preg_match($pattern, $value) !== 1) {
                 throw new InvalidRequestException("Invalid {$name} value.");
             }
+
+            $checked[] = $value;
         }
 
-        return implode(',', $values);
+        return implode(',', $checked);
     }
 
     /** @param array<mixed> $fields checked at runtime: callers may pass anything */
     public static function sort(array $fields): ?string
     {
+        $checked = [];
+
         foreach ($fields as $field) {
             if (! is_string($field) || ! in_array(ltrim($field, '-'), self::SORT_FIELDS, true) || str_starts_with($field, '--')) {
                 throw new InvalidRequestException('Unknown sort field.');
             }
+
+            $checked[] = $field;
         }
 
-        return $fields === [] ? null : implode(',', $fields);
+        return $checked === [] ? null : implode(',', $checked);
     }
 }
