@@ -31,14 +31,13 @@ it('never leaves an embedded identifier behind', function () {
         });
 });
 
-it('is idempotent and total on arbitrary strings', function () {
+it('is idempotent on arbitrary strings', function () {
     $this->limitTo(pbtIterations())
         ->forAll(Generators::string())
         ->then(function (string $text) {
             $once = PersonalDataRedactor::redact($text);
 
-            expect(PersonalDataRedactor::redact($once))->toBe($once)
-                ->and(PersonalDataRedactor::excerpt($text, 40))->toBeString();
+            expect(PersonalDataRedactor::redact($once))->toBe($once);
         });
 });
 

@@ -81,21 +81,36 @@ it('sends a guarded query only when the model says the window is free', function
         });
 });
 
-it('gives a different fingerprint whenever any parameter differs', function () {
+it('gives a different fingerprint whenever any parameter differs, and the same one for the same values', function () {
     $fingerprinter = new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!');
+    $count = count(RequestFingerprinter::PARAMETERS);
     $values = Generators::oneOf(Generators::constant(null), Generators::string(), Generators::choose(0, 9));
 
     $this->limitTo(pbtIterations())
         ->forAll(
-            Generators::vector(count(RequestFingerprinter::PARAMETERS), $values),
-            Generators::vector(count(RequestFingerprinter::PARAMETERS), $values),
+            Generators::vector($count, $values),
+            Generators::choose(0, $count - 1),
+            // How the second query differs from the first in that parameter.
+            Generators::elements('same', 'retyped', 'omitted', 'changed'),
         )
-        ->then(function (array $a, array $b) use ($fingerprinter) {
-            $normalise = fn (array $v) => array_map(fn ($x) => $x === null ? null : (string) $x, $v);
-            $queryA = array_combine(RequestFingerprinter::PARAMETERS, $a);
-            $queryB = array_combine(RequestFingerprinter::PARAMETERS, $b);
+        ->then(function (array $a, int $field, string $change) use ($fingerprinter) {
+            $b = $a;
+            $b[$field] = match ($change) {
+                'same' => $a[$field],
+                // The wire makes 5 and "5" the same parameter.
+                'retyped' => is_int($a[$field]) ? (string) $a[$field] : $a[$field],
+                'omitted' => null,
+                'changed' => $a[$field] === null ? '' : $a[$field].'x',
+            };
+            $same = match ($change) {
+                'same', 'retyped' => true,
+                'omitted' => $a[$field] === null,
+                'changed' => false,
+            };
 
-            expect($fingerprinter->fingerprint('12345678Z', $queryA) === $fingerprinter->fingerprint('12345678Z', $queryB))
-                ->toBe($normalise($a) === $normalise($b));
+            $fingerprintA = $fingerprinter->fingerprint('12345678Z', array_combine(RequestFingerprinter::PARAMETERS, $a));
+            $fingerprintB = $fingerprinter->fingerprint('12345678Z', array_combine(RequestFingerprinter::PARAMETERS, $b));
+
+            expect($fingerprintA === $fingerprintB)->toBe($same);
         });
 });

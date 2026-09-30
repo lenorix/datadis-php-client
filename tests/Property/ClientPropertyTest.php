@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Eris\Generator;
 use Eris\Generators;
 use Lenorix\DatadisClient\ApiVersion;
+use Lenorix\DatadisClient\Data\ReactiveEnergy;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Tests\Support\Payloads;
 use Lenorix\DatadisClient\Tests\Support\Responses;
@@ -87,51 +88,67 @@ foreach ($calls as $name => $call) {
     });
 }
 
-it('decodes every valid hourly row, in order, whatever the day shape', function () {
+it('decodes every row with a value, in order, and fails only when no row has one', function () {
+    $days = [
+        'normal' => ['2025/10/15', Payloads::normalDay()],
+        'autumn change' => ['2025/10/26', Payloads::autumnDay()],
+        'spring change' => ['2026/03/29', Payloads::springDay()],
+    ];
+
     $this->limitTo(pbtIterations())
         ->forAll(
-            Generators::elements(Payloads::normalDay(), Payloads::autumnDay(), Payloads::springDay()),
-            Generators::choose(0, 20),
+            Generators::elements(...array_keys($days)),
+            // Which rows come with a null value; all of them now and then, which random flags never give.
+            Generators::oneOf(Generators::vector(25, Generators::bool()), Generators::constant(array_fill(0, 25, true))),
         )
-        ->then(function (array $times, int $nullRows) {
-            $rows = Payloads::hourlyRows('2025/10/26', $times);
-            for ($i = 0; $i < $nullRows && $i < count($rows); $i++) {
-                $rows[$i]['consumptionKWh'] = null;
+        ->then(function (string $shape, array $isNull) use ($days) {
+            [$date, $times] = $days[$shape];
+            $rows = Payloads::hourlyRows($date, $times);
+            $kept = [];
+
+            foreach ($rows as $i => $row) {
+                if ($isNull[$i]) {
+                    $rows[$i]['consumptionKWh'] = null;
+                } else {
+                    $kept[] = $row['time'];
+                }
             }
 
+            [$year, $month] = array_map('intval', explode('/', $date));
             $s = Scenario::make();
             $s->http->queue(Responses::datadis(Payloads::envelope('timeCurve', $rows)));
-            $expectedUsable = max(0, count($rows) - min($nullRows, count($rows)));
+            $call = fn () => $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of($year, $month), Month::of($year, $month));
 
-            if ($expectedUsable === 0) {
-                expect(fn () => $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2025, 10), Month::of(2025, 10)))
-                    ->toThrow(DatadisException::class);
+            if ($kept === []) {
+                expect($call)->toThrow(DatadisException::class);
 
                 return;
             }
 
-            $result = $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2025, 10), Month::of(2025, 10));
+            $result = $call();
 
-            expect($result->records)->toHaveCount($expectedUsable)
-                ->and($result->skippedRows)->toBe(count($rows) - $expectedUsable)
-                ->and(array_map(fn ($r) => $r->time, $result->records))->toBe(array_slice($times, count($rows) - $expectedUsable));
+            expect(array_map(fn ($r) => $r->time, $result->records))->toBe($kept)
+                ->and($result->skippedRows)->toBe(count($rows) - count($kept));
         });
 });
 
-it('never sends a request when the month range is invalid', function () {
+it('never sends a request for a month range Datadis would refuse', function () {
+    // "Now" is 2026-09-15 in Madrid: Datadis serves 2024/10 to 2026/09.
+    $oldest = 2024 * 12 + 10;
+    $newest = 2026 * 12 + 9;
+
     $this->limitTo(pbtIterations())
-        ->forAll(Generators::choose(2020, 2028), Generators::choose(1, 12), Generators::choose(2020, 2028), Generators::choose(1, 12))
-        ->then(function (int $y1, int $m1, int $y2, int $m2) {
-            $from = Month::of($y1, $m1);
-            $to = Month::of($y2, $m2);
-            $now = new DateTimeImmutable('2026-09-15');
-            $valid = ! $from->isAfter($to) && $from->isWithinHistory($now) && $to->isWithinHistory($now);
+        ->forAll(Generators::choose(2023, 2027), Generators::choose(1, 12), Generators::choose(2023, 2027), Generators::choose(1, 12))
+        ->then(function (int $y1, int $m1, int $y2, int $m2) use ($oldest, $newest) {
+            $first = $y1 * 12 + $m1;
+            $last = $y2 * 12 + $m2;
+            $valid = $first <= $last && $first >= $oldest && $last <= $newest;
 
             $s = Scenario::make();
             $s->http->queue(Responses::datadis('{"maxPower":[],"distributorError":[]}'));
 
             try {
-                $s->client->maxPower(Cups::fromString(Scenario::CUPS), '2', $from, $to);
+                $s->client->maxPower(Cups::fromString(Scenario::CUPS), '2', Month::of($y1, $m1), Month::of($y2, $m2));
                 expect($valid)->toBeTrue()->and($s->http->requests())->toHaveCount(2);
             } catch (DatadisException $e) {
                 expect($valid)->toBeFalse()->and($e->requestSent)->toBeFalse()->and($s->http->requests())->toHaveCount(0);
@@ -157,11 +174,12 @@ it('reads any reactive or distributors payload as a result or a DatadisException
             $s->http->queue(Responses::datadis((string) json_encode($payload, JSON_PARTIAL_OUTPUT_ON_ERROR)));
 
             try {
-                $result = $reactive
-                    ? $s->client->reactive(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1))
-                    : $s->client->distributors();
-
-                expect($result->records)->toBeArray();
+                if ($reactive) {
+                    expect($s->client->reactive(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1))->records)
+                        ->each->toBeInstanceOf(ReactiveEnergy::class);
+                } else {
+                    expect($s->client->distributors()->records)->each->toBeString();
+                }
             } catch (DatadisException $e) {
                 expect($e->requestSent)->toBeTrue();
             }

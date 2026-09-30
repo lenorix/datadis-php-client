@@ -17,7 +17,8 @@ it('either decodes JSON or throws a DatadisException, whatever the status and by
                 expect($decoded)->toBeArray()
                     ->and($status)->toBeGreaterThanOrEqual(200)->toBeLessThan(300);
             } catch (DatadisException $e) {
-                expect($e->getMessage())->toBeString();
+                expect($e->getMessage())->toStartWith('get-supplies-v2: ')
+                    ->and($e->requestSent)->toBeTrue();
             }
         });
 });

@@ -35,15 +35,11 @@ it('sends each CUPS once, in order, and refuses duplicates before sending', func
         });
 });
 
-it('never authorizes the account itself, however it is written', function () {
-    $this->limitTo(pbtIterations())
-        ->forAll(Generators::elements('', ' ', "\t"), Generators::bool())
-        ->then(function (string $pad, bool $lower) {
-            $s = Scenario::make();
-            $nif = Nif::fromString($pad.($lower ? '12345678z' : '12345678Z').$pad);
+it('never authorizes the account itself, however it is written', function (string $written) {
+    $s = Scenario::make();
+    $nif = Nif::fromString($written);
 
-            expect(fn () => $s->client->newAuthorization($nif))->toThrow(InvalidRequestException::class)
-                ->and(fn () => $s->client->cancelAuthorization($nif))->toThrow(InvalidRequestException::class)
-                ->and($s->http->requests())->toBe([]);
-        });
-});
+    expect(fn () => $s->client->newAuthorization($nif))->toThrow(InvalidRequestException::class)
+        ->and(fn () => $s->client->cancelAuthorization($nif))->toThrow(InvalidRequestException::class)
+        ->and($s->http->requests())->toBe([]);
+})->with(['12345678Z', '12345678z', ' 12345678Z ', "\t12345678z\t"]);

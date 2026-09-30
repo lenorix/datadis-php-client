@@ -46,7 +46,7 @@ foreach ($calls as $name => [$call, $body]) {
     });
 }
 
-it('validates every argument of every guarded endpoint before sending', function (Closure $call) {
+it('refuses malformed arguments of the calls that take them before sending', function (Closure $call) {
     $s = Scenario::make();
 
     expect(fn () => $call($s->client))->toThrow(InvalidRequestException::class)

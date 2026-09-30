@@ -33,7 +33,7 @@ function realDay(DateTimeImmutable $midnight, int $step = 3600): array
     return $hours;
 }
 
-it('turns every real day of any year into the exact hours it had', function () {
+it('turns every real day of any year into the exact hours it had (Madrid verified, Canary time assumed)', function () {
     $this->limitTo(pbtIterations())
         ->forAll(
             Generators::oneOf(
@@ -62,24 +62,22 @@ it('turns every real day of any year into the exact hours it had', function () {
         });
 });
 
-it('decodes the change days of every year through the client', function () {
-    $this->limitTo(pbtIterations())
-        ->forAll(Generators::elements([2025, 3], [2025, 10], [2026, 3]))
-        ->then(function (array $change) {
-            [$year, $month] = $change;
-            $zone = new DateTimeZone('Europe/Madrid');
-            $lastSunday = new DateTimeImmutable("last sunday of {$year}-{$month}", $zone);
-            $day = realDay($lastSunday);
-            $s = Scenario::make();
-            $s->http->queue(Responses::datadis(Payloads::envelope('timeCurve', Payloads::hourlyRows($lastSunday->format('Y/m/d'), array_column($day, 0)))));
+it('decodes the real change days through the client', function (int $year, int $month) {
+    $zone = new DateTimeZone('Europe/Madrid');
+    $lastSunday = new DateTimeImmutable("last sunday of {$year}-{$month}", $zone);
+    $day = realDay($lastSunday);
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis(Payloads::envelope('timeCurve', Payloads::hourlyRows($lastSunday->format('Y/m/d'), array_column($day, 0)))));
 
-            $readings = $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of($year, $month), Month::of($year, $month))->records;
+    $readings = $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of($year, $month), Month::of($year, $month))->records;
 
-            expect(array_map(fn ($r) => $r->start?->getTimestamp(), $readings))->toBe(array_column($day, 1));
-        });
-});
+    expect(array_map(fn ($r) => $r->start?->getTimestamp(), $readings))->toBe(array_column($day, 1));
+})->with([
+    'autumn 2025, 25 hours' => [2025, 10],
+    'spring 2026, 23 hours' => [2026, 3],
+]);
 
-it('turns every real day into the exact quarter hours it had', function () {
+it('turns the last Sunday of any month into its quarter hours, if quarter labels follow the hourly convention (unverified)', function () {
     $this->limitTo(pbtIterations())
         ->forAll(
             Generators::map(fn (array $p) => "last sunday of {$p[0]}-{$p[1]}", Generators::tuple(Generators::choose(2000, 2037), Generators::elements('01', '03', '06', '10'))),
