@@ -26,6 +26,7 @@ use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
+use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Http\ApiCaller;
@@ -146,16 +147,7 @@ final class DatadisClient
             $this->assertDistributorCode($distributorCode);
         }
 
-        try {
-            $decoded = $this->get('get-supplies', ['authorizedNif' => $this->authorized($authorizedNif), 'distributorCode' => $distributorCode]);
-        } catch (NoDataException $e) {
-            // An account without supplies gets a 404 "No supplies" (verified): an empty list.
-            if ($e->httpStatus === 404) {
-                return new ApiResult([]);
-            }
-
-            throw $e;
-        }
+        $decoded = $this->getList('get-supplies', ['authorizedNif' => $this->authorized($authorizedNif), 'distributorCode' => $distributorCode]);
 
         return Envelope::build($decoded, 'supplies', $this->endpoint('get-supplies'), fn (array $row) => Supply::fromRow($row, $this->timeZone));
     }
@@ -166,7 +158,18 @@ final class DatadisClient
      */
     public function findSupply(Cups $cups, ?Nif $authorizedNif = null): ?Supply
     {
-        return SupplyMatcher::pick($this->supplies($authorizedNif)->records, $cups);
+        $result = $this->supplies($authorizedNif);
+        $supply = SupplyMatcher::pick($result->records, $cups);
+
+        // Not found while a distributor failed is not "not your supply": it may be behind that failure.
+        if ($supply === null && $result->hasDistributorErrors()) {
+            $reasons = implode('; ', array_map(static fn ($error) => (string) $error->errorDescription, $result->distributorErrors));
+            $endpoint = $this->endpoint('get-supplies');
+
+            throw new ServiceUnavailableException("{$endpoint}: the supply was not found and a distributor failed: {$reasons}", 200, $reasons, $endpoint);
+        }
+
+        return $supply;
     }
 
     /**
@@ -176,7 +179,7 @@ final class DatadisClient
      */
     public function distributors(?Nif $authorizedNif = null): ApiResult
     {
-        $decoded = $this->get('get-distributors-with-supplies', ['authorizedNif' => $this->authorized($authorizedNif)]);
+        $decoded = $this->getList('get-distributors-with-supplies', ['authorizedNif' => $this->authorized($authorizedNif)]);
 
         return DistributorCodes::result($decoded, $this->endpoint('get-distributors-with-supplies'));
     }
@@ -388,6 +391,26 @@ final class DatadisClient
     }
 
     /**
+     * For the account lists: an account without supplies gets a 404 "No supplies" (verified), which
+     * is an empty list, not a failure.
+     *
+     * @param  array<string, string|int|list<string>|null>  $query
+     * @return array<array-key, mixed>
+     */
+    private function getList(string $name, #[SensitiveParameter] array $query): array
+    {
+        try {
+            return $this->get($name, $query);
+        } catch (NoDataException $e) {
+            if ($e->httpStatus === 404) {
+                return [];
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
      * @param  array<string, string|int|list<string>|null>  $query
      * @return array<array-key, mixed>
      */
@@ -476,14 +499,14 @@ final class DatadisClient
 
     private function assertDistributorCode(string $code): void
     {
-        if (preg_match('/^[A-Za-z0-9_-]{1,10}$/D', $code) !== 1) {
+        if (! Supply::isValidDistributorCode($code)) {
             throw new InvalidRequestException('The distributor code must be 1 to 10 letters, digits, dashes or underscores.');
         }
     }
 
     private function assertPointType(int $pointType): void
     {
-        if ($pointType < 1 || $pointType > 5) {
+        if (! Supply::isValidPointType($pointType)) {
             throw new InvalidRequestException("The point type must be between 1 and 5, {$pointType} given.");
         }
     }

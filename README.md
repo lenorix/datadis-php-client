@@ -351,24 +351,31 @@ Then bind the client in `app/Providers/AppServiceProvider.php`:
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Lenorix\DatadisClient\DatadisClient;
+use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
+use Lenorix\DatadisClient\Http\GuzzleClientFactory;
 
 public function register(): void
 {
-    // bind, not singleton: each resolution picks up the current configuration and any Http::fake().
-    $this->app->bind(DatadisClient::class, fn () => DatadisClient::fromArray(
-        config('services.datadis'),
-        // Laravel's own Guzzle client, so Http::fake() and Http::assertSent() see every call.
-        http: Http::withOptions(['allow_redirects' => false, 'decode_content' => false])
-            ->timeout((float) config('services.datadis.timeout', 120))
-            ->buildClient(),
-        // The token and the 24 hour guard live in the cache every worker shares.
-        tokenCache: Cache::store(),
-        ledger: new RequestLedger(Cache::store(), new RequestFingerprinter(config('app.key'))),
-    ));
+    // bind, not singleton: the client is built where it is used, after any Http::fake() in a test.
+    $this->app->bind(DatadisClient::class, function () {
+        $settings = config('services.datadis');
+
+        return DatadisClient::fromArray(
+            $settings,
+            // The package's Guzzle settings (timeouts, no redirects, no automatic decompression)
+            // on Laravel's handler stack, so Http::fake() and Http::assertSent() see every call.
+            http: GuzzleClientFactory::create(DatadisConfig::fromArray($settings), ['handler' => Http::buildHandlerStack()]),
+            // The token and the 24 hour guard live in the cache every worker shares.
+            tokenCache: Cache::store(),
+            ledger: new RequestLedger(Cache::store(), new RequestFingerprinter(config('app.key'))),
+        );
+    });
 }
 ```
+
+Do not use `Http::buildClient()` for this: it ignores the pending timeout and decompression options.
 
 Inject `DatadisClient` wherever you need it (controllers, jobs, commands). In your tests, fake Datadis like any other HTTP service:
 

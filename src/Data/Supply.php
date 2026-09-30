@@ -70,9 +70,26 @@ final readonly class Supply
         return $this->openEnded;
     }
 
-    /** Whether the two values every other endpoint asks for are present. */
+    /**
+     * Whether the two values every other endpoint asks for are present and usable.
+     *
+     * @phpstan-assert-if-true !null $this->distributorCode
+     * @phpstan-assert-if-true !null $this->pointType
+     */
     public function isQueryable(): bool
     {
-        return $this->distributorCode !== null && $this->pointType !== null;
+        return self::isValidDistributorCode($this->distributorCode) && self::isValidPointType($this->pointType);
+    }
+
+    /** Datadis codes are opaque short strings (`"1"`..`"8"` today). */
+    public static function isValidDistributorCode(?string $code): bool
+    {
+        return $code !== null && preg_match('/^[A-Za-z0-9_-]{1,10}$/D', $code) === 1;
+    }
+
+    /** Metering point types 1 to 5 (RD 1110/2007). */
+    public static function isValidPointType(?int $type): bool
+    {
+        return $type !== null && $type >= 1 && $type <= 5;
     }
 }

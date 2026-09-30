@@ -4,15 +4,24 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Data;
 
+use ArrayIterator;
+use Countable;
+use IteratorAggregate;
+use Traversable;
+
 /**
  * The records of a list endpoint together with what else the answer said.
  *
  * An empty list is a normal success ("nothing published for that period") and is never zero
  * consumption. An empty list with distributor errors means a distributor failed instead.
  *
+ * Iterating or counting a result iterates or counts its records.
+ *
  * @template T
+ *
+ * @implements IteratorAggregate<int, T>
  */
-final readonly class ApiResult
+final readonly class ApiResult implements Countable, IteratorAggregate
 {
     /**
      * @param  list<T>  $records
@@ -45,5 +54,11 @@ final readonly class ApiResult
     public function isEmptyBecauseOfErrors(): bool
     {
         return $this->isEmpty() && $this->hasDistributorErrors();
+    }
+
+    /** @return Traversable<int, T> */
+    public function getIterator(): Traversable
+    {
+        return new ArrayIterator($this->records);
     }
 }

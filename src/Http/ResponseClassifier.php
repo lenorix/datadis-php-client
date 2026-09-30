@@ -50,7 +50,7 @@ final class ResponseClassifier
         }
 
         try {
-            $decoded = json_decode(trim($body), true, 512, JSON_THROW_ON_ERROR);
+            $decoded = json_decode(trim($body), true, 512, JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING);
         } catch (JsonException $e) {
             throw new UninterpretableResponseException(
                 "{$endpoint}: the response is not valid JSON.",

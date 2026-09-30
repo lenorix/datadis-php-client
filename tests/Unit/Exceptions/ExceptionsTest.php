@@ -36,10 +36,6 @@ it('extends DatadisException, which is a RuntimeException', function (string $cl
     UnsupportedOperationException::class,
 ]);
 
-it('treats a transport failure as a service unavailable failure', function () {
-    expect(new TransportException('x'))->toBeInstanceOf(ServiceUnavailableException::class);
-});
-
 it('assumes the request was sent unless it is a pre-flight failure', function () {
     expect((new RequestRejectedException('x'))->requestSent)->toBeTrue()
         ->and((new TransportException('x'))->requestSent)->toBeTrue()

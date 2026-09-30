@@ -85,7 +85,7 @@ final readonly class DatadisConfig
     {
         return new self(
             self::setting($settings, 'username') ?? throw new ConfigurationException('The Datadis setting "username" is missing.'),
-            self::setting($settings, 'password') ?? throw new ConfigurationException('The Datadis setting "password" is missing.'),
+            self::passwordFrom($settings),
             self::setting($settings, 'base_url') ?? self::DEFAULT_BASE_URL,
             self::seconds($settings, 'timeout', 120.0),
             self::seconds($settings, 'connect_timeout', 10.0),
@@ -115,6 +115,22 @@ final readonly class DatadisConfig
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    /**
+     * The password exactly as given: spaces can be part of it.
+     *
+     * @param  array<array-key, mixed>  $settings
+     */
+    private static function passwordFrom(#[SensitiveParameter] array $settings): string
+    {
+        $password = $settings['password'] ?? null;
+
+        if (! is_string($password) || $password === '') {
+            throw new ConfigurationException('The Datadis setting "password" is missing.');
+        }
+
+        return $password;
     }
 
     /** @param  array<array-key, mixed>  $settings */

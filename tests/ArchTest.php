@@ -6,7 +6,6 @@ use Lenorix\DatadisClient\Data\Envelope;
 use Lenorix\DatadisClient\Data\Fields;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
-use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Http\GuzzleClientFactory;
 use Lenorix\DatadisClient\PublicApi\PublicApi;
 use Lenorix\DatadisClient\Time\DatadisDate;
@@ -22,14 +21,11 @@ arch('every source file declares strict types')
     ->expect('Lenorix\DatadisClient')
     ->toUseStrictTypes();
 
-arch('source classes are final, except the exception bases')
+arch('source classes are final, except the exception base')
     ->expect('Lenorix\DatadisClient')
     ->classes()
     ->toBeFinal()
-    ->ignoring([
-        DatadisException::class,
-        ServiceUnavailableException::class,
-    ]);
+    ->ignoring(DatadisException::class);
 
 arch('every exception extends DatadisException')
     ->expect('Lenorix\DatadisClient\Exceptions')
