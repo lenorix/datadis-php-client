@@ -35,6 +35,26 @@ Found by a second independent review after the fixes above. All fixed with a fai
 7. A reactive list with no usable entry is an error like on the other endpoints; a `distributorError` sent as text is kept; the README says which exceptions are not `DatadisException`; the Ceuta and Melilla docblock matches the table.
 8. Not changed, on purpose: quarter-hourly data is not refused locally for any point type (a real type 5 supply answers an empty list instead of refusing; see [open-questions.md](open-questions.md)).
 
+## Third review (source and tests, September 2026)
+
+Applied:
+
+1. `findSupply()` reports a distributor failure instead of answering "not your supply"; the distributors list reads a 404 and a null list as empty, like the supplies list; big numeric ids stay exact; `fromArray()` keeps the password as given and reads dashed setting names.
+2. `TransportException` is no longer a kind of `ServiceUnavailableException`, so catching "try again later" does not also retry timeouts of guarded calls.
+3. Readings carry `hourOfDay`, so quarter-hourly data works with the tariff period mapper; the README had passed the quarter index (0-95) to it.
+4. The docs no longer say a month not yet published is a `NoDataException`: it is an empty result.
+5. Calls that take a listed `Supply` (`consumptionOf()` and the like) and `DatadisClientInterface` for applications that mock the client.
+6. Endpoints are one internal enum; retries are an allowlist; the 24 hour guard is its own internal class; classes outside the public API are `@internal`; the user agent has no version to go stale.
+7. Tests: filler and duplicates removed, answers aligned with the real ones, property oracles made independent, and whole flows added (a supply found by its 20 character CUPS, the 24 hour token, the guard across a 401, retries through the client).
+
+Left for the maintainer to decide before 1.0 (not changed):
+
+- Names and shapes of the public API: method names (`partnerDeleteUser`, `reactive`, `newAuthorization`), DTO field naming (units, `date`/`day`, `startDate`/`validFrom`, raw versus renamed keys), `contractDetail()` returning a list, and raw `string`/`array` returns of the unverified endpoints.
+- `PublicApi\PublicApi` repeating its namespace, and moving the decoding helpers out of `Data`.
+- The time zone per client rather than per supply, a scoped client per holder (`forHolder()`), a public testing fake, and merging the constructor with `fromArray()`.
+- Defensive shapes no source documents but the code accepts: `distributorError` as text or a single object, `distExistenceUser` as a bare list, the v1 list-wrapped distributors answer, `reactiveEnergy` as a list, and the public API `content`/`data` envelopes and single-object answer.
+- Whether `ApiVersion::V2` stays the default while every real capture so far was on v1 paths.
+
 ## Bugs of other implementations checked
 
 The mistakes found in other Datadis clients (see the "mistakes to avoid" notes in [quirks-and-rules.md](quirks-and-rules.md) and [design-decisions.md](design-decisions.md)) were checked one by one against this package, and each is covered by a test: retrying 429, guessing parameter variants, placing `24:00` on the same date, reading `obtainMethod` as `R`, treating `measurementType` as consumption/generation, swallowing decoding errors, reading an `hour` field, the `accesFare` spelling, mislabelled gzip, a blocked default user agent, sending `authorizedNif` unnormalised or for the account itself, comparing dates as strings, floats in exponent notation, the two year window computed as "now minus two years", short timeouts, hand-built query strings, and treating a failed transfer as never sent. The extra `00:00` row some distributors send is kept and flagged rather than dropped; the README tells callers to decide before summing.

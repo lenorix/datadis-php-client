@@ -13,6 +13,14 @@
 
 Red (write a failing test that states the behaviour), green (smallest code that passes), refactor. One behaviour per test. Tests describe the contract, not the implementation. Commit only when the whole suite passes.
 
+## What a test must be
+
+- A realistic check of behaviour someone relies on, not a second copy of the code. Prefer one test through the public client, with an answer shaped like Datadis's, over several that restate internals.
+- No filler for coverage: no "is an instance of", no asserting a constant, no status codes or dates Datadis never produces, no tests of PHP itself or of a fixture.
+- Answers replay what Datadis really sends: JSON labelled `text/plain` for data, plain text labelled `application/json` for refusals, the Spring JSON for a refused token, an empty 500 for a missing parameter. A case that rests on an assumption (for example a v2 error captured on v1) says so in its name.
+- A failure test also checks how many requests were made and whether the request counts as sent, so a hidden retry or re-login cannot pass. The fake HTTP client records requests nothing was queued for, and a global hook fails the test.
+- A property needs an oracle of its own (hand-written arithmetic, hard-coded windows), generators that reach the interesting cases, and assertions that could fail. A small fixed domain is a dataset, not a random sample.
+
 ## Property-based testing rules
 
 - Every pure helper gets properties: month round-trip and arithmetic, chunk coverage without overlap, hour label bijection over 1..24 and rejection otherwise, redactor totality and idempotence, CUPS normalisation idempotence, tariff-shape parser totality and normalisation-invariance, fingerprint determinism and sensitivity to every parameter, decimal conversion (including exponent notation).
@@ -34,13 +42,13 @@ Fictitious safe identifiers:
 
 Never copy real payloads with real CUPS, NIF, addresses or postal codes of real people.
 
-Minimum fixture set per endpoint: normal success, empty list, `distributorError` only, `distributorError` plus data, null-heavy row, and the error bodies (400 `text/plain`, 429 both `text/plain` and JSON, 404 Spring JSON, 500 empty body). Hourly consumption additionally: 24-hour day, 25-hour day (`03:00` twice), 23-hour day (`03:00` missing), the `00:00` glitch row, `24:00` at month and year end, `consumptionKWh: null`, `obtainMethod: ""`.
+Minimum fixture set per endpoint: normal success, empty list, `distributorError` only, `distributorError` plus data, null-heavy row, and the real error answers listed in [quirks-and-rules.md](quirks-and-rules.md) (400 and 404 as plain text labelled JSON, 401 Spring JSON, 500 with an empty body). Hourly consumption additionally: 24-hour day, 25-hour day (`03:00` twice), 23-hour day (`03:00` missing), the `00:00` glitch row, `24:00` at month and year end, `consumptionKWh: null`, `obtainMethod: ""`.
 
 Additional scenario tests required: mislabelled gzip body, HTTP 200 HTML page, numeric strings, hostile `Retry-After`, token expiry with a fake clock, one re-login on 401 and no more, login rejection not consuming the guard, `authorizedNif` equal to the account being omitted, request headers (`Accept`, `Accept-Encoding`, `User-Agent`, `Authorization`), and that neither password nor token appears in any exception message.
 
 ## Architecture tests
 
-`tests/ArchTest.php` enforces: no `dd`/`dump`/`ray` in `src`, strict types everywhere, final classes (except the two exception bases), every exception extends `DatadisException`, Guzzle used only by the default wiring (`GuzzleClientFactory`, `DatadisClient`, `PublicApi`), and immutable results and values. Forbidden project names are checked with `grep` before each commit, never by a test, since a test would have to spell them out.
+`tests/ArchTest.php` enforces: no `dd`/`dump`/`ray` in `src`, strict types everywhere, final classes (except the exception base), every exception extends `DatadisException`, Guzzle used only by the default wiring (`GuzzleClientFactory`, `DatadisClient`, `PublicApi`), and immutable results and values. Forbidden project names are checked with `grep` before each commit, never by a test, since a test would have to spell them out.
 
 ## Quality gates before every commit
 
