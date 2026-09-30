@@ -1,12 +1,19 @@
 {
     "name": "lenorix/datadis-client",
-    "description": "Datadis client for PHP",
+    "description": "PHP client for Datadis, the platform where Spanish electricity distributors publish supply data: supplies, contracts, hourly and quarter-hourly consumption, maximum power, reactive energy and public open data.",
     "keywords": [
-        "lenorix",
         "datadis",
-        "client"
+        "electricity",
+        "energy",
+        "consumption",
+        "smart-meter",
+        "cups",
+        "spain",
+        "psr-18",
+        "api-client"
     ],
-    "homepage": "https://github.com/lenorix/datadis-client",
+    "homepage": "https://github.com/lenorix/datadis-php-client",
+    "type": "library",
     "license": "Unlicense",
     "authors": [
         {
@@ -15,8 +22,15 @@
             "role": "Developer"
         }
     ],
+    "support": {
+        "issues": "https://github.com/lenorix/datadis-php-client/issues",
+        "source": "https://github.com/lenorix/datadis-php-client",
+        "security": "https://github.com/lenorix/datadis-php-client/security/policy"
+    },
     "require": {
         "php": "^8.4",
+        "ext-mbstring": "*",
+        "ext-zlib": "*",
         "brick/math": "^0.14.2 || ^0.15 || ^0.16 || ^0.17 || ^0.18 || ^0.19 || ^0.20 || ^1.0",
         "guzzlehttp/guzzle": "^8.2",
         "guzzlehttp/psr7": "^3.1",
@@ -28,10 +42,9 @@
     },
     "require-dev": {
         "giorgiosironi/eris": "^1.1",
-        "laravel/pint": "^1.0",
-        "pestphp/pest": "^4.0",
-        "phpstan/phpstan": "^2.2",
-        "spatie/ray": "^1.28"
+        "laravel/pint": "^1.32",
+        "pestphp/pest": "^4.3.2",
+        "phpstan/phpstan": "^2.2.3"
     },
     "autoload": {
         "psr-4": {
@@ -44,19 +57,16 @@
         }
     },
     "scripts": {
-        "test": "vendor/bin/pest --parallel --fail-on-warning --fail-on-risky",
+        "test": "vendor/bin/pest --parallel --fail-on-warning --fail-on-risky --fail-on-deprecation",
         "test-coverage": "XDEBUG_MODE=coverage vendor/bin/pest --parallel --coverage --min=98",
         "format": "vendor/bin/pint",
-        "pint": "vendor/bin/pint",
+        "lint": "vendor/bin/pint --test",
         "phpstan": "vendor/bin/phpstan analyse src"
     },
     "config": {
         "sort-packages": true,
         "allow-plugins": {
-            "pestphp/pest-plugin": true,
-            "phpstan/extension-installer": true
+            "pestphp/pest-plugin": true
         }
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true
+    }
 }

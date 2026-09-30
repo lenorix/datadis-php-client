@@ -2,11 +2,11 @@
 
 ## Supported versions
 
-Security fixes are released for the latest minor version of the latest major release.
+Until 1.0.0, security fixes are released for the latest 0.x minor version only. After 1.0.0, for the latest minor version of the latest major release.
 
 ## Reporting a vulnerability
 
-Please do **not** open a public issue. Report it privately through GitHub's [private vulnerability reporting](https://github.com/lenorix/datadis-client/security/advisories/new), or by email to jesushdez@protonmail.com.
+Please do **not** open a public issue. Report it privately through GitHub's [private vulnerability reporting](https://github.com/lenorix/datadis-php-client/security/advisories/new), or by email to jesushdez@protonmail.com.
 
 Include what is affected, how to reproduce it and the impact you expect. Do not include real credentials, tokens, CUPS, NIF or consumption data: use made-up values.
 

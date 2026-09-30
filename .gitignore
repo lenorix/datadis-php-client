@@ -34,3 +34,6 @@ testbench.yaml
 
 # macOS
 .DS_Store
+
+# Local agent worktrees
+/.claude/worktrees

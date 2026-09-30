@@ -28,7 +28,7 @@ final readonly class DatadisConfig
      * Some hosts refuse unknown or library default agents, so the agent identifies this package but
      * looks ordinary. It carries no version number, which would go stale with every release.
      */
-    public const string DEFAULT_USER_AGENT = 'Mozilla/5.0 (compatible; lenorix-datadis-client; +https://github.com/lenorix/datadis-client)';
+    public const string DEFAULT_USER_AGENT = 'Mozilla/5.0 (compatible; lenorix-datadis-client; +https://github.com/lenorix/datadis-php-client)';
 
     /** The account's NIF, NIE or CIF, trimmed and uppercase. */
     public string $username;

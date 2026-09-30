@@ -1,7 +1,7 @@
 # Datadis client for PHP
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/lenorix/datadis-client.svg?style=flat-square)](https://packagist.org/packages/lenorix/datadis-client)
-[![Tests](https://github.com/lenorix/datadis-client/actions/workflows/run-tests.yml/badge.svg)](https://github.com/lenorix/datadis-client/actions/workflows/run-tests.yml)
+[![Tests](https://github.com/lenorix/datadis-php-client/actions/workflows/run-tests.yml/badge.svg)](https://github.com/lenorix/datadis-php-client/actions/workflows/run-tests.yml)
 [![Total Downloads](https://img.shields.io/packagist/dt/lenorix/datadis-client.svg?style=flat-square)](https://packagist.org/packages/lenorix/datadis-client)
 
 Read electricity data from [Datadis](https://datadis.es), the platform where the Spanish distributors publish the data of every supply point: supplies, contracts, hourly and quarter-hourly consumption, maximum power, reactive energy, authorizations and the public open data.
@@ -25,7 +25,7 @@ The package takes care of the parts of Datadis that are easy to get wrong: the r
 composer require lenorix/datadis-client
 ```
 
-You need PHP 8.4 or later. For the private API you also need a Datadis account: the NIF, NIE or CIF you registered with and its password.
+You need PHP 8.4 or later with the `mbstring` and `zlib` extensions (both are in almost every PHP build). For the private API you also need a Datadis account: the NIF, NIE or CIF you registered with and its password.
 
 ## How Datadis works, in one minute
 
@@ -423,7 +423,7 @@ Most behaviour here was checked against real Datadis answers. These parts come f
 - The format of quarter-hourly labels.
 - Whether a repeated query always gets HTTP 429.
 
-`docs/` records everything known about the API, with the evidence behind each point.
+[`docs/`](https://github.com/lenorix/datadis-php-client/tree/main/docs) in the repository records everything known about the API, with the evidence behind each point.
 
 ## Contributing
 
@@ -431,24 +431,29 @@ Most behaviour here was checked against real Datadis answers. These parts come f
 composer test            # Pest, including property-based tests with Eris
 composer test-coverage   # fails under 98 % line coverage
 composer phpstan         # static analysis at level max
-composer format          # Pint
+composer lint            # Pint, checking only
+composer format          # Pint, fixing
 ```
 
 Property-based tests run 100 cases each; set `DATADIS_PBT_ITERATIONS` for longer runs. A failing property prints a seed: reproduce it with `ERIS_SEED=<seed> vendor/bin/pest --filter '<test name>'`. No test ever calls the real Datadis.
 
+## Versioning and stability
+
+This package follows [Semantic Versioning](https://semver.org). It is at 0.x: the API can still change, and a minor release (0.2.0) may break it, while patch releases (0.1.x) only fix bugs. `composer require lenorix/datadis-client` adds `^0.1`, which never moves to 0.2 on its own. Read the changelog before moving to a new minor version. 1.0.0 will follow once the parts listed under "What is not verified yet" are checked against real answers.
+
 ## Changelog
 
-See [CHANGELOG](CHANGELOG.md).
+See the [CHANGELOG](https://github.com/lenorix/datadis-php-client/blob/main/CHANGELOG.md).
 
 ## Security Vulnerabilities
 
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
+Please review [our security policy](https://github.com/lenorix/datadis-php-client/security/policy) on how to report security vulnerabilities.
 
 ## Credits
 
 - [Jesus Hernandez](https://github.com/jhg)
-- [All Contributors](../../contributors)
+- [All Contributors](https://github.com/lenorix/datadis-php-client/graphs/contributors)
 
 ## License
 
-The Unlicense. See [License File](LICENSE.md).
+The Unlicense. See the [license file](LICENSE.md).

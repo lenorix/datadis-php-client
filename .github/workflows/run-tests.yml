@@ -7,14 +7,19 @@ on:
       - '.github/workflows/run-tests.yml'
       - 'phpunit.xml.dist'
       - 'composer.json'
-      - 'composer.lock'
+      - 'phpstan.neon.dist'
+      - 'tests/**'
   pull_request:
     paths:
       - '**.php'
       - '.github/workflows/run-tests.yml'
       - 'phpunit.xml.dist'
       - 'composer.json'
-      - 'composer.lock'
+      - 'phpstan.neon.dist'
+      - 'tests/**'
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,7 +30,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         php: ['8.4', '8.5']
@@ -40,7 +45,7 @@ jobs:
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
+          extensions: mbstring, zlib, json, curl, dom
           coverage: pcov
 
       - name: Setup problem matchers
