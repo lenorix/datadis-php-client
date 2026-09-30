@@ -14,14 +14,14 @@ use SensitiveParameter;
 final readonly class ReactiveEnergy
 {
     /**
-     * @param  list<ReactiveEnergyEntry>  $entries
+     * @param  list<ReactiveEnergyEntry>  $energy
      * @param  array<array-key, mixed>  $raw
      */
     private function __construct(
         public ?string $cups,
-        public array $entries,
+        public array $energy,
         public ?string $code,
-        public ?string $codeDescription,
+        public ?string $code_desc,
         public array $raw,
     ) {}
 
@@ -35,20 +35,20 @@ final readonly class ReactiveEnergy
             return null;
         }
 
-        $entries = [];
-        $energy = $row['energy'] ?? null;
+        $energy = [];
+        $items = $row['energy'] ?? null;
 
-        if (is_array($energy)) {
-            foreach ($energy as $item) {
+        if (is_array($items)) {
+            foreach ($items as $item) {
                 if (is_array($item)) {
-                    $entries[] = ReactiveEnergyEntry::fromRow($item);
+                    $energy[] = ReactiveEnergyEntry::fromRow($item);
                 }
             }
         }
 
         return new self(
             Fields::text($row, 'cups'),
-            $entries,
+            $energy,
             Fields::text($row, 'code'),
             Fields::text($row, 'code_desc'),
             $row,
@@ -89,6 +89,7 @@ final readonly class ReactiveEnergy
 
         $objects = match (true) {
             $value === null, $value === [] => [],
+            // TOLERATED, NO SOURCE: documented as one object; a list of them is read too.
             array_is_list($value) => $value,
             default => [$value],
         };

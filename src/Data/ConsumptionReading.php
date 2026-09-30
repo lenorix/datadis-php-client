@@ -37,11 +37,11 @@ final readonly class ConsumptionReading
         public ?DateTimeImmutable $end,
         public ?int $index,
         public ?int $hourOfDay,
-        public string $kWh,
+        public string $consumptionKWh,
         public string $obtainMethod,
-        public ?string $surplusKWh,
-        public ?string $generationKWh,
-        public ?string $selfConsumptionKWh,
+        public ?string $surplusEnergyKWh,
+        public ?string $generationEnergyKWh,
+        public ?string $selfConsumptionEnergyKWh,
         public array $raw,
     ) {}
 
@@ -55,10 +55,10 @@ final readonly class ConsumptionReading
     {
         $date = Fields::text($row, 'date');
         $time = Fields::text($row, 'time');
-        $kWh = Fields::decimal($row, 3, 'consumptionKWh');
+        $consumptionKWh = Fields::decimal($row, 3, 'consumptionKWh');
         $day = $date === null ? null : DatadisDate::tryParse($date, $zone);
 
-        if ($date === null || $time === null || $day === null || $kWh === null) {
+        if ($date === null || $time === null || $day === null || $consumptionKWh === null) {
             return null;
         }
 
@@ -74,7 +74,7 @@ final readonly class ConsumptionReading
             $interval[1] ?? null,
             $label?->index(),
             $label?->hourOfDay(),
-            $kWh,
+            $consumptionKWh,
             trim(Fields::text($row, 'obtainMethod') ?? ''),
             Fields::decimal($row, 3, 'surplusEnergyKWh'),
             Fields::decimal($row, 3, 'generationEnergyKWh'),

@@ -57,11 +57,11 @@ function junkRow(): Generator
 }
 
 $calls = [
-    'supplies' => fn ($c) => $c->supplies(),
-    'contract' => fn ($c) => $c->contractDetail(Cups::fromString(Scenario::CUPS), '2'),
-    'consumption' => fn ($c) => $c->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 1), Month::of(2026, 1)),
-    'quarter-hourly' => fn ($c) => $c->consumption(Cups::fromString(Scenario::CUPS), '2', 1, Month::of(2026, 1), Month::of(2026, 1), MeasurementType::QuarterHourly),
-    'max power' => fn ($c) => $c->maxPower(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1)),
+    'supplies' => fn ($c) => $c->getSupplies(),
+    'contract' => fn ($c) => $c->getContractDetail(Cups::fromString(Scenario::CUPS), '2'),
+    'consumption' => fn ($c) => $c->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 1), Month::of(2026, 1)),
+    'quarter-hourly' => fn ($c) => $c->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 1, Month::of(2026, 1), Month::of(2026, 1), MeasurementType::QuarterHourly),
+    'max power' => fn ($c) => $c->getMaxPower(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1)),
 ];
 
 $keys = ['supplies' => 'supplies', 'contract' => 'contract', 'consumption' => 'timeCurve', 'quarter-hourly' => 'timeCurve', 'max power' => 'maxPower'];
@@ -117,7 +117,7 @@ it('decodes every row with a value, in order, and fails only when no row has one
             [$year, $month] = array_map('intval', explode('/', $date));
             $s = Scenario::make();
             $s->http->queue(Responses::datadis(Payloads::envelope('timeCurve', $rows)));
-            $call = fn () => $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of($year, $month), Month::of($year, $month));
+            $call = fn () => $s->client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of($year, $month), Month::of($year, $month));
 
             if ($kept === []) {
                 expect($call)->toThrow(DatadisException::class);
@@ -148,7 +148,7 @@ it('never sends a request for a month range Datadis would refuse', function () {
             $s->http->queue(Responses::datadis('{"maxPower":[],"distributorError":[]}'));
 
             try {
-                $s->client->maxPower(Cups::fromString(Scenario::CUPS), '2', Month::of($y1, $m1), Month::of($y2, $m2));
+                $s->client->getMaxPower(Cups::fromString(Scenario::CUPS), '2', Month::of($y1, $m1), Month::of($y2, $m2));
                 expect($valid)->toBeTrue()->and($s->http->requests())->toHaveCount(2);
             } catch (DatadisException $e) {
                 expect($valid)->toBeFalse()->and($e->requestSent)->toBeFalse()->and($s->http->requests())->toHaveCount(0);
@@ -175,10 +175,10 @@ it('reads any reactive or distributors payload as a result or a DatadisException
 
             try {
                 if ($reactive) {
-                    expect($s->client->reactive(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1))->records)
+                    expect($s->client->getReactiveData(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1))->records)
                         ->each->toBeInstanceOf(ReactiveEnergy::class);
                 } else {
-                    expect($s->client->distributors()->records)->each->toBeString();
+                    expect($s->client->getDistributorsWithSupplies()->records)->each->toBeString();
                 }
             } catch (DatadisException $e) {
                 expect($e->requestSent)->toBeTrue();

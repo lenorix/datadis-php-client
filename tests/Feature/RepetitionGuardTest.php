@@ -40,9 +40,9 @@ function login(FrozenClock $clock): ResponseInterface
     return Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 7 * 86400]));
 }
 
-$consumption = fn (DatadisClient $c) => $c->consumption(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
-$maxPower = fn (DatadisClient $c) => $c->maxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1));
-$reactive = fn (DatadisClient $c) => $c->reactive(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1));
+$consumption = fn (DatadisClient $c) => $c->getConsumptionData(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+$maxPower = fn (DatadisClient $c) => $c->getMaxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1));
+$reactive = fn (DatadisClient $c) => $c->getReactiveData(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1));
 
 it('refuses locally to repeat a guarded query within the window', function () use ($consumption) {
     [$client, $http, $clock] = guarded();
@@ -126,16 +126,16 @@ it('does not guard the endpoints the rule does not cover, which Datadis answers 
 
     expect($http->requests())->toHaveCount(3);
 })->with([
-    'supplies' => [fn (DatadisClient $c) => $c->supplies(), '{"supplies":[],"distributorError":[]}'],
-    'contract detail' => [fn (DatadisClient $c) => $c->contractDetail(Cups::fromString('ES0031300000000001JN0F'), '2'), '{"contract":[],"distributorError":[]}'],
-    'distributors' => [fn (DatadisClient $c) => $c->distributors(), '{"distExistenceUser":{"distributorCodes":["2"]},"distributorError":[]}'],
+    'supplies' => [fn (DatadisClient $c) => $c->getSupplies(), '{"supplies":[],"distributorError":[]}'],
+    'contract detail' => [fn (DatadisClient $c) => $c->getContractDetail(Cups::fromString('ES0031300000000001JN0F'), '2'), '{"contract":[],"distributorError":[]}'],
+    'distributors' => [fn (DatadisClient $c) => $c->getDistributorsWithSupplies(), '{"distExistenceUser":{"distributorCodes":["2"]},"distributorError":[]}'],
 ]);
 
 it('does not record queries refused before sending', function () use ($maxPower) {
     [$client, $http, $clock] = guarded();
     $http->queue(login($clock), Responses::datadis('{"maxPower":[]}'));
 
-    expect(fn () => $client->maxPower(Cups::fromString('ES0031300000000001JN0F'), '', Month::of(2026, 1), Month::of(2026, 1)))
+    expect(fn () => $client->getMaxPower(Cups::fromString('ES0031300000000001JN0F'), '', Month::of(2026, 1), Month::of(2026, 1)))
         ->toThrow(DatadisException::class);
 
     $maxPower($client);
@@ -195,9 +195,9 @@ it('treats max power queries with and without authorizedNif as the same query, a
     [$client, $http, $clock] = guarded();
     $http->queue(login($clock), Responses::datadis('{"maxPower":[]}'));
 
-    $client->maxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1), Nif::fromString('87654321X'));
+    $client->getMaxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1), Nif::fromString('87654321X'));
 
-    expect(fn () => $client->maxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1)))
+    expect(fn () => $client->getMaxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1)))
         ->toThrow(RepetitionWindowException::class);
 });
 
@@ -205,8 +205,8 @@ it('keeps consumption queries with and without authorizedNif apart, as the manua
     [$client, $http, $clock] = guarded();
     $http->queue(login($clock), Responses::datadis('{"timeCurve":[]}'), Responses::datadis('{"timeCurve":[]}'));
 
-    $client->consumption(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: Nif::fromString('87654321X'));
-    $client->consumption(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+    $client->getConsumptionData(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: Nif::fromString('87654321X'));
+    $client->getConsumptionData(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
     expect($http->requests())->toHaveCount(3);
 });

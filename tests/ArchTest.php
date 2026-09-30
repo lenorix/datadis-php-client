@@ -5,7 +5,6 @@ use Lenorix\DatadisClient\Data\DistributorCodes;
 use Lenorix\DatadisClient\Data\Envelope;
 use Lenorix\DatadisClient\Data\Fields;
 use Lenorix\DatadisClient\DatadisClient;
-use Lenorix\DatadisClient\DatadisClientInterface;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Http\GuzzleClientFactory;
 use Lenorix\DatadisClient\PublicApi\PublicApi;
@@ -27,10 +26,6 @@ arch('source classes are final, except the exception base')
     ->classes()
     ->toBeFinal()
     ->ignoring(DatadisException::class);
-
-arch('applications can depend on an interface of the client, and stand in for it in their tests')
-    ->expect(DatadisClient::class)
-    ->toImplement(DatadisClientInterface::class);
 
 arch('every exception extends DatadisException')
     ->expect('Lenorix\DatadisClient\Exceptions')

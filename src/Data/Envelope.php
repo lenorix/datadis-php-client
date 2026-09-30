@@ -102,7 +102,7 @@ final class Envelope
     {
         $raw = $decoded['distributorError'] ?? [];
 
-        // Documented as a list of objects, but a failure must not be lost because of its shape.
+        // TOLERATED, NO SOURCE: documented as a list of objects; text is accepted so a failure is not lost.
         if (is_string($raw) && trim($raw) !== '') {
             return [DistributorError::fromRow(['errorDescription' => $raw])];
         }
@@ -111,7 +111,7 @@ final class Envelope
             return [];
         }
 
-        // Documented as a list, but a single error object must not be lost.
+        // TOLERATED, NO SOURCE: documented as a list; a single error object is accepted so it is not lost.
         if ($raw !== [] && ! array_is_list($raw)) {
             $raw = [$raw];
         }

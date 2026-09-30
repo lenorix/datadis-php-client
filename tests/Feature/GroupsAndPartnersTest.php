@@ -12,7 +12,7 @@ it('lists the groups of the account', function (string $body) {
     $s = Scenario::make();
     $s->http->queue(Responses::datadis($body));
 
-    $result = $s->client->groups();
+    $result = $s->client->getGroups();
 
     expect($s->http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/get-groups-v2')
         ->and($s->http->requests()[1]->getUri()->getQuery())->toBe('')
@@ -26,7 +26,7 @@ it('lists the groups of the account', function (string $body) {
 it('refuses groups in v1, where they do not exist', function () {
     $s = Scenario::make(ApiVersion::V1);
 
-    expect(fn () => $s->client->groups())->toThrow(UnsupportedOperationException::class)
+    expect(fn () => $s->client->getGroups())->toThrow(UnsupportedOperationException::class)
         ->and($s->http->requests())->toBe([]);
 });
 
@@ -34,7 +34,7 @@ it('lists the users of a partner', function () {
     $s = Scenario::make();
     $s->http->queue(Responses::datadis('[{"nif":"87654321X"}]'));
 
-    $users = $s->client->partnerUsers();
+    $users = $s->client->partnerUserList();
 
     expect($s->http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/partner-user-list')
         ->and($users)->toBe([['nif' => '87654321X']]);

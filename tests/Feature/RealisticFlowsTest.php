@@ -56,7 +56,7 @@ it('finds a supply by the CUPS printed on an invoice and queries it with the CUP
 
     // Invoices often print the 20 character form; Datadis refuses it on data calls (verified).
     $supply = $client->findSupply(Cups::fromString('es0031300000000001jn'));
-    $client->consumptionOf($supply, Month::of(2026, 7));
+    $client->getConsumptionDataOf($supply, Month::of(2026, 7));
 
     parse_str($http->requests()[2]->getUri()->getQuery(), $query);
 
@@ -75,11 +75,11 @@ it('keeps using the token for its 24 hours and logs in again just before it expi
         Responses::datadis('{"supplies":[],"distributorError":[]}'),
     );
 
-    $client->supplies();
+    $client->getSupplies();
     $clock->advance(86400 - 121);
-    $client->supplies();
+    $client->getSupplies();
     $clock->advance(2);
-    $client->supplies();
+    $client->getSupplies();
 
     $paths = array_map(fn ($r) => $r->getUri()->getPath(), $http->requests());
 
@@ -100,7 +100,7 @@ it('counts a query answered after a refused token and a new login against the 24
         Responses::text(Tokens::datadis($clock->now()->getTimestamp())),
         Responses::datadis($version === ApiVersion::V1 ? '[]' : '{"timeCurve":[],"distributorError":[]}'),
     );
-    $query = fn () => $client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 7));
+    $query = fn () => $client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 7));
 
     $query();
 
@@ -115,7 +115,7 @@ it('counts a query whose new login failed after a refused token, since the query
         refusedTokenAnswer(),
         Responses::datadisError('bad credentials', 401),
     );
-    $query = fn () => $client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 7));
+    $query = fn () => $client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 7));
 
     expect($query)->toThrow(AuthenticationException::class)
         ->and($query)->toThrow(RepetitionWindowException::class)
@@ -131,19 +131,19 @@ it('retries through the client only the calls that are safe to repeat', function
     expect($http->requests())->toHaveCount($requests);
 })->with([
     'supplies after a gateway error' => [
-        fn (DatadisClient $c) => $c->supplies(),
+        fn (DatadisClient $c) => $c->getSupplies(),
         [Responses::empty(503), Responses::datadis('{"supplies":[],"distributorError":[]}')],
         3,
         null,
     ],
     'contract detail after the empty 500 of a missing parameter' => [
-        fn (DatadisClient $c) => $c->contractDetail(Cups::fromString(Scenario::CUPS), '2'),
+        fn (DatadisClient $c) => $c->getContractDetail(Cups::fromString(Scenario::CUPS), '2'),
         [Responses::empty(500)],
         2,
         ServiceUnavailableException::class,
     ],
     'consumption after a gateway error' => [
-        fn (DatadisClient $c) => $c->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 7)),
+        fn (DatadisClient $c) => $c->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 7)),
         [Responses::empty(503)],
         2,
         ServiceUnavailableException::class,

@@ -43,19 +43,13 @@ Applied:
 2. `TransportException` is no longer a kind of `ServiceUnavailableException`, so catching "try again later" does not also retry timeouts of guarded calls.
 3. Readings carry `hourOfDay`, so quarter-hourly data works with the tariff period mapper; the README had passed the quarter index (0-95) to it.
 4. The docs no longer say a month not yet published is a `NoDataException`: it is an empty result.
-5. Calls that take a listed `Supply` (`consumptionOf()` and the like) and `DatadisClientInterface` for applications that mock the client.
+5. Calls that take a listed `Supply` (`getConsumptionDataOf()` and the like).
 6. Endpoints are one internal enum; retries are an allowlist; the 24 hour guard is its own internal class; classes outside the public API are `@internal`; the user agent has no version to go stale.
 7. Tests: filler and duplicates removed, answers aligned with the real ones, property oracles made independent, and whole flows added (a supply found by its 20 character CUPS, the 24 hour token, the guard across a 401, retries through the client).
 
-Left for the maintainer to decide before 1.0 (not changed):
+Decided with the maintainer afterwards (see [design-decisions.md](design-decisions.md)): Datadis's own names for methods, parameters and fields; v2 as the default; no client interface; tolerated shapes, contract detail as a list, raw answers of uncaptured calls and one time zone per client kept as they are.
 
-- Names and shapes of the public API: method names (`partnerDeleteUser`, `reactive`, `newAuthorization`), DTO field naming (units, `date`/`day`, `startDate`/`validFrom`, raw versus renamed keys), `contractDetail()` returning a list, and raw `string`/`array` returns of the unverified endpoints.
-- `PublicApi\PublicApi` repeating its namespace, and moving the decoding helpers out of `Data`.
-- The time zone per client rather than per supply, a scoped client per holder (`forHolder()`), a public testing fake, and merging the constructor with `fromArray()`.
-- Defensive shapes no source documents but the code accepts: `distributorError` as text or a single object, `distExistenceUser` as a bare list, the v1 list-wrapped distributors answer, `reactiveEnergy` as a list, and the public API `content`/`data` envelopes and single-object answer.
-- Whether `ApiVersion::V2` stays the default while every real capture so far was on v1 paths.
-- Whether applications may implement `DatadisClientInterface` or only mock it: if they implement it, every endpoint added later is a breaking change for them.
-- `foreach` and `count()` on an `ApiResult` now walk its records; changing that later would break callers silently.
+Still open: `PublicApi\PublicApi` repeating its namespace, moving the decoding helpers out of `Data`, a scoped client per holder, and merging the constructor with `fromArray()`.
 
 ## Bugs of other implementations checked
 

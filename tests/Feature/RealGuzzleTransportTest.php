@@ -48,12 +48,12 @@ it('builds a working Guzzle client when none is given', function (Closure $call,
     throw new LogicException('Expected a TransportException.');
 })->with([
     'private API, whose login fails before any data call' => [
-        fn () => (new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://127.0.0.1:1', timeout: 5.0, connectTimeout: 2.0)))->supplies(),
+        fn () => (new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://127.0.0.1:1', timeout: 5.0, connectTimeout: 2.0)))->getSupplies(),
         false,
     ],
     'public API' => [
         fn () => (new PublicApi(new ConnectionSettings(baseUrl: 'https://127.0.0.1:1', timeout: 5.0, connectTimeout: 2.0)))
-            ->search(new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid])),
+            ->apiSearch(new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid])),
         true,
     ],
 ]);

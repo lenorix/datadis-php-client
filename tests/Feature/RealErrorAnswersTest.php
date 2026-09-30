@@ -22,7 +22,7 @@ use Lenorix\DatadisClient\Values\Nif;
  * end assume v2 answers the same way, which is not verified.
  */
 
-$consumption = fn ($c) => $c->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 6), Month::of(2026, 6));
+$consumption = fn ($c) => $c->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 6), Month::of(2026, 6));
 
 /** Asserts the failure and that exactly one data request was made (no hidden retry or re-login). */
 function expectRealFailure(Scenario $s, Closure $call, string $class, int $status): DatadisException
@@ -117,7 +117,7 @@ it('reads "No supplies" as an empty list and finds no supply in it', function ()
     $s = Scenario::make(ApiVersion::V1);
     $s->http->queue(Responses::datadisError('No supplies', 404), Responses::datadisError('No supplies', 404));
 
-    expect($s->client->supplies()->isEmpty())->toBeTrue()
+    expect($s->client->getSupplies()->isEmpty())->toBeTrue()
         ->and($s->client->findSupply(Cups::fromString(Scenario::CUPS)))->toBeNull()
         ->and($s->http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/get-supplies');
 });
@@ -126,21 +126,21 @@ it('still reports other no-data answers of supplies as no data', function () {
     $s = Scenario::make(ApiVersion::V1);
     $s->http->queue(Responses::empty(200));
 
-    $s->client->supplies();
+    $s->client->getSupplies();
 })->throws(NoDataException::class);
 
 it('reports an authorizedNif that authorized nothing as an authorization failure', function () {
     $s = Scenario::make(ApiVersion::V1);
     $s->http->queue(Responses::datadisError('No authorized supplies', 403));
 
-    expectRealFailure($s, fn ($c) => $c->supplies(Nif::fromString('87654321X')), AuthorizationException::class, 403);
+    expectRealFailure($s, fn ($c) => $c->getSupplies(Nif::fromString('87654321X')), AuthorizationException::class, 403);
 });
 
 it('reads the all-blank contract row Datadis sends for a CUPS it cannot see as no contract', function () {
     $s = Scenario::make(ApiVersion::V1);
     $s->http->queue(Responses::datadis(datadisFixture('v1/contract-detail-blank.json')));
 
-    $result = $s->client->contractDetail(Cups::fromString(Scenario::CUPS), '2');
+    $result = $s->client->getContractDetail(Cups::fromString(Scenario::CUPS), '2');
 
     expect($result->isEmpty())->toBeTrue()
         ->and($result->skippedRows)->toBe(1)
@@ -159,5 +159,5 @@ it('assumes v2 sends the blank contract row inside its envelope (unverified: cap
     $blank = json_decode(datadisFixture('v1/contract-detail-blank.json'), true);
     $s->http->queue(Responses::datadis(['contract' => $blank, 'distributorError' => []]));
 
-    expect($s->client->contractDetail(Cups::fromString(Scenario::CUPS), '2')->isEmpty())->toBeTrue();
+    expect($s->client->getContractDetail(Cups::fromString(Scenario::CUPS), '2')->isEmpty())->toBeTrue();
 });

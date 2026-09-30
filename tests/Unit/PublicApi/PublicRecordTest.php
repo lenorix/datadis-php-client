@@ -12,7 +12,7 @@ it('exposes the documented aggregate fields', function () use ($row) {
     expect($record->text('community'))->toBe('Andalucía')
         ->and($record->date()?->format('Y-m-d'))->toBe('2022-04-16')
         ->and($record->decimal('sumEnergy'))->toBe('30300495.000')
-        ->and($record->contracts())->toBe(5062835)
+        ->and($record->sumContracts())->toBe(5062835)
         ->and($record->text('missing'))->toBeNull()
         ->and($record->raw)->toBe($row());
 });
@@ -42,12 +42,12 @@ it('reads the day, the energy, the power and the contracts in every documented s
     $sum = PublicRecord::fromRow(json_decode((string) file_get_contents(__DIR__.'/../../Fixtures/public/sum-search-auto.json'), true)[0]);
 
     expect($search->date()?->format('Y-m-d'))->toBe('2022-04-25')
-        ->and($search->energy())->toBe('4332298.000')
-        ->and($search->power())->toBe('121843.000')
-        ->and($search->contracts())->toBe(1609)
+        ->and($search->sumEnergy())->toBe('4332298.000')
+        ->and($search->sumPower())->toBe('121843.000')
+        ->and($search->sumContracts())->toBe(1609)
         ->and($sum->date())->toBeNull()
-        ->and($sum->energy())->toBe('55304627.000')
-        ->and($sum->contracts())->toBe(16577);
+        ->and($sum->sumEnergy())->toBe('55304627.000')
+        ->and($sum->sumContracts())->toBe(16577);
 });
 
 it('has no date when the parts are missing or impossible', function (array $row) {

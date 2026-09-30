@@ -24,6 +24,7 @@ final class DistributorCodes
     {
         $lists = match (true) {
             $decoded === [] => [],
+            // TOLERATED, NO SOURCE: a v1 answer wrapped in a list.
             array_is_list($decoded) => self::fromList($decoded, $endpoint),
             array_key_exists('distExistenceUser', $decoded) => [self::codesOf($decoded['distExistenceUser'], $endpoint)],
             array_key_exists('distributorCodes', $decoded) => [$decoded['distributorCodes'] ?? []],
@@ -82,6 +83,7 @@ final class DistributorCodes
     {
         return match (true) {
             $value === null, $value === [] => [],
+            // TOLERATED, NO SOURCE: `distExistenceUser` as a bare list of codes.
             is_array($value) && array_is_list($value) => $value,
             is_array($value) && array_key_exists('distributorCodes', $value) => $value['distributorCodes'] ?? [],
             default => throw new UninterpretableResponseException("{$endpoint}: the answer has no distributor codes.", endpoint: $endpoint),

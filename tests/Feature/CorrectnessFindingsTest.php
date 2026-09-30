@@ -53,21 +53,21 @@ it('reads a null list of distributor codes as no codes', function (string $body)
     $s = Scenario::make();
     $s->http->queue(Responses::datadis($body));
 
-    expect($s->client->distributors()->isEmpty())->toBeTrue();
+    expect($s->client->getDistributorsWithSupplies()->isEmpty())->toBeTrue();
 })->with(['{"distExistenceUser":{"distributorCodes":null},"distributorError":[]}', '{"distributorCodes":null}']);
 
 it('reads a 404 on the distributors list as an empty list, like the supplies list', function () {
     $s = Scenario::make(ApiVersion::V1);
     $s->http->queue(Responses::datadisError('No supplies', 404));
 
-    expect($s->client->distributors()->isEmpty())->toBeTrue();
+    expect($s->client->getDistributorsWithSupplies()->isEmpty())->toBeTrue();
 });
 
 it('keeps big numeric ids exact', function () {
     $s = Scenario::make();
     $s->http->queue(Responses::datadis('[{"id":12345678901234567890,"ownerDocument":"12345678Z"}]'));
 
-    expect($s->client->authorizations()->records[0]->id)->toBe('12345678901234567890');
+    expect($s->client->listAuthorization()->records[0]->id)->toBe('12345678901234567890');
 });
 
 it('is queryable only with a distributor code and a point type Datadis accepts', function (array $row, bool $queryable) {

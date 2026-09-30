@@ -15,7 +15,7 @@ it('decodes a contract detail', function () use ($zone, $row) {
         ->and($contract->marketer)->toBe('COMERCIALIZADORA EJEMPLO')
         ->and($contract->tension)->toBe('Baja tensión')
         ->and($contract->accessFare)->toBe('BAJA TENSION y POTENCIA <= 15 kW')
-        ->and($contract->contractedPowerKw)->toBe(['4.60', '4.60'])
+        ->and($contract->contractedPowerkW)->toBe(['4.60', '4.60'])
         ->and($contract->modePowerControl)->toBe('ICP')
         ->and($contract->codeFare)->toBe('2T')
         ->and($contract->startDate?->format('Y-m-d'))->toBe('2022-01-01')
@@ -31,9 +31,9 @@ it('decodes a contract detail', function () use ($zone, $row) {
 it('reads the dash dated ownership periods', function () use ($zone, $row) {
     $contract = ContractDetail::fromRow($row(), $zone);
 
-    expect($contract->ownerPeriods)->toHaveCount(1)
-        ->and($contract->ownerPeriods[0]['start']?->format('Y-m-d'))->toBe('2022-01-01')
-        ->and($contract->ownerPeriods[0]['end'])->toBeNull();
+    expect($contract->dateOwner)->toHaveCount(1)
+        ->and($contract->dateOwner[0]['start']?->format('Y-m-d'))->toBe('2022-01-01')
+        ->and($contract->dateOwner[0]['end'])->toBeNull();
 });
 
 it('accepts the alternative spellings seen in the wild', function () use ($zone, $row) {
@@ -50,8 +50,8 @@ it('accepts the alternative spellings seen in the wild', function () use ($zone,
 it('keeps only what it can read from a sparse row', function () use ($zone) {
     $contract = ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'contractedPowerkW' => 'n/a', 'endDate' => null, 'dateOwner' => 'x'], $zone);
 
-    expect($contract->contractedPowerKw)->toBe([])
-        ->and($contract->ownerPeriods)->toBe([])
+    expect($contract->contractedPowerkW)->toBe([])
+        ->and($contract->dateOwner)->toBe([])
         ->and($contract->endDate)->toBeNull()
         ->and($contract->accessFare)->toBeNull()
         ->and($contract->marketer)->toBeNull();
@@ -60,7 +60,7 @@ it('keeps only what it can read from a sparse row', function () use ($zone) {
 it('keeps the position of every contracted power because the position is the period', function () use ($zone) {
     $contract = ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'contractedPowerkW' => [4.6, null, 'x', 5]], $zone);
 
-    expect($contract->contractedPowerKw)->toBe(['4.60', null, null, '5.00']);
+    expect($contract->contractedPowerkW)->toBe(['4.60', null, null, '5.00']);
 });
 
 it('rejects a row without a cups', function () use ($zone) {
@@ -87,7 +87,7 @@ it('has no tariff without a description', function () use ($zone) {
 it('reads powers sent as an object, an empty power as missing', function () use ($zone) {
     $contract = ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'contractedPowerkW' => ['1' => 4.6, '2' => '']], $zone);
 
-    expect($contract->contractedPowerKw)->toBe(['4.60', null]);
+    expect($contract->contractedPowerkW)->toBe(['4.60', null]);
 });
 
 it('reads ownership periods with an end, spaces, slashes or no usable date', function () use ($zone) {
@@ -97,8 +97,8 @@ it('reads ownership periods with an end, spaces, slashes or no usable date', fun
         'not a period',
     ]], $zone);
 
-    expect($contract->ownerPeriods)->toHaveCount(2)
-        ->and($contract->ownerPeriods[0]['start']?->format('Y-m-d'))->toBe('2020-01-01')
-        ->and($contract->ownerPeriods[0]['end']?->format('Y-m-d'))->toBe('2021-12-31')
-        ->and($contract->ownerPeriods[1])->toBe(['start' => null, 'end' => null]);
+    expect($contract->dateOwner)->toHaveCount(2)
+        ->and($contract->dateOwner[0]['start']?->format('Y-m-d'))->toBe('2020-01-01')
+        ->and($contract->dateOwner[0]['end']?->format('Y-m-d'))->toBe('2021-12-31')
+        ->and($contract->dateOwner[1])->toBe(['start' => null, 'end' => null]);
 });

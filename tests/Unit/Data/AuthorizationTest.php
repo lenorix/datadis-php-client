@@ -14,8 +14,8 @@ it('decodes an authorization', function () use ($zone, $rows) {
         ->and($authorization->ownerDocument)->toBe('12345678Z')
         ->and($authorization->requesterDocument)->toBe('87654321X')
         ->and($authorization->status)->toBe('ACTIVE')
-        ->and($authorization->validFrom?->format('Y-m-d'))->toBe('2026-01-01')
-        ->and($authorization->validTo?->format('Y-m-d'))->toBe('2027-12-31')
+        ->and($authorization->validityDateStart?->format('Y-m-d'))->toBe('2026-01-01')
+        ->and($authorization->validityDateEnd?->format('Y-m-d'))->toBe('2027-12-31')
         ->and($authorization->distributorCodeFather)->toBe('2');
 });
 
@@ -23,8 +23,8 @@ it('accepts dashed dates, string ids and open ends', function () use ($zone, $ro
     $authorization = Authorization::fromRow($rows()[1], $zone);
 
     expect($authorization->id)->toBe('1235')
-        ->and($authorization->validFrom?->format('Y-m-d'))->toBe('2024-05-01')
-        ->and($authorization->validTo)->toBeNull()
+        ->and($authorization->validityDateStart?->format('Y-m-d'))->toBe('2024-05-01')
+        ->and($authorization->validityDateEnd)->toBeNull()
         ->and($authorization->distributorCodeFather)->toBeNull();
 });
 
@@ -37,5 +37,5 @@ it('accepts a row identified by any one of its fields', function (array $row) us
 })->with([[['id' => 1]], [['ownerDocument' => '12345678Z']], [['requesterDocument' => '87654321X']]]);
 
 it('reads dates with surrounding spaces', function () use ($zone) {
-    expect(Authorization::fromRow(['id' => 1, 'validityDateStart' => ' 2026/01/01 '], $zone)->validFrom?->format('Y-m-d'))->toBe('2026-01-01');
+    expect(Authorization::fromRow(['id' => 1, 'validityDateStart' => ' 2026/01/01 '], $zone)->validityDateStart?->format('Y-m-d'))->toBe('2026-01-01');
 });

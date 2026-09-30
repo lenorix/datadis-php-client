@@ -11,11 +11,11 @@ it('decodes reactive energy per period', function () use ($payload) {
 
     expect($reactive->cups)->toBe('ES0031300000000001JN0F')
         ->and($reactive->code)->toBe('0')
-        ->and($reactive->codeDescription)->toBe('OK')
-        ->and($reactive->entries)->toHaveCount(2)
-        ->and($reactive->entries[0]->date)->toBe('2025/03')
-        ->and($reactive->entries[0]->periods)->toBe([1 => '1.500', 2 => '2.000', 3 => '0.000', 5 => '0.250', 6 => '0.000'])
-        ->and($reactive->entries[1]->periods)->toBe([1 => '0.000']);
+        ->and($reactive->code_desc)->toBe('OK')
+        ->and($reactive->energy)->toHaveCount(2)
+        ->and($reactive->energy[0]->date)->toBe('2025/03')
+        ->and($reactive->energy[0]->periods)->toBe([1 => '1.500', 2 => '2.000', 3 => '0.000', 5 => '0.250', 6 => '0.000'])
+        ->and($reactive->energy[1]->periods)->toBe([1 => '0.000']);
 });
 
 it('returns null for an empty reactive object', function () {

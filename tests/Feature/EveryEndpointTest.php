@@ -25,7 +25,7 @@ $envelope = fn (string $key, mixed $rows) => [$key => $rows, 'distributorError' 
 
 $cases = [
     'supplies' => [
-        'call' => fn (DatadisClient $c) => $c->supplies(Nif::fromString($third), '2'),
+        'call' => fn (DatadisClient $c) => $c->getSupplies(Nif::fromString($third), '2'),
         'path' => 'get-supplies',
         'query' => ['authorizedNif' => $third, 'distributorCode' => '2'],
         'v1' => datadisFixture('v1/supplies-authorized.json'),
@@ -33,7 +33,7 @@ $cases = [
         'check' => fn ($result) => expect($result->records[0]->cups)->toBe($cups)->and($result->records[0]->pointType)->toBe(5),
     ],
     'distributors' => [
-        'call' => fn (DatadisClient $c) => $c->distributors(Nif::fromString($third)),
+        'call' => fn (DatadisClient $c) => $c->getDistributorsWithSupplies(Nif::fromString($third)),
         'path' => 'get-distributors-with-supplies',
         'query' => ['authorizedNif' => $third],
         'v1' => '{"distributorCodes":["7","2","5","3","8","1","6","4"]}',
@@ -41,15 +41,15 @@ $cases = [
         'check' => fn ($result) => expect($result->records)->toBe(['7', '2', '5', '3', '8', '1', '6', '4']),
     ],
     'contract detail' => [
-        'call' => fn (DatadisClient $c) => $c->contractDetail(Cups::fromString($cups), '2', Nif::fromString($third)),
+        'call' => fn (DatadisClient $c) => $c->getContractDetail(Cups::fromString($cups), '2', Nif::fromString($third)),
         'path' => 'get-contract-detail',
         'query' => ['cups' => $cups, 'distributorCode' => '2', 'authorizedNif' => $third],
         'v1' => datadisFixture('v1/contract-detail-authorized.json'),
         'v2key' => 'contract',
-        'check' => fn ($result) => expect($result->records[0]->codeFare)->toBe('2T')->and($result->records[0]->contractedPowerKw)->toBe(['3.45', '3.45']),
+        'check' => fn ($result) => expect($result->records[0]->codeFare)->toBe('2T')->and($result->records[0]->contractedPowerkW)->toBe(['3.45', '3.45']),
     ],
     'hourly consumption' => [
-        'call' => fn (DatadisClient $c) => $c->consumption(Cups::fromString($cups), '2', 5, Month::of(2026, 7), Month::of(2026, 7), authorizedNif: Nif::fromString($third)),
+        'call' => fn (DatadisClient $c) => $c->getConsumptionData(Cups::fromString($cups), '2', 5, Month::of(2026, 7), Month::of(2026, 7), authorizedNif: Nif::fromString($third)),
         'path' => 'get-consumption-data',
         'query' => ['cups' => $cups, 'distributorCode' => '2', 'startDate' => '2026/07', 'endDate' => '2026/07', 'measurementType' => '0', 'pointType' => '5', 'authorizedNif' => $third],
         'v1' => (string) json_encode(Payloads::realMonth(2026, 7)),
@@ -57,7 +57,7 @@ $cases = [
         'check' => fn ($result) => expect($result->records)->toHaveCount(744)->and($result->records[743]->end?->format('Y-m-d H:i'))->toBe('2026-08-01 00:00'),
     ],
     'quarter-hourly consumption' => [
-        'call' => fn (DatadisClient $c) => $c->consumption(Cups::fromString($cups), '2', 5, Month::of(2026, 6), Month::of(2026, 6), MeasurementType::QuarterHourly),
+        'call' => fn (DatadisClient $c) => $c->getConsumptionData(Cups::fromString($cups), '2', 5, Month::of(2026, 6), Month::of(2026, 6), MeasurementType::QuarterHourly),
         'path' => 'get-consumption-data',
         'query' => ['cups' => $cups, 'distributorCode' => '2', 'startDate' => '2026/06', 'endDate' => '2026/06', 'measurementType' => '1', 'pointType' => '5'],
         // A type 5 supply answers quarter-hourly requests with an empty list (verified).
@@ -66,12 +66,12 @@ $cases = [
         'check' => fn ($result) => expect($result->isEmpty())->toBeTrue(),
     ],
     'maximum power' => [
-        'call' => fn (DatadisClient $c) => $c->maxPower(Cups::fromString($cups), '2', Month::of(2026, 7), Month::of(2026, 7), Nif::fromString($third)),
+        'call' => fn (DatadisClient $c) => $c->getMaxPower(Cups::fromString($cups), '2', Month::of(2026, 7), Month::of(2026, 7), Nif::fromString($third)),
         'path' => 'get-max-power',
         'query' => ['cups' => $cups, 'distributorCode' => '2', 'startDate' => '2026/07', 'endDate' => '2026/07', 'authorizedNif' => $third],
         'v1' => datadisFixture('v1/max-power-authorized.json'),
         'v2key' => 'maxPower',
-        'check' => fn ($result) => expect(array_map(fn ($r) => $r->maxPowerKw, $result->records))->toBe(['3.516', '2.500', '2.976']),
+        'check' => fn ($result) => expect(array_map(fn ($r) => $r->maxPower, $result->records))->toBe(['3.516', '2.500', '2.976']),
     ],
 ];
 
@@ -105,20 +105,20 @@ it('calls reactive energy and groups on v2 only', function () {
     $s = Scenario::make(ApiVersion::V2);
     $s->http->queue(Responses::datadis(datadisFixture('v2/reactive.json')), Responses::datadis(datadisFixture('v2/groups.json')));
 
-    $reactive = $s->client->reactive(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 7), Month::of(2026, 7));
-    $groups = $s->client->groups();
+    $reactive = $s->client->getReactiveData(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 7), Month::of(2026, 7));
+    $groups = $s->client->getGroups();
 
     parse_str($s->http->requests()[1]->getUri()->getQuery(), $query);
 
     expect($s->http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/get-reactive-data-v2')
         ->and($query)->toBe(['cups' => Scenario::CUPS, 'distributorCode' => '2', 'startDate' => '2026/07', 'endDate' => '2026/07'])
-        ->and($reactive->records[0]->entries[0]->periods[1])->toBe('1.500')
+        ->and($reactive->records[0]->energy[0]->periods[1])->toBe('1.500')
         ->and($s->http->requests()[2]->getUri()->getPath())->toBe('/api-private/api/get-groups-v2')
         ->and($groups->records[0]->name)->toBe('Oficinas');
 
     $v1 = Scenario::make(ApiVersion::V1);
-    expect(fn () => $v1->client->reactive(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 7), Month::of(2026, 7)))->toThrow(UnsupportedOperationException::class)
-        ->and(fn () => $v1->client->groups())->toThrow(UnsupportedOperationException::class)
+    expect(fn () => $v1->client->getReactiveData(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 7), Month::of(2026, 7)))->toThrow(UnsupportedOperationException::class)
+        ->and(fn () => $v1->client->getGroups())->toThrow(UnsupportedOperationException::class)
         ->and($v1->http->requests())->toBe([]);
 });
 
@@ -135,8 +135,8 @@ it('calls the authorization and partner endpoints on the same paths whatever the
 
     $s->client->newAuthorization(Nif::fromString('87654321X'));
     $s->client->cancelAuthorization(Nif::fromString('87654321X'));
-    $s->client->authorizations();
-    $s->client->partnerUsers();
+    $s->client->listAuthorization();
+    $s->client->partnerUserList();
     $s->client->partnerDeleteUser(Nif::fromString('87654321X'));
     $s->client->partnerAgreementDate();
 

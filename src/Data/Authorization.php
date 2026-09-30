@@ -23,8 +23,8 @@ final readonly class Authorization
         public ?string $ownerDocument,
         public ?string $requesterDocument,
         public ?string $status,
-        public ?DateTimeImmutable $validFrom,
-        public ?DateTimeImmutable $validTo,
+        public ?DateTimeImmutable $validityDateStart,
+        public ?DateTimeImmutable $validityDateEnd,
         public ?string $distributorCodeFather,
         public array $raw,
     ) {}

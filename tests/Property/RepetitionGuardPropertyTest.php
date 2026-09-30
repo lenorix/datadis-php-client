@@ -42,11 +42,11 @@ it('sends a guarded query only when the model says the window is free', function
                 fn () => new ConnectException('timeout', new Request('GET', 'https://datadis.test')),
             ];
             $calls = [
-                fn () => $client->consumption(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1)),
-                fn () => $client->maxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1)),
+                fn () => $client->getConsumptionData(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1)),
+                fn () => $client->getMaxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1)),
                 // Same parameters as max power: the stricter reading treats it as the same query.
-                fn () => $client->reactive(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1)),
-                fn () => $client->maxPower(Cups::fromString('ES0031300000000002JN'), '2', Month::of(2026, 2), Month::of(2026, 2)),
+                fn () => $client->getReactiveData(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1)),
+                fn () => $client->getMaxPower(Cups::fromString('ES0031300000000002JN'), '2', Month::of(2026, 2), Month::of(2026, 2)),
             ];
             $modelKey = [0 => 'consumption', 1 => 'power', 2 => 'power', 3 => 'other'];
             $model = [];

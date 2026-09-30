@@ -41,8 +41,8 @@ final class SupplyMatcher
             return $candidate->isOpenEnded();
         }
 
-        $candidateStart = $candidate->validFrom?->getTimestamp() ?? PHP_INT_MIN;
-        $bestStart = $best->validFrom?->getTimestamp() ?? PHP_INT_MIN;
+        $candidateStart = $candidate->validDateFrom?->getTimestamp() ?? PHP_INT_MIN;
+        $bestStart = $best->validDateFrom?->getTimestamp() ?? PHP_INT_MIN;
 
         return $candidateStart > $bestStart;
     }

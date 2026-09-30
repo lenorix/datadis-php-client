@@ -42,16 +42,16 @@ it('reads a real contract seen by a third party', function () {
     $s = realScenario();
     $s->http->queue(Responses::text(datadisFixture('v1/contract-detail-authorized.json'), 200, ['Content-Type' => 'text/plain']));
 
-    $contract = $s->client->contractDetail(Cups::fromString(Scenario::CUPS), '2', Nif::fromString('87654321X'))->records[0];
+    $contract = $s->client->getContractDetail(Cups::fromString(Scenario::CUPS), '2', Nif::fromString('87654321X'))->records[0];
 
     expect($contract->tariff())->toBe(AccessTariff::T20TD)
-        ->and($contract->contractedPowerKw)->toBe(['3.45', '3.45'])
+        ->and($contract->contractedPowerkW)->toBe(['3.45', '3.45'])
         ->and($contract->marketer)->toBe('-')
         ->and($contract->timeDiscrimination)->toBe('TARIFA DE TRES PERIODOS')
         ->and($contract->lastMarketerDate)->toBeNull()
         ->and($contract->maxPowerInstall)->toBe('5.500')
         ->and($contract->installedCapacity)->toBeNull()
-        ->and($contract->ownerPeriods[0]['start']?->format('Y-m-d'))->toBe('2024-02-01')
+        ->and($contract->dateOwner[0]['start']?->format('Y-m-d'))->toBe('2024-02-01')
         ->and($contract->isOpenEnded())->toBeTrue();
 });
 
@@ -63,14 +63,14 @@ it('reads a real month of hourly consumption, every hour in place', function (in
     }
     $s->http->queue(Responses::text((string) json_encode($all, JSON_PRESERVE_ZERO_FRACTION), 200, ['Content-Type' => 'text/plain']));
 
-    $readings = $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of($year, $from), Month::of($year, $to))->records;
+    $readings = $s->client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of($year, $from), Month::of($year, $to))->records;
 
     $madrid = new DateTimeZone('Europe/Madrid');
 
     expect($readings)->toHaveCount($rows)
         ->and($readings[0]->start?->getTimestamp())->toBe((new DateTimeImmutable(sprintf('%04d-%02d-01', $year, $from), $madrid))->getTimestamp())
         ->and(end($readings)->end?->getTimestamp())->toBe((new DateTimeImmutable(sprintf('%04d-%02d-01', $year, $to + 1), $madrid))->getTimestamp())
-        ->and($readings[0]->surplusKWh)->toBeNull()
+        ->and($readings[0]->surplusEnergyKWh)->toBeNull()
         ->and($readings[0]->isReal())->toBeTrue();
 
     foreach ($readings as $i => $reading) {
@@ -89,7 +89,7 @@ it('reads the current month, which has data up to about two days ago', function 
     // "Now" is 2026-09-15: the answer ends on the 13th.
     $s->http->queue(Responses::datadis(Payloads::realMonth(2026, 9, untilDay: 13)));
 
-    $readings = $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 9), Month::of(2026, 9))->records;
+    $readings = $s->client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 9), Month::of(2026, 9))->records;
 
     expect($readings)->toHaveCount(312)
         ->and(end($readings)->end?->format('Y-m-d H:i'))->toBe('2026-09-14 00:00');
@@ -99,10 +99,10 @@ it('reads real maximum power rows, one per period, in kW', function () {
     $s = realScenario();
     $s->http->queue(Responses::text(datadisFixture('v1/max-power-authorized.json'), 200, ['Content-Type' => 'text/plain']));
 
-    $readings = $s->client->maxPower(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 7), Month::of(2026, 7))->records;
+    $readings = $s->client->getMaxPower(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 7), Month::of(2026, 7))->records;
 
     expect(array_map(fn ($r) => $r->periodNumber(), $readings))->toBe([1, 2, 3])
-        ->and($readings[0]->maxPowerKw)->toBe('3.516')
+        ->and($readings[0]->maxPower)->toBe('3.516')
         ->and($readings[0]->instant?->format('Y-m-d H:i'))->toBe('2026-07-16 11:15')
         ->and($readings[1]->instant?->format('Y-m-d H:i'))->toBe('2026-07-10 00:00');
 });
@@ -111,14 +111,14 @@ it('gets an empty answer, not an error, for a wrong but existing distributor cod
     $s = realScenario();
     $s->http->queue(Responses::text('[]', 200, ['Content-Type' => 'text/plain']));
 
-    expect($s->client->consumption(Cups::fromString(Scenario::CUPS), '1', 5, Month::of(2026, 6), Month::of(2026, 6))->isEmpty())->toBeTrue();
+    expect($s->client->getConsumptionData(Cups::fromString(Scenario::CUPS), '1', 5, Month::of(2026, 6), Month::of(2026, 6))->isEmpty())->toBeTrue();
 });
 
 it('classifies the rest of the real refusals', function (string $body, string $class) {
     $s = realScenario();
     $s->http->queue(Responses::text($body, 400, ['Content-Type' => 'application/json;charset=UTF-8']));
 
-    expect(fn () => $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 6), Month::of(2026, 6)))->toThrow($class);
+    expect(fn () => $s->client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 6), Month::of(2026, 6)))->toThrow($class);
 })->with([
     'unknown distributor code on consumption' => ['CUPS o distributor no válido ', RequestRejectedException::class],
     'unknown measurement type' => ['MeasurementType incorrecto ', RequestRejectedException::class],

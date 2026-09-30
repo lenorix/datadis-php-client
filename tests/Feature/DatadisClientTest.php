@@ -44,7 +44,7 @@ it('lists supplies with the v2 endpoint', function () {
     [$client, $http] = scenario();
     $http->queue(Responses::datadis(datadisFixture('v2/supplies.json')));
 
-    $result = $client->supplies();
+    $result = $client->getSupplies();
 
     expect($http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/get-supplies-v2')
         ->and(queryOf($http))->toBe([])
@@ -57,7 +57,7 @@ it('sends authorizedNif only when it is a third party', function (?string $nif, 
     [$client, $http] = scenario();
     $http->queue(Responses::datadis('{"supplies":[],"distributorError":[]}'));
 
-    $client->supplies($nif === null ? null : Nif::fromString($nif));
+    $client->getSupplies($nif === null ? null : Nif::fromString($nif));
 
     expect(queryOf($http)['authorizedNif'] ?? null)->toBe($expected);
 })->with([
@@ -72,7 +72,7 @@ it('can filter supplies by distributor code', function () {
     [$client, $http] = scenario();
     $http->queue(Responses::datadis('{"supplies":[],"distributorError":[]}'));
 
-    $client->supplies(distributorCode: '2');
+    $client->getSupplies(distributorCode: '2');
 
     expect(queryOf($http))->toBe(['distributorCode' => '2']);
 });
@@ -81,21 +81,21 @@ it('reads the distributors of a v1 list wrapper', function () {
     [$client, $http] = scenario(ApiVersion::V1);
     $http->queue(Responses::datadis('[{"distributorCodes":["1","2"]}]'));
 
-    expect($client->distributors()->records)->toBe(['1', '2']);
+    expect($client->getDistributorsWithSupplies()->records)->toBe(['1', '2']);
 });
 
 it('returns an empty result for an empty contract list instead of failing', function () {
     [$client, $http] = scenario();
     $http->queue(Responses::datadis('{"contract":[],"distributorError":[]}'));
 
-    expect($client->contractDetail(Cups::fromString(CUPS22), '2')->isEmpty())->toBeTrue();
+    expect($client->getContractDetail(Cups::fromString(CUPS22), '2')->isEmpty())->toBeTrue();
 });
 
 it('requests consumption with every parameter Datadis requires', function () {
     [$client, $http] = scenario();
     $http->queue(Responses::datadis(datadisFixture('v2/consumption.json')));
 
-    $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 2));
+    $result = $client->getConsumptionData(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 2));
 
     expect($http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/get-consumption-data-v2')
         ->and(queryOf($http))->toBe([
@@ -115,7 +115,7 @@ it('places consumption days in the configured time zone', function () {
     [$client, $http] = scenario(zone: new DateTimeZone('Atlantic/Canary'));
     $http->queue(Responses::datadis(datadisFixture('v2/consumption.json')));
 
-    $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+    $result = $client->getConsumptionData(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
     expect($result->records[0]->day->getTimezone()->getName())->toBe('Atlantic/Canary');
 });
@@ -124,7 +124,7 @@ it('reports a distributor failure hidden inside a 200 as data, not as an excepti
     [$client, $http] = scenario();
     $http->queue(Responses::datadis(datadisFixture('v2/distributor-error-only.json')));
 
-    $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+    $result = $client->getConsumptionData(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
     expect($result->isEmptyBecauseOfErrors())->toBeTrue()->and($result->distributorErrors[0]->errorCode)->toBe('50');
 });
@@ -133,14 +133,14 @@ it('returns an empty result for an empty reactive answer', function () {
     [$client, $http] = scenario();
     $http->queue(Responses::datadis('{"reactiveEnergy":{},"distributorError":[]}'));
 
-    expect($client->reactive(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1))->isEmpty())->toBeTrue();
+    expect($client->getReactiveData(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1))->isEmpty())->toBeTrue();
 });
 
 it('refuses reactive energy in v1 without sending anything', function () {
     [$client, $http] = scenario(ApiVersion::V1);
 
     try {
-        $client->reactive(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
+        $client->getReactiveData(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
     } catch (UnsupportedOperationException $e) {
         expect($e->requestSent)->toBeFalse()->and($http->requests())->toBe([]);
 
@@ -163,21 +163,21 @@ it('refuses invalid requests before anything is sent', function (Closure $call) 
 
     throw new LogicException('Expected an InvalidRequestException.');
 })->with([
-    'empty distributor code' => [fn (DatadisClient $c) => $c->contractDetail(Cups::fromString(CUPS22), '')],
-    'distributor code with spaces' => [fn (DatadisClient $c) => $c->contractDetail(Cups::fromString(CUPS22), '2 3')],
-    'point type 0' => [fn (DatadisClient $c) => $c->consumption(Cups::fromString(CUPS22), '2', 0, Month::of(2026, 1), Month::of(2026, 1))],
-    'point type 6' => [fn (DatadisClient $c) => $c->consumption(Cups::fromString(CUPS22), '2', 6, Month::of(2026, 1), Month::of(2026, 1))],
-    'reversed range' => [fn (DatadisClient $c) => $c->maxPower(Cups::fromString(CUPS22), '2', Month::of(2026, 3), Month::of(2026, 1))],
-    'future month' => [fn (DatadisClient $c) => $c->maxPower(Cups::fromString(CUPS22), '2', Month::of(2026, 9), Month::of(2026, 10))],
-    'boundary month two years back' => [fn (DatadisClient $c) => $c->maxPower(Cups::fromString(CUPS22), '2', Month::of(2024, 9), Month::of(2026, 1))],
-    'older than two years' => [fn (DatadisClient $c) => $c->reactive(Cups::fromString(CUPS22), '2', Month::of(2023, 1), Month::of(2023, 1))],
+    'empty distributor code' => [fn (DatadisClient $c) => $c->getContractDetail(Cups::fromString(CUPS22), '')],
+    'distributor code with spaces' => [fn (DatadisClient $c) => $c->getContractDetail(Cups::fromString(CUPS22), '2 3')],
+    'point type 0' => [fn (DatadisClient $c) => $c->getConsumptionData(Cups::fromString(CUPS22), '2', 0, Month::of(2026, 1), Month::of(2026, 1))],
+    'point type 6' => [fn (DatadisClient $c) => $c->getConsumptionData(Cups::fromString(CUPS22), '2', 6, Month::of(2026, 1), Month::of(2026, 1))],
+    'reversed range' => [fn (DatadisClient $c) => $c->getMaxPower(Cups::fromString(CUPS22), '2', Month::of(2026, 3), Month::of(2026, 1))],
+    'future month' => [fn (DatadisClient $c) => $c->getMaxPower(Cups::fromString(CUPS22), '2', Month::of(2026, 9), Month::of(2026, 10))],
+    'boundary month two years back' => [fn (DatadisClient $c) => $c->getMaxPower(Cups::fromString(CUPS22), '2', Month::of(2024, 9), Month::of(2026, 1))],
+    'older than two years' => [fn (DatadisClient $c) => $c->getReactiveData(Cups::fromString(CUPS22), '2', Month::of(2023, 1), Month::of(2023, 1))],
 ]);
 
 it('accepts the whole 24 month window', function () {
     [$client, $http] = scenario();
     $http->queue(Responses::datadis('{"maxPower":[],"distributorError":[]}'));
 
-    $client->maxPower(Cups::fromString(CUPS22), '2', Month::of(2024, 10), Month::of(2026, 9));
+    $client->getMaxPower(Cups::fromString(CUPS22), '2', Month::of(2024, 10), Month::of(2026, 9));
 
     expect(queryOf($http)['startDate'])->toBe('2024/10')->and(queryOf($http)['endDate'])->toBe('2026/09');
 });
@@ -187,7 +187,7 @@ it('lets the HTTP failures through as typed exceptions', function (Closure $resp
     $http->queue($response());
 
     try {
-        $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+        $client->getConsumptionData(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
     } catch (Throwable $e) {
         expect($e)->toBeInstanceOf($class)
             ->and($e->requestSent)->toBeTrue()
@@ -218,7 +218,7 @@ it('gives the readings of both change days consecutive one hour intervals', func
     [$client, $http] = scenario();
     $http->queue(Responses::datadis(Payloads::envelope('timeCurve', Payloads::hourlyRows($date, $times))));
 
-    $readings = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of($year, $month), Month::of($year, $month))->records;
+    $readings = $client->getConsumptionData(Cups::fromString(CUPS22), '2', 5, Month::of($year, $month), Month::of($year, $month))->records;
     $zone = new DateTimeZone('Europe/Madrid');
     $midnight = new DateTimeImmutable(str_replace('/', '-', $date), $zone);
 
@@ -244,7 +244,7 @@ it('flags a third repetition and a label in the skipped hour instead of inventin
     ];
     $http->queue(Responses::datadis(Payloads::envelope('timeCurve', $rows)));
 
-    $readings = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2025, 10), Month::of(2026, 3))->records;
+    $readings = $client->getConsumptionData(Cups::fromString(CUPS22), '2', 5, Month::of(2025, 10), Month::of(2026, 3))->records;
 
     expect(array_map(fn ($r) => $r->hasValidTime(), $readings))->toBe([true, true, false, false]);
 });
@@ -256,7 +256,7 @@ it('skips a row with an absurd number instead of failing the whole answer', func
         ['date' => '2026/01/01', 'time' => '02:00', 'consumptionKWh' => 0.5],
     ])));
 
-    $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+    $result = $client->getConsumptionData(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
     expect($result->records)->toHaveCount(1)->and($result->skippedRows)->toBe(1);
 });
@@ -264,7 +264,7 @@ it('skips a row with an absurd number instead of failing the whole answer', func
 it('reads reactive energy tolerantly but never turns an unknown answer into an empty result', function (string $body, ?int $records) {
     [$client, $http] = scenario();
     $http->queue(Responses::datadis($body));
-    $call = fn () => $client->reactive(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
+    $call = fn () => $client->getReactiveData(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
 
     if ($records === null) {
         expect($call)->toThrow(UninterpretableResponseException::class);
@@ -292,12 +292,12 @@ it('reads distributor codes in every shape seen and refuses unknown ones', funct
     $http->queue(Responses::datadis($body));
 
     if ($codes === null) {
-        expect(fn () => $client->distributors())->toThrow(UninterpretableResponseException::class);
+        expect(fn () => $client->getDistributorsWithSupplies())->toThrow(UninterpretableResponseException::class);
 
         return;
     }
 
-    expect($client->distributors()->records)->toBe($codes);
+    expect($client->getDistributorsWithSupplies()->records)->toBe($codes);
 })->with([
     'empty answer' => ['[]', []],
     'only distributor errors' => ['{"distributorError":[{"errorCode":"1"}]}', []],
@@ -313,7 +313,7 @@ it('keeps a distributor error sent as a single object', function () {
     [$client, $http] = scenario();
     $http->queue(Responses::datadis('{"timeCurve":[],"distributorError":{"distributorCode":"2","errorCode":"50","errorDescription":"Error interno distribuidora"}}'));
 
-    $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+    $result = $client->getConsumptionData(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
     expect($result->isEmptyBecauseOfErrors())->toBeTrue()->and($result->distributorErrors[0]->errorCode)->toBe('50');
 });
@@ -325,10 +325,10 @@ it('judges the 24 month window by the Madrid calendar even when reading Canary I
     $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, timeZone: new DateTimeZone('Atlantic/Canary'));
     $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 3600])), Responses::datadis('{"maxPower":[]}'));
 
-    expect(fn () => $client->maxPower(Cups::fromString(CUPS22), '2', Month::of(2024, 10), Month::of(2024, 10)))->toThrow(InvalidRequestException::class)
+    expect(fn () => $client->getMaxPower(Cups::fromString(CUPS22), '2', Month::of(2024, 10), Month::of(2024, 10)))->toThrow(InvalidRequestException::class)
         ->and($http->requests())->toBe([]);
 
-    $client->maxPower(Cups::fromString(CUPS22), '2', Month::of(2026, 10), Month::of(2026, 10));
+    $client->getMaxPower(Cups::fromString(CUPS22), '2', Month::of(2026, 10), Month::of(2026, 10));
 
     expect($http->requests())->toHaveCount(2);
 });
@@ -337,7 +337,7 @@ it('skips reactive entries that are not objects', function () {
     [$client, $http] = scenario();
     $http->queue(Responses::datadis('{"reactiveEnergy":[1,{"cups":"x"}]}'));
 
-    $result = $client->reactive(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
+    $result = $client->getReactiveData(Cups::fromString(CUPS22), '2', Month::of(2026, 1), Month::of(2026, 1));
 
     expect($result->records)->toHaveCount(1)->and($result->skippedRows)->toBe(1);
 });
@@ -346,7 +346,7 @@ it('counts unusable distributor codes and keeps reading after them', function ()
     [$client, $http] = scenario();
     $http->queue(Responses::datadis('[{"distributorCodes":["2",null,"",5]}, "8"]'));
 
-    $result = $client->distributors();
+    $result = $client->getDistributorsWithSupplies();
 
     expect($result->records)->toBe(['2', '5', '8'])->and($result->skippedRows)->toBe(2);
 });
@@ -355,14 +355,14 @@ it('refuses an empty object where an envelope was expected', function () {
     [$client, $http] = scenario();
     $http->queue(Responses::datadis('{}'));
 
-    $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+    $client->getConsumptionData(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 })->throws(UninterpretableResponseException::class);
 
 it('keeps a distributor error sent as plain text', function () {
     [$client, $http] = scenario();
     $http->queue(Responses::datadis('{"timeCurve":[],"distributorError":"Error interno distribuidora"}'));
 
-    $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+    $result = $client->getConsumptionData(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
     expect($result->isEmptyBecauseOfErrors())->toBeTrue()->and($result->distributorErrors[0]->errorDescription)->toBe('Error interno distribuidora');
 });

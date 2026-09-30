@@ -28,7 +28,7 @@ final readonly class MaxPowerReading
         public string $date,
         public string $time,
         public ?DateTimeImmutable $instant,
-        public string $maxPowerKw,
+        public string $maxPower,
         public ?string $period,
         public array $raw,
     ) {}

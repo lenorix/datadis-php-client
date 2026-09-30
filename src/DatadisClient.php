@@ -55,7 +55,7 @@ use SensitiveParameter;
  * Every list method returns an ApiResult. An empty result is a normal answer, never zero
  * consumption, and `distributorErrors` carries partial failures reported inside a 200.
  */
-final class DatadisClient implements DatadisClientInterface
+final class DatadisClient
 {
     private readonly ApiCaller $caller;
 
@@ -139,7 +139,7 @@ final class DatadisClient implements DatadisClientInterface
      *
      * @return ApiResult<Supply>
      */
-    public function supplies(?Nif $authorizedNif = null, ?string $distributorCode = null): ApiResult
+    public function getSupplies(?Nif $authorizedNif = null, ?string $distributorCode = null): ApiResult
     {
         if ($distributorCode !== null) {
             $this->assertDistributorCode($distributorCode);
@@ -156,7 +156,7 @@ final class DatadisClient implements DatadisClientInterface
      */
     public function findSupply(Cups $cups, ?Nif $authorizedNif = null): ?Supply
     {
-        $result = $this->supplies($authorizedNif);
+        $result = $this->getSupplies($authorizedNif);
         $supply = SupplyMatcher::pick($result->records, $cups);
 
         // Not found while a distributor failed is not "not your supply": it may be behind that failure.
@@ -175,7 +175,7 @@ final class DatadisClient implements DatadisClientInterface
      *
      * @return ApiResult<string>
      */
-    public function distributors(?Nif $authorizedNif = null): ApiResult
+    public function getDistributorsWithSupplies(?Nif $authorizedNif = null): ApiResult
     {
         $decoded = $this->fetchList(Endpoint::Distributors, ['authorizedNif' => $this->authorized($authorizedNif)]);
 
@@ -187,7 +187,7 @@ final class DatadisClient implements DatadisClientInterface
      *
      * @return ApiResult<ContractDetail>
      */
-    public function contractDetail(Cups $cups, string $distributorCode, ?Nif $authorizedNif = null): ApiResult
+    public function getContractDetail(Cups $cups, string $distributorCode, ?Nif $authorizedNif = null): ApiResult
     {
         $this->assertDistributorCode($distributorCode);
 
@@ -208,7 +208,7 @@ final class DatadisClient implements DatadisClientInterface
      *
      * @return ApiResult<ConsumptionReading>
      */
-    public function consumption(
+    public function getConsumptionData(
         Cups $cups,
         string $distributorCode,
         int $pointType,
@@ -249,7 +249,7 @@ final class DatadisClient implements DatadisClientInterface
      *
      * @return ApiResult<MaxPowerReading>
      */
-    public function maxPower(Cups $cups, string $distributorCode, Month $from, ?Month $to = null, ?Nif $authorizedNif = null): ApiResult
+    public function getMaxPower(Cups $cups, string $distributorCode, Month $from, ?Month $to = null, ?Nif $authorizedNif = null): ApiResult
     {
         $to ??= $from;
         $this->assertDistributorCode($distributorCode);
@@ -272,7 +272,7 @@ final class DatadisClient implements DatadisClientInterface
      *
      * @return ApiResult<ReactiveEnergy>
      */
-    public function reactive(Cups $cups, string $distributorCode, Month $from, ?Month $to = null, ?Nif $authorizedNif = null): ApiResult
+    public function getReactiveData(Cups $cups, string $distributorCode, Month $from, ?Month $to = null, ?Nif $authorizedNif = null): ApiResult
     {
         $to ??= $from;
 
@@ -295,23 +295,23 @@ final class DatadisClient implements DatadisClientInterface
     }
 
     /**
-     * contractDetail() for a supply as listed by supplies().
+     * getContractDetail() for a supply as listed by getSupplies().
      *
      * @return ApiResult<ContractDetail>
      */
-    public function contractDetailOf(Supply $supply, ?Nif $authorizedNif = null): ApiResult
+    public function getContractDetailOf(Supply $supply, ?Nif $authorizedNif = null): ApiResult
     {
         [$cups, $code] = $this->queryable($supply);
 
-        return $this->contractDetail($cups, $code, $authorizedNif);
+        return $this->getContractDetail($cups, $code, $authorizedNif);
     }
 
     /**
-     * consumption() for a supply as listed by supplies().
+     * getConsumptionData() for a supply as listed by getSupplies().
      *
      * @return ApiResult<ConsumptionReading>
      */
-    public function consumptionOf(
+    public function getConsumptionDataOf(
         Supply $supply,
         Month $from,
         ?Month $to = null,
@@ -320,31 +320,31 @@ final class DatadisClient implements DatadisClientInterface
     ): ApiResult {
         [$cups, $code, $pointType] = $this->queryable($supply);
 
-        return $this->consumption($cups, $code, $pointType, $from, $to, $measurementType, $authorizedNif);
+        return $this->getConsumptionData($cups, $code, $pointType, $from, $to, $measurementType, $authorizedNif);
     }
 
     /**
-     * maxPower() for a supply as listed by supplies().
+     * getMaxPower() for a supply as listed by getSupplies().
      *
      * @return ApiResult<MaxPowerReading>
      */
-    public function maxPowerOf(Supply $supply, Month $from, ?Month $to = null, ?Nif $authorizedNif = null): ApiResult
+    public function getMaxPowerOf(Supply $supply, Month $from, ?Month $to = null, ?Nif $authorizedNif = null): ApiResult
     {
         [$cups, $code] = $this->queryable($supply);
 
-        return $this->maxPower($cups, $code, $from, $to, $authorizedNif);
+        return $this->getMaxPower($cups, $code, $from, $to, $authorizedNif);
     }
 
     /**
-     * reactive() for a supply as listed by supplies().
+     * getReactiveData() for a supply as listed by getSupplies().
      *
      * @return ApiResult<ReactiveEnergy>
      */
-    public function reactiveOf(Supply $supply, Month $from, ?Month $to = null, ?Nif $authorizedNif = null): ApiResult
+    public function getReactiveDataOf(Supply $supply, Month $from, ?Month $to = null, ?Nif $authorizedNif = null): ApiResult
     {
         [$cups, $code] = $this->queryable($supply);
 
-        return $this->reactive($cups, $code, $from, $to, $authorizedNif);
+        return $this->getReactiveData($cups, $code, $from, $to, $authorizedNif);
     }
 
     /**
@@ -393,7 +393,7 @@ final class DatadisClient implements DatadisClientInterface
      *
      * @return ApiResult<Authorization>
      */
-    public function authorizations(?Nif $ownerNif = null): ApiResult
+    public function listAuthorization(?Nif $ownerNif = null): ApiResult
     {
         $decoded = $this->fetch(Endpoint::Authorizations, ['ownerNif' => $ownerNif?->value()]);
 
@@ -405,7 +405,7 @@ final class DatadisClient implements DatadisClientInterface
      *
      * @return ApiResult<Group>
      */
-    public function groups(): ApiResult
+    public function getGroups(): ApiResult
     {
         if ($this->version !== ApiVersion::V2) {
             throw new UnsupportedOperationException('Groups exist only in API v2.');
@@ -422,7 +422,7 @@ final class DatadisClient implements DatadisClientInterface
      *
      * @return array<array-key, mixed>
      */
-    public function partnerUsers(): array
+    public function partnerUserList(): array
     {
         return $this->fetch(Endpoint::PartnerUsers, []);
     }

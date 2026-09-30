@@ -34,7 +34,7 @@ it('accepts every valid combination and sends exactly what it validated', functi
 
             $query = new PublicSearchQuery($from, $to, $picked, array_values($types), $page, $size, economicSectors: array_values($sectors), tensions: array_values($tensions));
             $http = (new FakeHttpClient)->queue(Responses::json('[]'));
-            (new PublicApi(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http))->search($query);
+            (new PublicApi(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http))->apiSearch($query);
             parse_str($http->lastRequest()->getUri()->getQuery(), $sent);
 
             expect($sent['community'])->toBe(implode(',', array_map(fn ($c) => $c->value, $picked)))
@@ -75,11 +75,11 @@ it('reads any JSON answer as records or a DatadisException', function () {
             $query = new PublicSearchQuery(new DateTimeImmutable('2025-01-01'), new DateTimeImmutable('2025-01-02'), [Community::Madrid], ['05']);
 
             try {
-                $result = (new PublicApi(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http))->search($query);
+                $result = (new PublicApi(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http))->apiSearch($query);
 
                 foreach ($result->records as $record) {
                     // Whatever arrived, the energy is either unknown or an exact decimal, never a float.
-                    expect($record->energy() ?? '0.000')->toMatch('/^-?\d+\.\d{3}$/');
+                    expect($record->sumEnergy() ?? '0.000')->toMatch('/^-?\d+\.\d{3}$/');
                 }
             } catch (DatadisException $e) {
                 expect($e->endpoint)->toBe('api-search');
@@ -101,7 +101,7 @@ it('walks pages until a short one and never asks for more than the limit', funct
             }));
             $query = new PublicSearchQuery(new DateTimeImmutable('2025-01-01'), new DateTimeImmutable('2025-01-02'), [Community::Madrid], ['05'], pageSize: $pageSize);
 
-            $records = iterator_to_array((new PublicApi(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http))->searchAll($query, $maxPages), false);
+            $records = iterator_to_array((new PublicApi(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http))->apiSearchAll($query, $maxPages), false);
 
             // Expected: read pages while they are full, stop after the first short one or at the limit.
             $expectedPages = 0;

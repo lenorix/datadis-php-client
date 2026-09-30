@@ -16,17 +16,17 @@ use SensitiveParameter;
  * The contract of a supply point. Most fields are nullable because Datadis fills them inconsistently.
  *
  * `accessFare` is free text describing the voltage and power band, not a tariff code.
- * `contractedPowerKw` keeps the position of every value (position = power period), so a value that
+ * `contractedPowerkW` keeps the position of every value (position = power period), so a value that
  * could not be read is null rather than removed.
  */
 final readonly class ContractDetail
 {
     /**
-     * @param  list<string|null>  $contractedPowerKw  decimal strings, scale 2
+     * @param  list<string|null>  $contractedPowerkW  decimal strings, scale 2
      * @param  string|null  $installedCapacity  decimal string, scale 3, in the unit Datadis sends: the
      *                                          documentation names it in kW, but its only sample (`1.12E7`)
      *                                          looks like W (UNVERIFIED)
-     * @param  list<array{start: DateTimeImmutable|null, end: DateTimeImmutable|null}>  $ownerPeriods
+     * @param  list<array{start: DateTimeImmutable|null, end: DateTimeImmutable|null}>  $dateOwner
      * @param  array<array-key, mixed>  $raw
      */
     private function __construct(
@@ -38,7 +38,7 @@ final readonly class ContractDetail
         public ?string $province,
         public ?string $municipality,
         public ?string $postalCode,
-        public array $contractedPowerKw,
+        public array $contractedPowerkW,
         public ?string $timeDiscrimination,
         public ?string $modePowerControl,
         public ?DateTimeImmutable $startDate,
@@ -52,7 +52,7 @@ final readonly class ContractDetail
         public ?string $partitionCoefficient,
         public ?string $cau,
         public ?string $installedCapacity,
-        public array $ownerPeriods,
+        public array $dateOwner,
         public ?DateTimeImmutable $lastMarketerDate,
         public ?string $maxPowerInstall,
         public array $raw,
@@ -93,7 +93,7 @@ final readonly class ContractDetail
             Fields::decimal($row, 6, 'partitionCoefficient'),
             Fields::text($row, 'cau'),
             Fields::decimal($row, 3, 'installedCapacityKW', 'installedCapacity'),
-            self::ownerPeriods($row['dateOwner'] ?? null, $zone),
+            self::dateOwner($row['dateOwner'] ?? null, $zone),
             Fields::date($row, $zone, 'lastMarketerDate'),
             Fields::decimal($row, 3, 'maxPowerInstall'),
             $row,
@@ -108,7 +108,7 @@ final readonly class ContractDetail
     {
         $tariff = $this->accessFare === null ? null : AccessFareParser::parse($this->accessFare);
 
-        return $tariff !== null && count($this->contractedPowerKw) === $tariff->powerPeriods() ? $tariff : null;
+        return $tariff !== null && count($this->contractedPowerkW) === $tariff->powerPeriods() ? $tariff : null;
     }
 
     /** `endDate` was empty or null: the contract has no end. */
@@ -133,7 +133,7 @@ final readonly class ContractDetail
     }
 
     /** @return list<array{start: DateTimeImmutable|null, end: DateTimeImmutable|null}> */
-    private static function ownerPeriods(mixed $value, DateTimeZone $zone): array
+    private static function dateOwner(mixed $value, DateTimeZone $zone): array
     {
         if (! is_array($value)) {
             return [];

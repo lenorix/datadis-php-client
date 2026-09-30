@@ -36,7 +36,7 @@ it('keeps CUPS, NIF and credentials out of the arguments recorded in stack trace
         $s->http->queue(new ConnectException('timeout', new Request('GET', 'https://datadis.test')));
 
         try {
-            $s->client->consumption(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: Nif::fromString('87654321X'));
+            $s->client->getConsumptionData(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: Nif::fromString('87654321X'));
         } catch (DatadisException $e) {
             $strings = traceStrings(array_map(fn (array $frame) => $frame['args'] ?? [], $e->getTrace()));
 
@@ -59,7 +59,7 @@ it('keeps personal data of decoded answers out of stack trace arguments', functi
         $s->http->queue(Responses::datadis('{"timeCurve":[{"cups":"ES0031300000000001JN0F","date":"x","time":"01:00","consumptionKWh":null}]}'));
 
         try {
-            $s->client->consumption(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+            $s->client->getConsumptionData(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
         } catch (DatadisException $e) {
             $strings = traceStrings(array_map(fn (array $frame) => $frame['args'] ?? [], $e->getTrace()));
 
@@ -89,7 +89,7 @@ it('never shows the token or the password when the client is dumped', function (
     $token = Tokens::jwt(['exp' => time() + 3600]);
     $http->answers = [Responses::text($token), Responses::datadis('{"supplies":[]}')];
     $client = new DatadisClient(new DatadisConfig('12345678Z', 'never-dump-this', baseUrl: 'https://datadis.test'), http: $http);
-    $client->supplies();
+    $client->getSupplies();
 
     ob_start();
     var_dump($client);

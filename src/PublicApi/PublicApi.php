@@ -38,7 +38,7 @@ final class PublicApi
 {
     private const string PATH = '/api-public/';
 
-    /** Keys under which a paged answer might carry its rows. */
+    /** TOLERATED, NO SOURCE: keys under which a paged answer might carry its rows (the manual shows a bare list). */
     private const array LIST_KEYS = ['content', 'data', 'results', 'items'];
 
     private readonly RequestFactory $requests;
@@ -67,25 +67,25 @@ final class PublicApi
     }
 
     /** @return ApiResult<PublicRecord> */
-    public function search(PublicSearchQuery $query): ApiResult
+    public function apiSearch(PublicSearchQuery $query): ApiResult
     {
         return $this->call('api-search', $query->toQuery());
     }
 
     /** @return ApiResult<PublicRecord> */
-    public function sumSearch(PublicSearchQuery $query): ApiResult
+    public function apiSumSearch(PublicSearchQuery $query): ApiResult
     {
         return $this->call('api-sum-search', $query->toSumQuery());
     }
 
     /** @return ApiResult<PublicRecord> */
-    public function searchSelfConsumption(SelfConsumptionSearchQuery $query): ApiResult
+    public function apiSearchAuto(SelfConsumptionSearchQuery $query): ApiResult
     {
         return $this->call('api-search-auto', $query->toQuery());
     }
 
     /** @return ApiResult<PublicRecord> */
-    public function sumSearchSelfConsumption(SelfConsumptionSearchQuery $query): ApiResult
+    public function apiSumSearchAuto(SelfConsumptionSearchQuery $query): ApiResult
     {
         return $this->call('api-sum-search-auto', $query->toSumQuery());
     }
@@ -96,19 +96,19 @@ final class PublicApi
      *
      * @return Generator<int, PublicRecord>
      */
-    public function searchAll(PublicSearchQuery $query, int $maxPages = 1000): Generator
+    public function apiSearchAll(PublicSearchQuery $query, int $maxPages = 1000): Generator
     {
-        return $this->walk(fn (int $page) => $this->search($query->withPage($page)), $query->page, $query->pageSize, $maxPages);
+        return $this->walk(fn (int $page) => $this->apiSearch($query->withPage($page)), $query->page, $query->pageSize, $maxPages);
     }
 
     /**
-     * Every record of api-search-auto, page after page. See searchAll().
+     * Every record of api-search-auto, page after page. See apiSearchAll().
      *
      * @return Generator<int, PublicRecord>
      */
-    public function searchSelfConsumptionAll(SelfConsumptionSearchQuery $query, int $maxPages = 1000): Generator
+    public function apiSearchAutoAll(SelfConsumptionSearchQuery $query, int $maxPages = 1000): Generator
     {
-        return $this->walk(fn (int $page) => $this->searchSelfConsumption($query->withPage($page)), $query->page, $query->pageSize, $maxPages);
+        return $this->walk(fn (int $page) => $this->apiSearchAuto($query->withPage($page)), $query->page, $query->pageSize, $maxPages);
     }
 
     /**
@@ -188,6 +188,7 @@ final class PublicApi
             }
         }
 
+        // TOLERATED, NO SOURCE: a single object is read as one row.
         return [$decoded];
     }
 }

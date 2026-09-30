@@ -10,6 +10,11 @@ The architecture as built. Each decision states the reason so it can be revisite
 - **Guzzle, at its latest line, is the default transport**, but the client only type-hints PSR interfaces so any PSR-18 client can replace it. That agnosticism is kept only while it causes no bugs.
 - **Decimals use `brick/math`** and are exposed as scaled strings.
 
+- **Names are Datadis's own** (decided September 2026). Methods are the endpoint names in camelCase (`getConsumptionData()`, `listAuthorization()`, `apiSearchAuto()`), parameters are the query parameter names (`startDate`, `endDate`, `authorizedNif`), and DTO fields are the JSON keys exactly as Datadis sends them, odd casing included (`contractedPowerkW`, `municipioCode`, `code_desc`). Values the client derives (intervals, `hourOfDay`, `openEnded`, the grouped reactive `periods`) have their own names.
+- **v2 is the default version**, although every real capture so far came from v1 paths: it is the current API and the only one with reactive data, groups and distributor errors.
+- **No client interface.** Applications fake Datadis over HTTP in their tests; an interface would turn every new endpoint into a breaking change.
+- **Kept as they are:** tolerated answer shapes no source documents (marked `TOLERATED, NO SOURCE` in the code), contract detail as a list like Datadis's answer, raw answers of the calls never captured (typed once a real answer is seen), and one time zone per client.
+
 ## Dependencies
 
 - Runtime: PHP `^8.4`, `guzzlehttp/guzzle` `^8.2` with `guzzlehttp/psr7` `^3.1`, `brick/math` from `0.14.2` to `1.x` (the range the current Laravel accepts, so applications do not have to upgrade it), and the PSR interfaces: `psr/http-client`, `psr/http-factory`, `psr/http-message`, `psr/simple-cache`, `psr/clock`.
@@ -20,7 +25,7 @@ The architecture as built. Each decision states the reason so it can be revisite
 
 1. **Transport**: sends PSR-7 requests, adds the mandatory headers, reads the whole body inside the same failure mapping (a streaming client transfers the body only when it is read), never throws on HTTP status by itself.
 2. **Authentication**: `TokenProvider` obtains and caches the JWT (PSR-16 store optional, in-memory default), reads `exp`, refreshes once on 401.
-3. **Endpoints**: one method per endpoint, taking value objects (`Cups`, `Nif`, `Month`) and validating the rest before any request leaves the machine. The data calls also take a listed `Supply` (`consumptionOf()` and the like), so its CUPS and codes are sent exactly as Datadis gave them. `DatadisClientInterface` lists the calls, so applications can stand in for the client in their tests.
+3. **Endpoints**: one method per endpoint, taking value objects (`Cups`, `Nif`, `Month`) and validating the rest before any request leaves the machine. The data calls also take a listed `Supply` (`getConsumptionDataOf()` and the like), so its CUPS and codes are sent exactly as Datadis gave them.
 4. **Decoding**: turns envelopes into immutable DTOs, keeping `raw` and `distributorErrors`. Tolerant reader: accepts a bare list, both `installedCapacity`/`installedCapacityKW`, `accessFare`/`accesFare`, numeric strings, `""` as null.
 5. **Helpers**: pure classes (month, hour label, CUPS, redactor, fingerprint, tariff-shape parser).
 

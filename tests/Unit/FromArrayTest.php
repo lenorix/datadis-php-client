@@ -98,19 +98,19 @@ it('builds a client from the same array, with the API version and time zone', fu
         ['username' => '12345678Z', 'password' => 'secret', 'base_url' => 'https://datadis.test', 'api-version' => ' V1 ', 'timezone' => 'Atlantic/Canary'],
         http: $http,
     );
-    $supply = $client->supplies()->records[0];
+    $supply = $client->getSupplies()->records[0];
 
     expect($http->lastRequest()->getUri()->getPath())->toBe('/api-private/api/get-supplies')
-        ->and($supply->validFrom?->getTimezone()->getName())->toBe('Atlantic/Canary');
+        ->and($supply->validDateFrom?->getTimezone()->getName())->toBe('Atlantic/Canary');
 });
 
 it('defaults to API v2 and the Madrid time zone', function () {
     $http = (new FakeHttpClient)->queue(Responses::text(Tokens::jwt(['exp' => time() + 86400])), Responses::json(datadisFixture('v2/supplies.json')));
 
-    $supply = DatadisClient::fromArray(['username' => '12345678Z', 'password' => 'secret', 'base_url' => 'https://datadis.test', 'api_version' => ''], http: $http)->supplies()->records[0];
+    $supply = DatadisClient::fromArray(['username' => '12345678Z', 'password' => 'secret', 'base_url' => 'https://datadis.test', 'api_version' => ''], http: $http)->getSupplies()->records[0];
 
     expect($http->lastRequest()->getUri()->getPath())->toBe('/api-private/api/get-supplies-v2')
-        ->and($supply->validFrom?->getTimezone()->getName())->toBe('Europe/Madrid');
+        ->and($supply->validDateFrom?->getTimezone()->getName())->toBe('Europe/Madrid');
 });
 
 it('names the client setting that is wrong', function (array $extra, string $key) {

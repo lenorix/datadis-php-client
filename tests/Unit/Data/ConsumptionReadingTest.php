@@ -13,9 +13,9 @@ it('decodes an hourly row with its interval and decimal values', function () use
     $row = ['cups' => 'ES0031300000000001JN0F', 'date' => '2026/01/01', 'time' => '02:00', 'consumptionKWh' => 0.301, 'obtainMethod' => 'Real', 'surplusEnergyKWh' => 0];
     $reading = ConsumptionReading::fromRow($row, $madrid, $hourly);
 
-    expect($reading->kWh)->toBe('0.301')
-        ->and($reading->surplusKWh)->toBe('0.000')
-        ->and($reading->generationKWh)->toBeNull()
+    expect($reading->consumptionKWh)->toBe('0.301')
+        ->and($reading->surplusEnergyKWh)->toBe('0.000')
+        ->and($reading->generationEnergyKWh)->toBeNull()
         ->and($reading->date)->toBe('2026/01/01')
         ->and($reading->time)->toBe('02:00')
         ->and($reading->index)->toBe(1)
@@ -82,13 +82,13 @@ it('drops rows without a usable consumption or date', function (array $row) use 
 it('coerces numeric strings and keeps an empty obtain method as an empty string', function () use ($madrid, $hourly) {
     $reading = ConsumptionReading::fromRow(['date' => '2026/01/01', 'time' => '01:00', 'consumptionKWh' => '0.5', 'obtainMethod' => ''], $madrid, $hourly);
 
-    expect($reading->kWh)->toBe('0.500')->and($reading->obtainMethod)->toBe('')->and($reading->isReal())->toBeFalse();
+    expect($reading->consumptionKWh)->toBe('0.500')->and($reading->obtainMethod)->toBe('')->and($reading->isReal())->toBeFalse();
 });
 
 it('renders float noise and exponent notation as exact decimals', function () use ($madrid, $hourly) {
     $reading = ConsumptionReading::fromRow(['date' => '2026/01/01', 'time' => '01:00', 'consumptionKWh' => 1.0E-5], $madrid, $hourly);
 
-    expect($reading->kWh)->toBe('0.000');
+    expect($reading->consumptionKWh)->toBe('0.000');
 });
 
 it('keeps the 25 hour day in source order with the repeated label', function () use ($madrid, $hourly) {
@@ -97,7 +97,7 @@ it('keeps the 25 hour day in source order with the repeated label', function () 
 
     expect($readings)->toHaveCount(25)
         ->and(array_map(fn ($r) => $r->time, array_slice($readings, 2, 3)))->toBe(['03:00', '03:00', '04:00'])
-        ->and($readings[2]->kWh)->not->toBe($readings[3]->kWh)
+        ->and($readings[2]->consumptionKWh)->not->toBe($readings[3]->consumptionKWh)
         ->and($readings[2]->index)->toBe(2)->and($readings[3]->index)->toBe(2);
 });
 
@@ -110,5 +110,5 @@ it('reads the obtain method with spaces and knows every spelling of an estimate'
 it('reads the self-consumption values with three decimals', function () {
     $reading = ConsumptionReading::fromRow(['date' => '2026/01/01', 'time' => '01:00', 'consumptionKWh' => 1, 'generationEnergyKWh' => 0.12345, 'selfConsumptionEnergyKWh' => 2], new DateTimeZone('Europe/Madrid'), MeasurementType::Hourly);
 
-    expect($reading->generationKWh)->toBe('0.123')->and($reading->selfConsumptionKWh)->toBe('2.000');
+    expect($reading->generationEnergyKWh)->toBe('0.123')->and($reading->selfConsumptionEnergyKWh)->toBe('2.000');
 });

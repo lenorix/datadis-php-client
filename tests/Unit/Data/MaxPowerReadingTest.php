@@ -9,7 +9,7 @@ $madrid = new DateTimeZone('Europe/Madrid');
 it('decodes a max power reading as an instant', function () use ($madrid) {
     $reading = MaxPowerReading::fromRow(['cups' => 'ES0031300000000001JN0F', 'date' => '2022/01/11', 'time' => '09:45', 'maxPower' => 15.228, 'period' => '1'], $madrid);
 
-    expect($reading->maxPowerKw)->toBe('15.228')
+    expect($reading->maxPower)->toBe('15.228')
         ->and($reading->instant?->format('Y-m-d H:i'))->toBe('2022-01-11 09:45')
         ->and($reading->period)->toBe('1')
         ->and($reading->periodNumber())->toBe(1);

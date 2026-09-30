@@ -77,7 +77,7 @@ it('lists the authorizations of the account', function () {
     $s = Scenario::make();
     $s->http->queue(Responses::datadis(datadisFixture('v1/list-authorization.json')));
 
-    $result = $s->client->authorizations();
+    $result = $s->client->listAuthorization();
 
     expect($s->http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/list-authorization')
         ->and($s->http->requests()[1]->getUri()->getQuery())->toBe('')
@@ -89,6 +89,6 @@ it('lists the authorizations of another owner', function () {
     $s = Scenario::make();
     $s->http->queue(Responses::datadis('[]'));
 
-    expect($s->client->authorizations(Nif::fromString('87654321X'))->isEmpty())->toBeTrue()
+    expect($s->client->listAuthorization(Nif::fromString('87654321X'))->isEmpty())->toBeTrue()
         ->and($s->http->requests()[1]->getUri()->getQuery())->toBe('ownerNif=87654321X');
 });

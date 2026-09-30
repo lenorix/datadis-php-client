@@ -45,16 +45,16 @@ it('calls each public endpoint without logging in and reads its answer', functio
 
     $check($result->records[0]);
 })->with([
-    'search' => ['search', '/api-public/api-search', fn () => searchQuery(), 'public/search.json', fn ($r) => expect($r->energy())->toBe('30300495.000')],
-    'sum' => ['sumSearch', '/api-public/api-sum-search', fn () => searchQuery(), 'public/sum-search.json', fn ($r) => expect($r->energy())->toBe('1093523120.000')->and($r->contracts())->toBe(5977431)],
-    'self-consumption search' => ['searchSelfConsumption', '/api-public/api-search-auto', fn () => autoQuery(), 'public/search-auto.json', fn ($r) => expect($r->power())->toBe('121843.000')->and($r->contracts())->toBe(1609)],
-    'self-consumption sum' => ['sumSearchSelfConsumption', '/api-public/api-sum-search-auto', fn () => autoQuery(), 'public/sum-search-auto.json', fn ($r) => expect($r->energy())->toBe('55304627.000')->and($r->power())->toBe('3247427.000')->and($r->contracts())->toBe(16577)],
+    'search' => ['apiSearch', '/api-public/api-search', fn () => searchQuery(), 'public/search.json', fn ($r) => expect($r->sumEnergy())->toBe('30300495.000')],
+    'sum' => ['apiSumSearch', '/api-public/api-sum-search', fn () => searchQuery(), 'public/sum-search.json', fn ($r) => expect($r->sumEnergy())->toBe('1093523120.000')->and($r->sumContracts())->toBe(5977431)],
+    'self-consumption search' => ['apiSearchAuto', '/api-public/api-search-auto', fn () => autoQuery(), 'public/search-auto.json', fn ($r) => expect($r->sumPower())->toBe('121843.000')->and($r->sumContracts())->toBe(1609)],
+    'self-consumption sum' => ['apiSumSearchAuto', '/api-public/api-sum-search-auto', fn () => autoQuery(), 'public/sum-search-auto.json', fn ($r) => expect($r->sumEnergy())->toBe('55304627.000')->and($r->sumPower())->toBe('3247427.000')->and($r->sumContracts())->toBe(16577)],
 ]);
 
 it('sends the query as built', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('[]'));
 
-    publicApi($http)->search(searchQuery());
+    publicApi($http)->apiSearch(searchQuery());
     parse_str($http->lastRequest()->getUri()->getQuery(), $sent);
 
     expect($sent)->toBe(array_map('strval', searchQuery()->toQuery()));
@@ -63,7 +63,7 @@ it('sends the query as built', function () {
 it('reads a list wrapped in a common envelope key', function (string $body) {
     $http = (new FakeHttpClient)->queue(Responses::json($body));
 
-    expect(publicApi($http)->search(searchQuery())->records)->toHaveCount(1);
+    expect(publicApi($http)->apiSearch(searchQuery())->records)->toHaveCount(1);
 })->with([
     'content' => '{"content":[{"sumEnergy":1}],"totalElements":1}',
     'data' => '{"data":[{"sumEnergy":1}]}',
@@ -73,26 +73,26 @@ it('reads a list wrapped in a common envelope key', function (string $body) {
 it('treats an empty page as the end of the results', function (string $body) {
     $http = (new FakeHttpClient)->queue(Responses::json($body));
 
-    expect(publicApi($http)->search(searchQuery())->isEmpty())->toBeTrue();
+    expect(publicApi($http)->apiSearch(searchQuery())->isEmpty())->toBeTrue();
 })->with(['[]', '{"content":[]}']);
 
 it('treats a no content answer as an empty page', function () {
     $http = (new FakeHttpClient)->queue(Responses::empty(204));
 
-    expect(publicApi($http)->search(searchQuery())->isEmpty())->toBeTrue();
+    expect(publicApi($http)->apiSearch(searchQuery())->isEmpty())->toBeTrue();
 });
 
 it('refuses answers it cannot read', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('{"content":"x"}'));
 
-    publicApi($http)->search(searchQuery());
+    publicApi($http)->apiSearch(searchQuery());
 })->throws(UninterpretableResponseException::class);
 
 it('reports errors with the public endpoint name', function () {
     $http = (new FakeHttpClient)->queue(Responses::text('community is mandatory', 400));
 
     try {
-        publicApi($http)->search(searchQuery());
+        publicApi($http)->apiSearch(searchQuery());
     } catch (RequestRejectedException $e) {
         expect($e->endpoint)->toBe('api-search');
 
@@ -107,7 +107,7 @@ it('walks every page until an empty or short page', function () {
     $http = (new FakeHttpClient)->queue(Responses::json($page(2)), Responses::json($page(2)), Responses::json($page(1)));
     $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], pageSize: 2);
 
-    $records = iterator_to_array(publicApi($http)->searchAll($query), false);
+    $records = iterator_to_array(publicApi($http)->apiSearchAll($query), false);
 
     parse_str($http->requests()[2]->getUri()->getQuery(), $third);
 
@@ -118,7 +118,7 @@ it('stops walking at the page limit', function () {
     $http = (new FakeHttpClient)->queue(...array_fill(0, 3, Responses::json(json_encode([['a' => 1]]))));
     $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], pageSize: 1);
 
-    $records = iterator_to_array(publicApi($http)->searchAll($query, maxPages: 3), false);
+    $records = iterator_to_array(publicApi($http)->apiSearchAll($query, maxPages: 3), false);
 
     expect($records)->toHaveCount(3)->and($http->requests())->toHaveCount(3);
 });
@@ -127,7 +127,7 @@ it('walks every page of the self-consumption search', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},{"a":2}]'), Responses::json('[{"a":3}]'));
     $query = new SelfConsumptionSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], pageSize: 2);
 
-    $records = iterator_to_array(publicApi($http)->searchSelfConsumptionAll($query));
+    $records = iterator_to_array(publicApi($http)->apiSearchAutoAll($query));
 
     parse_str($http->requests()[1]->getUri()->getQuery(), $second);
 
@@ -137,21 +137,21 @@ it('walks every page of the self-consumption search', function () {
 it('reports a 404 of the public API as no data', function () {
     $http = (new FakeHttpClient)->queue(Responses::text('Not Found', 404));
 
-    publicApi($http)->search(searchQuery());
+    publicApi($http)->apiSearch(searchQuery());
 })->throws(NoDataException::class);
 
 it('numbers the records of all pages from zero', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},{"a":2}]'), Responses::json('[{"a":3}]'));
     $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], pageSize: 2);
 
-    expect(array_keys(iterator_to_array(publicApi($http)->searchAll($query))))->toBe([0, 1, 2]);
+    expect(array_keys(iterator_to_array(publicApi($http)->apiSearchAll($query))))->toBe([0, 1, 2]);
 });
 
 it('counts an unusable row as part of a full page', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},5]'), Responses::json('[]'));
     $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], pageSize: 2);
 
-    iterator_to_array(publicApi($http)->searchAll($query));
+    iterator_to_array(publicApi($http)->apiSearchAll($query));
 
     expect($http->requests())->toHaveCount(2);
 });
@@ -159,14 +159,14 @@ it('counts an unusable row as part of a full page', function () {
 it('reports unusable rows', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},5,[]]'));
 
-    expect(publicApi($http)->search(searchQuery())->skippedRows)->toBe(2);
+    expect(publicApi($http)->apiSearch(searchQuery())->skippedRows)->toBe(2);
 });
 
 it('reads an empty 200 as an empty page but fails on an envelope key that is not a list', function () {
     $http = (new FakeHttpClient)->queue(Responses::empty(200), Responses::json('{"content":{"a":1}}'));
 
-    expect(publicApi($http)->search(searchQuery())->isEmpty())->toBeTrue()
-        ->and(fn () => publicApi($http)->search(searchQuery()))->toThrow(UninterpretableResponseException::class);
+    expect(publicApi($http)->apiSearch(searchQuery())->isEmpty())->toBeTrue()
+        ->and(fn () => publicApi($http)->apiSearch(searchQuery()))->toThrow(UninterpretableResponseException::class);
 });
 
 it('builds public requests with the PSR-17 factories it is given', function () {
@@ -179,7 +179,7 @@ it('builds public requests with the PSR-17 factories it is given', function () {
     };
     $http = (new FakeHttpClient)->queue(Responses::json('[]'));
 
-    (new PublicApi(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http, $factory))->search(searchQuery());
+    (new PublicApi(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http, $factory))->apiSearch(searchQuery());
 
     expect($http->lastRequest()->getHeaderLine('X-Built-By'))->toBe('app');
 });
@@ -187,7 +187,7 @@ it('builds public requests with the PSR-17 factories it is given', function () {
 it('uses the public Datadis host by default', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('[]'));
 
-    (new PublicApi(http: $http))->search(searchQuery());
+    (new PublicApi(http: $http))->apiSearch(searchQuery());
 
     expect($http->lastRequest()->getUri()->getHost())->toBe('datadis.es');
 });
@@ -195,26 +195,26 @@ it('uses the public Datadis host by default', function () {
 it('sends public requests to the configured host', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('[]'));
 
-    publicApi($http)->search(searchQuery());
+    publicApi($http)->apiSearch(searchQuery());
 
     expect($http->lastRequest()->getUri()->getHost())->toBe('datadis.test');
 });
 
 it('refuses an empty object, which says nothing about the page', function () {
-    publicApi((new FakeHttpClient)->queue(Responses::json('{}')))->search(searchQuery());
+    publicApi((new FakeHttpClient)->queue(Responses::json('{}')))->apiSearch(searchQuery());
 })->throws(UninterpretableResponseException::class);
 
 it('sends sums without paging', function () {
     $http = (new FakeHttpClient)->queue(Responses::json(datadisFixture('public/sum-search.json')), Responses::json(datadisFixture('public/sum-search-auto.json')));
 
-    $sum = publicApi($http)->sumSearch(searchQuery());
-    publicApi($http)->sumSearchSelfConsumption(autoQuery());
+    $sum = publicApi($http)->apiSumSearch(searchQuery());
+    publicApi($http)->apiSumSearchAuto(autoQuery());
 
     parse_str($http->requests()[0]->getUri()->getQuery(), $first);
     parse_str($http->requests()[1]->getUri()->getQuery(), $second);
 
     expect($first)->not->toHaveKey('page')->and($second)->not->toHaveKey('pageSize')
-        ->and($sum->records[0]->contracts())->toBe(5977431);
+        ->and($sum->records[0]->sumContracts())->toBe(5977431);
 });
 
 it('logs in and sends the token when it is given credentials', function () {
@@ -224,7 +224,7 @@ it('logs in and sends the token when it is given credentials', function () {
     );
     $api = new PublicApi(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), $http);
 
-    $result = $api->search(searchQuery());
+    $result = $api->apiSearch(searchQuery());
 
     expect($http->requests())->toHaveCount(2)
         ->and($http->requests()[0]->getUri()->getPath())->toBe('/nikola-auth/tokens/login')

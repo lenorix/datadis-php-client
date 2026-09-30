@@ -36,12 +36,12 @@ final class MonthPlanner
         $first = self::latest($from, $current->addMonths(-(Month::HISTORY_MONTHS - 1)));
         $last = self::earliest($to, $current);
 
-        if ($supply?->validFrom !== null) {
-            $first = self::latest($first, Month::fromDate($supply->validFrom));
+        if ($supply?->validDateFrom !== null) {
+            $first = self::latest($first, Month::fromDate($supply->validDateFrom));
         }
 
-        if ($supply !== null && ! $supply->isOpenEnded() && $supply->validTo !== null) {
-            $last = self::earliest($last, Month::fromDate($supply->validTo));
+        if ($supply !== null && ! $supply->isOpenEnded() && $supply->validDateTo !== null) {
+            $last = self::earliest($last, Month::fromDate($supply->validDateTo));
         }
 
         $ranges = [];

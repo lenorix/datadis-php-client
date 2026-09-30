@@ -69,7 +69,7 @@ it('decodes the real change days through the client', function (int $year, int $
     $s = Scenario::make();
     $s->http->queue(Responses::datadis(Payloads::envelope('timeCurve', Payloads::hourlyRows($lastSunday->format('Y/m/d'), array_column($day, 0)))));
 
-    $readings = $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of($year, $month), Month::of($year, $month))->records;
+    $readings = $s->client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of($year, $month), Month::of($year, $month))->records;
 
     expect(array_map(fn ($r) => $r->start?->getTimestamp(), $readings))->toBe(array_column($day, 1));
 })->with([

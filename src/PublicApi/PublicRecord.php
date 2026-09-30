@@ -57,19 +57,19 @@ final readonly class PublicRecord
     }
 
     /** Energy in kWh with three decimals. */
-    public function energy(): ?string
+    public function sumEnergy(): ?string
     {
         return $this->decimal('sumEnergy');
     }
 
     /** Generation power in kW (self-consumption searches only), with three decimals. */
-    public function power(): ?string
+    public function sumPower(): ?string
     {
         return $this->decimal('sumPower');
     }
 
     /** Number of contracts; searches spell it `sumContracts` and sums `sumContract`. */
-    public function contracts(): ?int
+    public function sumContracts(): ?int
     {
         return Fields::integer($this->raw, 'sumContracts') ?? Fields::integer($this->raw, 'sumContract');
     }

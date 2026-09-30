@@ -23,12 +23,12 @@ $cups = fn () => Cups::fromString(Scenario::CUPS);
 $jan = fn () => Month::of(2026, 1);
 
 $calls = [
-    'supplies' => [fn ($c, $nif) => $c->supplies($nif), '{"supplies":[]}'],
-    'distributors' => [fn ($c, $nif) => $c->distributors($nif), '{"distExistenceUser":{"distributorCodes":[]}}'],
-    'contract detail' => [fn ($c, $nif) => $c->contractDetail(Cups::fromString(Scenario::CUPS), '2', $nif), '{"contract":[]}'],
-    'consumption' => [fn ($c, $nif) => $c->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: $nif), '{"timeCurve":[]}'],
-    'max power' => [fn ($c, $nif) => $c->maxPower(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1), $nif), '{"maxPower":[]}'],
-    'reactive' => [fn ($c, $nif) => $c->reactive(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1), $nif), '{"reactiveEnergy":{}}'],
+    'supplies' => [fn ($c, $nif) => $c->getSupplies($nif), '{"supplies":[]}'],
+    'distributors' => [fn ($c, $nif) => $c->getDistributorsWithSupplies($nif), '{"distExistenceUser":{"distributorCodes":[]}}'],
+    'contract detail' => [fn ($c, $nif) => $c->getContractDetail(Cups::fromString(Scenario::CUPS), '2', $nif), '{"contract":[]}'],
+    'consumption' => [fn ($c, $nif) => $c->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: $nif), '{"timeCurve":[]}'],
+    'max power' => [fn ($c, $nif) => $c->getMaxPower(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1), $nif), '{"maxPower":[]}'],
+    'reactive' => [fn ($c, $nif) => $c->getReactiveData(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1), $nif), '{"reactiveEnergy":{}}'],
 ];
 
 foreach ($calls as $name => [$call, $body]) {
@@ -52,14 +52,14 @@ it('refuses malformed arguments of the calls that take them before sending', fun
     expect(fn () => $call($s->client))->toThrow(InvalidRequestException::class)
         ->and($s->http->requests())->toBe([]);
 })->with([
-    'supplies distributor code' => [fn ($c) => $c->supplies(distributorCode: 'a b')],
-    'consumption distributor code' => [fn ($c) => $c->consumption(Cups::fromString(Scenario::CUPS), '', 5, Month::of(2026, 1), Month::of(2026, 1))],
-    'consumption range' => [fn ($c) => $c->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 2), Month::of(2026, 1))],
-    'consumption future' => [fn ($c) => $c->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 1), Month::of(2026, 10))],
-    'reactive distributor code' => [fn ($c) => $c->reactive(Cups::fromString(Scenario::CUPS), '', Month::of(2026, 1), Month::of(2026, 1))],
-    'reactive range' => [fn ($c) => $c->reactive(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 2), Month::of(2026, 1))],
-    'max power distributor code' => [fn ($c) => $c->maxPower(Cups::fromString(Scenario::CUPS), 'x y', Month::of(2026, 1), Month::of(2026, 1))],
-    'contract distributor code too long' => [fn ($c) => $c->contractDetail(Cups::fromString(Scenario::CUPS), '12345678901')],
+    'supplies distributor code' => [fn ($c) => $c->getSupplies(distributorCode: 'a b')],
+    'consumption distributor code' => [fn ($c) => $c->getConsumptionData(Cups::fromString(Scenario::CUPS), '', 5, Month::of(2026, 1), Month::of(2026, 1))],
+    'consumption range' => [fn ($c) => $c->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 2), Month::of(2026, 1))],
+    'consumption future' => [fn ($c) => $c->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 1), Month::of(2026, 10))],
+    'reactive distributor code' => [fn ($c) => $c->getReactiveData(Cups::fromString(Scenario::CUPS), '', Month::of(2026, 1), Month::of(2026, 1))],
+    'reactive range' => [fn ($c) => $c->getReactiveData(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 2), Month::of(2026, 1))],
+    'max power distributor code' => [fn ($c) => $c->getMaxPower(Cups::fromString(Scenario::CUPS), 'x y', Month::of(2026, 1), Month::of(2026, 1))],
+    'contract distributor code too long' => [fn ($c) => $c->getContractDetail(Cups::fromString(Scenario::CUPS), '12345678901')],
 ]);
 
 it('accepts a one day authorization and one with only a start or an end', function (?string $from, ?string $to, string $query) {
@@ -82,7 +82,7 @@ it('counts repeated labels per day, not across days', function () {
         ...Payloads::hourlyRows('2026/01/02', Payloads::normalDay()),
     ])));
 
-    $readings = $s->client->consumption(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 1), Month::of(2026, 1))->records;
+    $readings = $s->client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 1), Month::of(2026, 1))->records;
 
     expect($readings)->toHaveCount(48);
     foreach ($readings as $i => $reading) {
@@ -129,7 +129,7 @@ it('builds requests with the PSR-17 factories it is given', function () {
     $http = (new FakeHttpClient)->queue(Responses::text(Tokens::datadis(time())), Responses::datadis('{"supplies":[]}'));
     $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, requestFactory: $requests, streamFactory: $streams);
 
-    $client->supplies();
+    $client->getSupplies();
 
     [$login, $supplies] = $http->requests();
 
