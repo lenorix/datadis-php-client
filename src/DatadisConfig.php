@@ -71,6 +71,68 @@ final readonly class DatadisConfig
         $this->password = static fn (): string => $password;
     }
 
+    /**
+     * Builds the configuration from a plain array, as an application keeps it in a configuration
+     * file or reads it from the environment: `username`, `password`, and optionally `base_url`,
+     * `timeout`, `connect_timeout` (seconds, numbers or numeric text) and `user_agent`. Empty values
+     * count as not given; unknown keys are ignored so the array can hold other settings too.
+     *
+     * @param  array<array-key, mixed>  $settings
+     *
+     * @throws ConfigurationException naming the setting that is missing or wrong
+     */
+    public static function fromArray(#[SensitiveParameter] array $settings): self
+    {
+        return new self(
+            self::setting($settings, 'username') ?? throw new ConfigurationException('The Datadis setting "username" is missing.'),
+            self::setting($settings, 'password') ?? throw new ConfigurationException('The Datadis setting "password" is missing.'),
+            self::setting($settings, 'base_url') ?? self::DEFAULT_BASE_URL,
+            self::seconds($settings, 'timeout', 120.0),
+            self::seconds($settings, 'connect_timeout', 10.0),
+            self::setting($settings, 'user_agent') ?? self::DEFAULT_USER_AGENT,
+        );
+    }
+
+    /**
+     * A text setting, trimmed; null when absent or empty.
+     *
+     * @param  array<array-key, mixed>  $settings
+     *
+     * @internal
+     */
+    public static function setting(#[SensitiveParameter] array $settings, string $key): ?string
+    {
+        $value = $settings[$key] ?? null;
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (! is_string($value) && ! is_int($value) && ! is_float($value)) {
+            throw new ConfigurationException("The Datadis setting \"{$key}\" must be text.");
+        }
+
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
+    }
+
+    /** @param  array<array-key, mixed>  $settings */
+    private static function seconds(array $settings, string $key, float $default): float
+    {
+        $value = $settings[$key] ?? null;
+
+        if ($value === null || $value === '') {
+            return $default;
+        }
+
+        if (! is_numeric($value)) {
+            throw new ConfigurationException("The Datadis setting \"{$key}\" must be a number of seconds.");
+        }
+
+        return (float) $value;
+    }
+
     public function connection(): ConnectionSettings
     {
         return $this->connection;

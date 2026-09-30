@@ -57,3 +57,7 @@ arch('results and values are immutable')
         TimeInstant::class,
         MonthPlanner::class,
     ]);
+
+arch('no framework is required: the package never uses Laravel or Symfony')
+    ->expect(['Illuminate', 'Symfony\Component'])
+    ->not->toBeUsed();

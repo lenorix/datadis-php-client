@@ -7,6 +7,7 @@ namespace Lenorix\DatadisClient;
 use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
+use Exception;
 use GuzzleHttp\Psr7\HttpFactory;
 use Lenorix\DatadisClient\Auth\SystemClock;
 use Lenorix\DatadisClient\Auth\TokenProvider;
@@ -20,6 +21,7 @@ use Lenorix\DatadisClient\Data\Group;
 use Lenorix\DatadisClient\Data\MaxPowerReading;
 use Lenorix\DatadisClient\Data\ReactiveEnergy;
 use Lenorix\DatadisClient\Data\Supply;
+use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
@@ -92,6 +94,44 @@ final class DatadisClient
         $tokens = new TokenProvider($config, $requests, $transport, $tokenCache, $this->clock);
 
         $this->caller = new ApiCaller($requests, $transport, $tokens);
+    }
+
+    /**
+     * Builds a client from a plain array, as an application keeps its settings: every key of
+     * DatadisConfig::fromArray() plus `api_version` (`v1` or `v2`, default `v2`) and `timezone`
+     * (default `Europe/Madrid`). The collaborators an application provides (HTTP client, caches,
+     * ledger) are passed as objects.
+     *
+     * @param  array<array-key, mixed>  $settings
+     *
+     * @throws ConfigurationException naming the setting that is missing or wrong
+     */
+    public static function fromArray(
+        #[SensitiveParameter] array $settings,
+        ?ClientInterface $http = null,
+        ?CacheInterface $tokenCache = null,
+        ?RequestLedger $ledger = null,
+        ?ClockInterface $clock = null,
+    ): self {
+        $version = DatadisConfig::setting($settings, 'api_version');
+        $zone = DatadisConfig::setting($settings, 'timezone') ?? 'Europe/Madrid';
+
+        try {
+            $timeZone = new DateTimeZone($zone);
+        } catch (Exception $e) {
+            throw new ConfigurationException("The Datadis setting \"timezone\" is not a time zone: {$zone}.", $e);
+        }
+
+        return new self(
+            DatadisConfig::fromArray($settings),
+            http: $http,
+            version: $version === null ? ApiVersion::V2 : (ApiVersion::tryFrom(strtolower($version))
+                ?? throw new ConfigurationException('The Datadis setting "api_version" must be "v1" or "v2".')),
+            tokenCache: $tokenCache,
+            clock: $clock,
+            timeZone: $timeZone,
+            ledger: $ledger,
+        );
     }
 
     /**

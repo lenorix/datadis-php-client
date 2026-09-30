@@ -15,6 +15,7 @@ The package takes care of the parts of Datadis that are easy to get wrong: the r
 - [Working with the results](#working-with-the-results)
 - [When something goes wrong](#when-something-goes-wrong)
 - [Setting it up for production](#setting-it-up-for-production)
+- [Using it in a Laravel application](#using-it-in-a-laravel-application)
 - [Things that catch people out](#things-that-catch-people-out)
 - [What is not verified yet](#what-is-not-verified-yet)
 
@@ -298,6 +299,9 @@ Datadis can be slow, and a request that times out may still have counted. The de
 
 ```php
 $config = new DatadisConfig('B12345678', 'your-password', timeout: 120.0, connectTimeout: 10.0);
+
+// or from the settings your application already keeps
+$config = DatadisConfig::fromArray(['username' => 'B12345678', 'password' => 'your-password', 'timeout' => '120']);
 ```
 
 ### Retry transient failures safely
@@ -324,6 +328,63 @@ Configure it not to follow redirects and not to decompress answers by itself: so
 ### API version
 
 The client uses API v2 by default. Pass `version: ApiVersion::V1` for the older endpoints; reactive energy and groups exist only in v2. Authorizations and partner calls work with either.
+
+## Using it in a Laravel application
+
+The package does not depend on any framework, but it is ready to be configured from one: `DatadisClient::fromArray()` and `DatadisConfig::fromArray()` take the same array you would keep in a configuration file, with the values as the environment gives them (text such as `"120"` or `"v1"` is fine, empty values count as not given, and keys the package does not know are ignored).
+
+`config/datadis.php`:
+
+```php
+return [
+    'username' => env('DATADIS_USERNAME'),
+    'password' => env('DATADIS_PASSWORD'),
+    'api_version' => env('DATADIS_API_VERSION', 'v2'),
+    'timezone' => env('DATADIS_TIMEZONE', 'Europe/Madrid'),
+    'timeout' => env('DATADIS_TIMEOUT', 120),
+];
+```
+
+`app/Providers/AppServiceProvider.php`:
+
+```php
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Lenorix\DatadisClient\DatadisClient;
+use Lenorix\DatadisClient\Guard\RequestFingerprinter;
+use Lenorix\DatadisClient\Guard\RequestLedger;
+
+public function register(): void
+{
+    // bind, not singleton: each resolution picks up the current configuration and any Http::fake().
+    $this->app->bind(DatadisClient::class, fn () => DatadisClient::fromArray(
+        config('datadis'),
+        // Laravel's own Guzzle client, so Http::fake() and Http::assertSent() see every call.
+        http: Http::withOptions(['allow_redirects' => false, 'decode_content' => false])
+            ->timeout((float) config('datadis.timeout', 120))
+            ->buildClient(),
+        // The token and the 24 hour guard live in the cache every worker shares.
+        tokenCache: Cache::store(),
+        ledger: new RequestLedger(Cache::store(), new RequestFingerprinter(config('app.key'))),
+    ));
+}
+```
+
+Inject `DatadisClient` wherever you need it (controllers, jobs, commands). In your tests, fake Datadis like any other HTTP service:
+
+```php
+Http::preventStrayRequests();
+Http::fake([
+    'datadis.es/nikola-auth/tokens/login' => Http::response('a.fake.jwt', 200, ['Content-Type' => 'text/plain']),
+    'datadis.es/api-private/api/get-supplies-v2*' => Http::response(['supplies' => [], 'distributorError' => []]),
+]);
+
+app(DatadisClient::class)->supplies();
+
+Http::assertSent(fn ($request) => $request->hasHeader('Accept', 'application/json'));
+```
+
+The same works in any framework: read the settings however it does, pass them to `fromArray()`, and give the client the HTTP client and PSR-16 cache the framework already has.
 
 ## Things that catch people out
 
