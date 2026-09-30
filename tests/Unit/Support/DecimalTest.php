@@ -13,6 +13,7 @@ it('keeps every digit Datadis sends and pads to a minimum number of decimals', f
     'a standard contracted power' => [1.725, 2, '1.725'],
     'numeric string' => ['2.5', 2, '2.50'],
     'trailing zeros beyond the minimum carry nothing' => ['2.50000', 2, '2.50'],
+    'a whole number written with decimals' => ['2.000', 0, '2'],
     'negative' => [-1.2345, 3, '-1.2345'],
     'exponent notation' => [1.0E-5, 3, '0.00001'],
     'large exponent' => [1.0E+15, 0, '1000000000000000'],
@@ -46,7 +47,8 @@ it('writes the same digits whatever the serialize_precision setting', function (
     $previous = ini_set('serialize_precision', '17');
 
     try {
-        expect(Decimal::of(1.0005, 3))->toBe('1.0005')->and(Decimal::of(0.1, 1))->toBe('0.1');
+        expect(Decimal::of(1.0005, 3))->toBe('1.0005')->and(Decimal::of(0.1, 1))->toBe('0.1')
+            ->and(ini_get('serialize_precision'))->toBe('17');
     } finally {
         ini_set('serialize_precision', (string) $previous);
     }

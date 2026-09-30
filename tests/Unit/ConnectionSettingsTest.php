@@ -15,6 +15,7 @@ it('validates like the private configuration', function (array $arguments) {
     'space in the host' => [['baseUrl' => 'https://datadis .es']],
     'unclosed IPv6 host' => [['baseUrl' => 'https://[::1']],
     'IPv6 host that is not an address' => [['baseUrl' => 'https://[::zz]']],
+    'a closing bracket without an opening one' => [['baseUrl' => 'https://datadis.es]']],
     'backslash in the host' => [['baseUrl' => 'https://datadis.es\\x']],
     'zero connect timeout' => [['connectTimeout' => 0.0]],
     'a timeout that is not a number' => [['timeout' => NAN]],
@@ -45,6 +46,10 @@ it('refuses URLs without a host', function (string $url) {
     new ConnectionSettings(baseUrl: $url);
 })->with(['https://', 'https:///path', '/relative', ''])->throws(ConfigurationException::class);
 
-it('accepts a proxy on an IPv6 address', function () {
-    expect((new ConnectionSettings(baseUrl: 'https://[::1]:8443/datadis'))->baseUrl)->toBe('https://[::1]:8443/datadis');
+it('accepts a proxy on an IPv6 address', function (string $url) {
+    expect((new ConnectionSettings(baseUrl: $url))->baseUrl)->toBe($url);
+})->with(['https://[::1]:8443/datadis', 'https://[2001:db8::]']);
+
+it('accepts a timeout of exactly one millisecond', function () {
+    expect((new ConnectionSettings(timeout: 0.001, connectTimeout: 0.001))->timeout)->toBe(0.001);
 });

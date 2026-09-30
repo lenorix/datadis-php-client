@@ -11,7 +11,7 @@ it('normalises to trimmed uppercase', function () {
 
 it('accepts a NIF, NIE or CIF whose control character matches', function (string $value) {
     expect(Nif::isValid($value))->toBeTrue()->and(Nif::fromString($value)->value())->toBe(strtoupper($value));
-})->with(['12345678Z', '87654321X', 'X1234567L', 'y1234567x', 'Z1234567R', 'B12345674', 'Q1234567D', 'A1234567D']);
+})->with(['12345678Z', '87654321X', 'X1234567L', 'y1234567x', 'Z1234567R', 'B12345674', 'Q1234567D', 'A1234567D', 'B12345690', 'Q1234569J']);
 
 it('refuses one whose control character does not match, before anything is sent', function (string $value) {
     expect(Nif::isValid($value))->toBeFalse()

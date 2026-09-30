@@ -7,7 +7,7 @@
   - PHPUnit 12 dropped docblock metadata, so `@eris-repeat` style annotations do not work. Control iterations with `->limitTo(n)` through a helper in `tests/Pest.php` that reads **our own** env var (`ERIS_ITERATIONS` is not an Eris feature; only `ERIS_SEED` and `ERIS_ORIGINAL_INPUT` are).
   - Eris prints a reproduce hint using `vendor/bin/phpunit`. Reproduce with `ERIS_SEED=<seed> vendor/bin/pest --filter '<test name>'` instead.
   - Always check that the summary line shows a test count. In zsh use `$pipestatus[1]` (not `${PIPESTATUS[0]}`) to read an exit code through a pipe.
-- **Mutation testing** with Infection, which has no Pest adapter: its PHPUnit adapter drives Pest through a small shim script that answers `--version` like PHPUnit, runs `vendor/bin/pest`, rewrites the JUnit class names and prints `OK (` on success. Without the shim every mutant counts as killed. Run it before a release; the last run (0.1.0) killed 90.9 % of 1982 mutants, and every survivor was classified (missing test, equivalent, dead code, input Datadis never sends, message wording).
+- **Mutation testing** with Infection, which has no Pest adapter: its PHPUnit adapter drives Pest through a small shim script that answers `--version` like PHPUnit, runs `vendor/bin/pest`, rewrites the JUnit class names and prints `OK (` on success. Without the shim every mutant counts as killed. Run it before a release; the run before 0.1.0 killed 92 % of 1971 mutants, and every survivor was classified (missing test, equivalent, dead code, input Datadis never sends, message wording).
 - No live API calls in tests, ever. A recording PSR-18 test double serves canned responses and records requests.
 
 ## TDD loop

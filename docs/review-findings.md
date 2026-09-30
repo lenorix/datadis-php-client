@@ -59,6 +59,32 @@ Decided: the public API client is `PublicApiClient`, at the root next to `Datadi
 
 Nothing from this review is left open.
 
+## Review before 0.1.0 (September 2026)
+
+Four reviews ran side by side: mutation testing (Infection), a property-based bug hunt, a maintainability review and a release readiness check.
+
+- Bugs fixed, each with a regression test:
+  - a guarded call retried behind a base path containing `/api-public/`;
+  - an invalid host accepted and then failing outside the exception contract, leaving a query blocked;
+  - the password in stack trace arguments of a wrong setting;
+  - identifiers with several spaces, and a CIF glued to its label, escaping redaction;
+  - all-unusable distributor codes and public rows read as empty successes;
+  - integer overflow;
+  - dates after year 9999;
+  - timeouts Guzzle turns into "wait forever";
+  - float text depending on `serialize_precision`.
+- Decided with the maintainer:
+  - every digit Datadis sends is kept;
+  - the NIF control character is checked (with an opt-out);
+  - Datadis's names for the public query parameters and the month range;
+  - `isOpenEnded()` only;
+  - `equals()` everywhere;
+  - `SupplyMatcher` in `Data`;
+  - `Month::isFuture()` and `AccessTariff::acceptsContractedPower()` removed as of no use to users;
+  - `HourLabel` and `QuarterHourLabel` kept public.
+- Simplified: one `ApiCaller` for both APIs, one date parser, shared month query, dead code the mutants exposed.
+- Mutation score went from 90.9 % (180 survivors) to 92 % (150). The survivors left are equivalent mutants, message wording, and inputs Datadis never sends.
+
 ## Bugs of other implementations checked
 
 The mistakes found in other Datadis clients (see the "mistakes to avoid" notes in [quirks-and-rules.md](quirks-and-rules.md) and [design-decisions.md](design-decisions.md)) were checked one by one against this package, and each is covered by a test: retrying 429, guessing parameter variants, placing `24:00` on the same date, reading `obtainMethod` as `R`, treating `measurementType` as consumption/generation, swallowing decoding errors, reading an `hour` field, the `accesFare` spelling, mislabelled gzip, a blocked default user agent, sending `authorizedNif` unnormalised or for the account itself, comparing dates as strings, floats in exponent notation, the two year window computed as "now minus two years", short timeouts, hand-built query strings, and treating a failed transfer as never sent. The extra `00:00` row some distributors send is kept and flagged rather than dropped; the README tells callers to decide before summing.

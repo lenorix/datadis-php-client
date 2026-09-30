@@ -85,6 +85,7 @@ it('never retries a call that may count or change data, nor one it does not know
     'a path outside the API' => '/api-private/other/get-supplies',
     'a guarded call behind a base path that mentions the public API' => '/api-public/gateway/api-private/api/get-consumption-data-v2',
     'an unknown public call' => '/api-public/api-delete-everything',
+    'an unknown public call that starts like a search' => '/api-public/api-search-everything',
 ])->with([
     'network failure' => [fn () => networkFailure()],
     'bad gateway' => [fn () => Responses::empty(502)],
