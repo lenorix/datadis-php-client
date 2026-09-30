@@ -1,10 +1,9 @@
 <?php
 
 declare(strict_types=1);
-use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
+use Lenorix\DatadisClient\Http\Connection;
 use Lenorix\DatadisClient\Http\GuzzleClientFactory;
-use Lenorix\DatadisClient\PublicApi\PublicApi;
 use Lenorix\DatadisClient\Time\DatadisDate;
 use Lenorix\DatadisClient\Time\MonthPlanner;
 use Lenorix\DatadisClient\Time\TimeInstant;
@@ -33,8 +32,7 @@ arch('only the default wiring knows about Guzzle')
     ->expect('GuzzleHttp')
     ->toOnlyBeUsedIn([
         GuzzleClientFactory::class,
-        DatadisClient::class,
-        PublicApi::class,
+        Connection::class,
     ]);
 
 arch('results and values are immutable, and Data holds only results')

@@ -8,8 +8,6 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
 use Exception;
-use GuzzleHttp\Psr7\HttpFactory;
-use Lenorix\DatadisClient\Auth\TokenProvider;
 use Lenorix\DatadisClient\Data\ApiResult;
 use Lenorix\DatadisClient\Data\Authorization;
 use Lenorix\DatadisClient\Data\ConsumptionReading;
@@ -29,10 +27,8 @@ use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
 use Lenorix\DatadisClient\Guard\RepetitionGuard;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Http\ApiCaller;
+use Lenorix\DatadisClient\Http\Connection;
 use Lenorix\DatadisClient\Http\Endpoint;
-use Lenorix\DatadisClient\Http\GuzzleClientFactory;
-use Lenorix\DatadisClient\Http\RequestFactory;
-use Lenorix\DatadisClient\Http\Transport;
 use Lenorix\DatadisClient\Support\SystemClock;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
@@ -89,13 +85,7 @@ final class DatadisClient
         $this->clock = $clock ?? new SystemClock;
         $this->timeZone = $timeZone ?? new DateTimeZone(Month::SERVICE_TIME_ZONE);
 
-        $factory = new HttpFactory;
-        $streamFactory ??= $factory;
-        $requests = new RequestFactory($config, $requestFactory ?? $factory, $streamFactory);
-        $transport = new Transport($http ?? GuzzleClientFactory::create($config), $streamFactory);
-        $tokens = new TokenProvider($config, $requests, $transport, $tokenCache, $this->clock);
-
-        $this->caller = new ApiCaller($requests, $transport, $tokens);
+        $this->caller = (new Connection($config, $http, $requestFactory, $streamFactory))->caller($config, $tokenCache, $this->clock);
         $this->guard = $ledger === null ? null : new RepetitionGuard($ledger, $config->username);
     }
 

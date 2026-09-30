@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\PublicApi;
 
 use Generator;
-use GuzzleHttp\Psr7\HttpFactory;
-use Lenorix\DatadisClient\Auth\TokenProvider;
 use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\Data\ApiResult;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Http\ApiCaller;
-use Lenorix\DatadisClient\Http\GuzzleClientFactory;
+use Lenorix\DatadisClient\Http\Connection;
 use Lenorix\DatadisClient\Http\RequestFactory;
 use Lenorix\DatadisClient\Http\ResponseClassifier;
 use Lenorix\DatadisClient\Http\Transport;
@@ -56,14 +54,11 @@ final class PublicApi
         ?CacheInterface $tokenCache = null,
     ) {
         $settings ??= new ConnectionSettings;
-        $factory = new HttpFactory;
+        $connection = new Connection($settings, $http, $requestFactory, $streamFactory);
 
-        $streamFactory ??= $factory;
-        $this->requests = new RequestFactory($settings, $requestFactory ?? $factory, $streamFactory);
-        $this->transport = new Transport($http ?? GuzzleClientFactory::create($settings), $streamFactory);
-        $this->caller = $settings instanceof DatadisConfig
-            ? new ApiCaller($this->requests, $this->transport, new TokenProvider($settings, $this->requests, $this->transport, $tokenCache))
-            : null;
+        $this->requests = $connection->requests;
+        $this->transport = $connection->transport;
+        $this->caller = $settings instanceof DatadisConfig ? $connection->caller($settings, $tokenCache) : null;
     }
 
     /** @return ApiResult<PublicRecord> */

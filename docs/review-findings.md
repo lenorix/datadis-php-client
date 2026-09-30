@@ -53,7 +53,9 @@ Also decided: a client per holder (`forHolder()`).
 
 Done since: the decoding helpers moved out of `Data` into the internal `Decoding` namespace.
 
-Still open: `PublicApi\PublicApi` repeating its namespace, and merging the constructor with `fromArray()`.
+Decided: the constructor and `fromArray()` stay as two ways in (plain code and application settings); their parameter names are final for 1.0. The wiring both APIs need is shared in the internal `Http\Connection`.
+
+Still open: `PublicApi\PublicApi` repeating its namespace.
 
 ## Bugs of other implementations checked
 
