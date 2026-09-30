@@ -31,3 +31,6 @@ psalm.xml
 testbench.yaml
 /docs/extras
 /coverage
+
+# macOS
+.DS_Store

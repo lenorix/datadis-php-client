@@ -10,8 +10,13 @@ updates:
       interval: "weekly"
     labels:
       - "dependencies"
+    # Wait a few days after a release before proposing it, so a compromised or broken release
+    # has time to be noticed and pulled.
     cooldown:
-      default-days: 1
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
 
   - package-ecosystem: "composer"
     directory: "/"
@@ -20,4 +25,7 @@ updates:
     labels:
       - "dependencies"
     cooldown:
-      default-days: 1
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3

@@ -1,8 +1,11 @@
 blank_issues_enabled: true
 contact_links:
     - name: Feature Request
-      url: https://github.com/spatie/package-skeleton-php/discussions/new?category=ideas
+      url: https://github.com/lenorix/datadis-client/discussions/new?category=ideas
       about: Share ideas for new features
     - name: Ask a Question
-      url: https://github.com/spatie/package-skeleton-php/discussions/new?category=q-a
+      url: https://github.com/lenorix/datadis-client/discussions/new?category=q-a
       about: Ask the community for help
+    - name: Report a Security Vulnerability
+      url: https://github.com/lenorix/datadis-client/security/policy
+      about: Please report security issues privately, not in a public issue

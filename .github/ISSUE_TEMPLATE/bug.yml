@@ -7,6 +7,8 @@ body:
       attributes:
           value: |
               We're sorry to hear you have a problem. Can you help us solve it by providing the following details.
+
+              **Do not paste personal data**: no CUPS, NIF, addresses, consumption data, passwords or tokens. Replace them with made-up values; the package's exception messages are already redacted.
     - type: textarea
       id: what-happened
       attributes:
@@ -36,9 +38,16 @@ body:
       attributes:
           label: PHP Version
           description: What version of PHP are you running? Please be as specific as possible
-          placeholder: 8.2.0
+          placeholder: 8.4.0
       validations:
           required: true
+    - type: dropdown
+      id: api-version
+      attributes:
+        label: Datadis API version
+        options:
+        - v2 (default)
+        - v1
     - type: dropdown
       id: operating-systems
       attributes:
