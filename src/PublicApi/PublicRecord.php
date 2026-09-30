@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\PublicApi;
 
 use Lenorix\DatadisClient\Data\Fields;
+use SensitiveParameter;
 
 /**
  * One aggregated row of the public API.
@@ -21,7 +22,7 @@ final readonly class PublicRecord
     private function __construct(public array $raw) {}
 
     /** @param array<array-key, mixed> $row */
-    public static function fromRow(array $row): self
+    public static function fromRow(#[SensitiveParameter] array $row): self
     {
         return new self($row);
     }

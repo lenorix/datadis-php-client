@@ -7,6 +7,7 @@ namespace Lenorix\DatadisClient\Data;
 use DateTimeImmutable;
 use DateTimeZone;
 use Lenorix\DatadisClient\Time\DatadisDate;
+use SensitiveParameter;
 
 /**
  * An authorization between a supply owner and a third party (v1 `list-authorization`).
@@ -32,7 +33,7 @@ final readonly class Authorization
      * @param  array<array-key, mixed>  $row
      * @return self|null null when the row has neither an id nor a document
      */
-    public static function fromRow(array $row, DateTimeZone $zone): ?self
+    public static function fromRow(#[SensitiveParameter] array $row, DateTimeZone $zone): ?self
     {
         $id = Fields::nonEmptyText($row, 'id');
         $owner = Fields::nonEmptyText($row, 'ownerDocument');

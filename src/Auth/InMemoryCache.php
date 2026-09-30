@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Auth;
 
+use Closure;
 use DateInterval;
 use Psr\Clock\ClockInterface;
 use Psr\SimpleCache\CacheInterface;
@@ -11,41 +12,53 @@ use Psr\SimpleCache\CacheInterface;
 /** A process-local PSR-16 cache, the default token store. Expiry follows the injected clock. */
 final class InMemoryCache implements CacheInterface
 {
-    /** @var array<string, array{mixed, int|null}> */
-    private array $items = [];
+    /**
+     * The items live inside a closure, which var_export cannot show, and __debugInfo hides them
+     * from var_dump and print_r: the cache holds a live token.
+     */
+    private readonly Closure $vault;
 
-    public function __construct(private readonly ClockInterface $clock) {}
+    public function __construct(private readonly ClockInterface $clock)
+    {
+        $items = [];
+        $this->vault = static function &() use (&$items): array {
+            return $items;
+        };
+    }
 
     public function get(string $key, mixed $default = null): mixed
     {
-        return $this->has($key) ? $this->items[$key][0] : $default;
+        return $this->has($key) ? $this->items()[$key][0] : $default;
     }
 
     public function set(string $key, mixed $value, DateInterval|int|null $ttl = null): bool
     {
+        $items = &$this->items();
         $expiry = $this->expiry($ttl);
 
         if ($expiry !== null && $expiry <= $this->clock->now()->getTimestamp()) {
-            unset($this->items[$key]);
+            unset($items[$key]);
 
             return true;
         }
 
-        $this->items[$key] = [$value, $expiry];
+        $items[$key] = [$value, $expiry];
 
         return true;
     }
 
     public function delete(string $key): bool
     {
-        unset($this->items[$key]);
+        $items = &$this->items();
+        unset($items[$key]);
 
         return true;
     }
 
     public function clear(): bool
     {
-        $this->items = [];
+        $items = &$this->items();
+        $items = [];
 
         return true;
     }
@@ -81,19 +94,36 @@ final class InMemoryCache implements CacheInterface
 
     public function has(string $key): bool
     {
-        if (! isset($this->items[$key])) {
+        $items = &$this->items();
+
+        if (! isset($items[$key])) {
             return false;
         }
 
-        $expiry = $this->items[$key][1];
+        $expiry = $items[$key][1];
 
         if ($expiry !== null && $expiry <= $this->clock->now()->getTimestamp()) {
-            unset($this->items[$key]);
+            unset($items[$key]);
 
             return false;
         }
 
         return true;
+    }
+
+    /** @return array<string, int> */
+    public function __debugInfo(): array
+    {
+        return ['items' => count($this->items())];
+    }
+
+    /** @return array<string, array{mixed, int|null}> */
+    private function &items(): array
+    {
+        /** @var array<string, array{mixed, int|null}> $items */
+        $items = &($this->vault)();
+
+        return $items;
     }
 
     private function expiry(DateInterval|int|null $ttl): ?int

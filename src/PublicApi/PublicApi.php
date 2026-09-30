@@ -17,6 +17,7 @@ use Lenorix\DatadisClient\Http\Transport;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use SensitiveParameter;
 
 /**
  * The public, unauthenticated Datadis API: aggregated open data by territory, tariff, sector...
@@ -45,8 +46,9 @@ final class PublicApi
         $settings ??= new ConnectionSettings;
         $factory = new HttpFactory;
 
-        $this->requests = new RequestFactory($settings, $requestFactory ?? $factory, $streamFactory ?? $factory);
-        $this->transport = new Transport($http ?? GuzzleClientFactory::create($settings));
+        $streamFactory ??= $factory;
+        $this->requests = new RequestFactory($settings, $requestFactory ?? $factory, $streamFactory);
+        $this->transport = new Transport($http ?? GuzzleClientFactory::create($settings), $streamFactory);
     }
 
     /** @return ApiResult<PublicRecord> */
@@ -153,7 +155,7 @@ final class PublicApi
      * @param  array<array-key, mixed>  $decoded
      * @return list<mixed>
      */
-    private static function rows(array $decoded, string $endpoint): array
+    private static function rows(#[SensitiveParameter] array $decoded, string $endpoint): array
     {
         if ($decoded === [] || array_is_list($decoded)) {
             return $decoded;

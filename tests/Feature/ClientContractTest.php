@@ -136,5 +136,6 @@ it('builds requests with the PSR-17 factories it is given', function () {
 
     $client->supplies();
 
-    expect($requests->calls)->toBe(2)->and($streams->calls)->toBe(1);
+    // Streams: the login body, then each answer's body kept in memory by the transport.
+    expect($requests->calls)->toBe(2)->and($streams->calls)->toBe(3);
 });

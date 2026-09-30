@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Lenorix\DatadisClient\Support\Decimal;
 use Lenorix\DatadisClient\Time\DatadisDate;
+use SensitiveParameter;
 
 /**
  * Tolerant readers for the fields of a decoded row.
@@ -27,7 +28,7 @@ final class Fields
      *
      * @param  array<array-key, mixed>  $row
      */
-    public static function text(array $row, string ...$keys): ?string
+    public static function text(#[SensitiveParameter] array $row, string ...$keys): ?string
     {
         foreach ($keys as $key) {
             $value = $row[$key] ?? null;
@@ -53,7 +54,7 @@ final class Fields
      *
      * @param  array<array-key, mixed>  $row
      */
-    public static function nonEmptyText(array $row, string ...$keys): ?string
+    public static function nonEmptyText(#[SensitiveParameter] array $row, string ...$keys): ?string
     {
         $text = self::text($row, ...$keys);
 
@@ -65,7 +66,7 @@ final class Fields
      *
      * @param  array<array-key, mixed>  $row
      */
-    public static function decimal(array $row, int $scale, string ...$keys): ?string
+    public static function decimal(#[SensitiveParameter] array $row, int $scale, string ...$keys): ?string
     {
         foreach ($keys as $key) {
             $value = $row[$key] ?? null;
@@ -79,7 +80,7 @@ final class Fields
     }
 
     /** @param  array<array-key, mixed>  $row */
-    public static function integer(array $row, string $key): ?int
+    public static function integer(#[SensitiveParameter] array $row, string $key): ?int
     {
         $value = $row[$key] ?? null;
 
@@ -96,7 +97,7 @@ final class Fields
      *
      * @param  array<array-key, mixed>  $row
      */
-    public static function date(array $row, DateTimeZone $zone, string $key): ?DateTimeImmutable
+    public static function date(#[SensitiveParameter] array $row, DateTimeZone $zone, string $key): ?DateTimeImmutable
     {
         $text = self::nonEmptyText($row, $key);
 

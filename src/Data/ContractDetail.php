@@ -10,6 +10,7 @@ use Lenorix\DatadisClient\Support\Decimal;
 use Lenorix\DatadisClient\Tariff\AccessFareParser;
 use Lenorix\DatadisClient\Tariff\AccessTariff;
 use Lenorix\DatadisClient\Time\DatadisDate;
+use SensitiveParameter;
 
 /**
  * The contract of a supply point. Most fields are nullable because Datadis fills them inconsistently.
@@ -58,7 +59,7 @@ final readonly class ContractDetail
      * @param  array<array-key, mixed>  $row
      * @return self|null null when the row has no CUPS
      */
-    public static function fromRow(array $row, DateTimeZone $zone): ?self
+    public static function fromRow(#[SensitiveParameter] array $row, DateTimeZone $zone): ?self
     {
         $cups = Fields::nonEmptyText($row, 'cups');
 

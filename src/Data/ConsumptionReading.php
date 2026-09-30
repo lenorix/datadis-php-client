@@ -10,6 +10,7 @@ use Lenorix\DatadisClient\Time\DatadisDate;
 use Lenorix\DatadisClient\Time\HourLabel;
 use Lenorix\DatadisClient\Time\QuarterHourLabel;
 use Lenorix\DatadisClient\Values\MeasurementType;
+use SensitiveParameter;
 
 /**
  * One consumption row. `date` and `time` are kept exactly as received.
@@ -46,7 +47,7 @@ final readonly class ConsumptionReading
      *                           tells the two `03:00` rows of the autumn change day apart
      * @return self|null null when the row has no readable date or consumption (Datadis sends null values)
      */
-    public static function fromRow(array $row, DateTimeZone $zone, MeasurementType $type, int $occurrence = 0): ?self
+    public static function fromRow(#[SensitiveParameter] array $row, DateTimeZone $zone, MeasurementType $type, int $occurrence = 0): ?self
     {
         $date = Fields::text($row, 'date');
         $time = Fields::text($row, 'time');

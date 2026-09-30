@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Data;
 
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
+use SensitiveParameter;
 
 /**
  * The reactive energy answer (v2 only). Least verified response of the API: the field names come
@@ -28,7 +29,7 @@ final readonly class ReactiveEnergy
      * @param  array<array-key, mixed>  $row  the `reactiveEnergy` object
      * @return self|null null when the object is empty
      */
-    public static function fromRow(array $row): ?self
+    public static function fromRow(#[SensitiveParameter] array $row): ?self
     {
         if ($row === []) {
             return null;
@@ -63,7 +64,7 @@ final readonly class ReactiveEnergy
      *
      * @throws UninterpretableResponseException
      */
-    public static function result(array $decoded, string $endpoint): ApiResult
+    public static function result(#[SensitiveParameter] array $decoded, string $endpoint): ApiResult
     {
         if ($decoded === []) {
             return new ApiResult([]);
@@ -100,6 +101,10 @@ final readonly class ReactiveEnergy
             } else {
                 $records[] = $record;
             }
+        }
+
+        if ($objects !== [] && $records === []) {
+            throw new UninterpretableResponseException("{$endpoint}: none of the {$skipped} reactive entries could be used.", endpoint: $endpoint);
         }
 
         return new ApiResult($records, Envelope::distributorErrors($decoded), $skipped, $decoded);

@@ -14,7 +14,8 @@ use Lenorix\DatadisClient\Calendar\Territory;
  * weekends and national holidays.
  *
  * Peninsula, Baleares and Canarias: P1 10-14 and 18-22, P2 8-10, 14-18 and 22-24, P3 0-8.
- * Ceuta and Melilla shift every block one hour later.
+ * Ceuta and Melilla: P1 11-15 and 19-23, P2 8-11, 15-19 and 23-24, P3 0-8 (the peak and flat
+ * blocks one hour later; valley still ends at 8).
  */
 final readonly class FixedSchedulePeriods implements PeriodMapper
 {

@@ -61,6 +61,12 @@ final class ResponseClassifier
             );
         }
 
+        // An empty object decodes like an empty list, but it is never a valid answer: every object
+        // answer has an envelope key, so {} must not pass as "no data".
+        if ($decoded === [] && str_starts_with(trim($body), '{')) {
+            throw new UninterpretableResponseException("{$endpoint}: the response is an empty object.", $status, '', $endpoint);
+        }
+
         if (! is_array($decoded)) {
             throw new UninterpretableResponseException(
                 "{$endpoint}: the response is not a JSON object or list.",

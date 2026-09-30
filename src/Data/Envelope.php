@@ -6,6 +6,7 @@ namespace Lenorix\DatadisClient\Data;
 
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
+use SensitiveParameter;
 use Throwable;
 
 /**
@@ -25,7 +26,7 @@ final class Envelope
      *
      * @throws UninterpretableResponseException
      */
-    public static function build(array $decoded, string $key, string $endpoint, callable $decodeRow): ApiResult
+    public static function build(#[SensitiveParameter] array $decoded, string $key, string $endpoint, callable $decodeRow): ApiResult
     {
         [$rows, $errors] = self::open($decoded, $key, $endpoint);
 
@@ -55,7 +56,7 @@ final class Envelope
      * @param  array<array-key, mixed>  $decoded
      * @return array{list<mixed>, list<DistributorError>}
      */
-    public static function open(array $decoded, string $key, string $endpoint): array
+    public static function open(#[SensitiveParameter] array $decoded, string $key, string $endpoint): array
     {
         if ($decoded === []) {
             return [[], []];
@@ -88,9 +89,14 @@ final class Envelope
      * @param  array<array-key, mixed>  $decoded
      * @return list<DistributorError>
      */
-    public static function distributorErrors(array $decoded): array
+    public static function distributorErrors(#[SensitiveParameter] array $decoded): array
     {
         $raw = $decoded['distributorError'] ?? [];
+
+        // Documented as a list of objects, but a failure must not be lost because of its shape.
+        if (is_string($raw) && trim($raw) !== '') {
+            return [DistributorError::fromRow(['errorDescription' => $raw])];
+        }
 
         if (! is_array($raw)) {
             return [];
@@ -120,7 +126,7 @@ final class Envelope
      * @param  array<array-key, mixed>  $row
      * @return T
      */
-    public static function decodeRow(callable $decodeRow, array $row, string $endpoint): mixed
+    public static function decodeRow(callable $decodeRow, #[SensitiveParameter] array $row, string $endpoint): mixed
     {
         try {
             return $decodeRow($row);

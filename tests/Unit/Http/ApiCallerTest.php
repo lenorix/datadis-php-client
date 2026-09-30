@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Psr7\HttpFactory;
 use GuzzleHttp\Psr7\Request;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
@@ -177,7 +178,7 @@ it('reports the call as sent when the network fails while logging in again', fun
 });
 
 it('wraps whatever a misbehaving HTTP client throws', function (bool $preflight) {
-    $transport = new Transport((new FakeHttpClient)->queue(new RuntimeException('boom ES0031300000000001JN0F')));
+    $transport = new Transport((new FakeHttpClient)->queue(new RuntimeException('boom ES0031300000000001JN0F')), new HttpFactory);
 
     try {
         $transport->send(new Request('GET', 'https://datadis.test/x'), 'get-supplies-v2', $preflight);

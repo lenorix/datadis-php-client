@@ -11,7 +11,7 @@ Proposed architecture. Each decision states the reason so it can be revisited.
 
 ## Layers
 
-1. **Transport**: sends PSR-7 requests, adds the mandatory headers, never throws on HTTP status by itself.
+1. **Transport**: sends PSR-7 requests, adds the mandatory headers, reads the whole body inside the same failure mapping (a streaming client transfers the body only when it is read), never throws on HTTP status by itself.
 2. **Authentication**: `TokenProvider` obtains and caches the JWT (PSR-16 store optional, in-memory default), reads `exp`, refreshes once on 401.
 3. **Endpoints**: one method per v2 endpoint with parameter objects that validate before any request leaves the machine.
 4. **Decoding**: turns envelopes into immutable DTOs, keeping `raw` and `distributorErrors`. Tolerant reader: accepts a bare list, both `installedCapacity`/`installedCapacityKW`, `accessFare`/`accesFare`, numeric strings, `""` as null.

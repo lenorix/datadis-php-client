@@ -11,10 +11,6 @@ use InvalidArgumentException;
 /** Converts the numbers Datadis sends into plain decimal strings with a fixed scale (half-up rounding). */
 final class Decimal
 {
-    public const int ENERGY_SCALE = 3;
-
-    public const int POWER_SCALE = 2;
-
     private const int MAX_LENGTH = 64;
 
     public static function of(mixed $value, int $scale): string

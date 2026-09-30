@@ -71,7 +71,7 @@ it('treats an empty page as the end of the results', function (string $body) {
     $http = (new FakeHttpClient)->queue(Responses::json($body));
 
     expect(publicApi($http)->search(searchQuery())->isEmpty())->toBeTrue();
-})->with(['[]', '{"content":[]}', '{}']);
+})->with(['[]', '{"content":[]}']);
 
 it('treats a no content answer as an empty page', function () {
     $http = (new FakeHttpClient)->queue(Responses::empty(204));
@@ -212,3 +212,7 @@ it('sends public requests to the configured host', function () {
 
     expect($http->lastRequest()->getUri()->getHost())->toBe('datadis.test');
 });
+
+it('refuses an empty object, which says nothing about the page', function () {
+    publicApi((new FakeHttpClient)->queue(Responses::json('{}')))->search(searchQuery());
+})->throws(UninterpretableResponseException::class);

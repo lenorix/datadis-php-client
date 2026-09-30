@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Data;
 
+use SensitiveParameter;
+
 /** Reactive energy of one date, per power period (`energy_p1`..`energy_p6`), decimal strings with scale 3. */
 final readonly class ReactiveEnergyEntry
 {
@@ -18,7 +20,7 @@ final readonly class ReactiveEnergyEntry
     ) {}
 
     /** @param array<array-key, mixed> $row */
-    public static function fromRow(array $row): self
+    public static function fromRow(#[SensitiveParameter] array $row): self
     {
         $periods = [];
         foreach (range(1, 6) as $period) {

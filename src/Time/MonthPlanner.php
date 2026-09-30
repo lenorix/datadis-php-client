@@ -19,7 +19,7 @@ use Lenorix\DatadisClient\Data\Supply;
 final class MonthPlanner
 {
     /**
-     * @param  DateTimeInterface  $now  in the zone of Datadis' dates (Europe/Madrid, or Atlantic/Canary)
+     * @param  DateTimeInterface  $now  any zone: the current month is judged on the Madrid calendar, like the client does
      * @return list<array{0: Month, 1: Month}> consecutive, non-overlapping ranges, both ends included
      */
     public static function ranges(Month $from, Month $to, DateTimeInterface $now, int $monthsPerRequest = 1, ?Supply $supply = null): array
@@ -32,7 +32,7 @@ final class MonthPlanner
             throw new InvalidArgumentException('At least one month per request.');
         }
 
-        $current = Month::fromDate($now);
+        $current = Month::current($now);
         $first = self::latest($from, $current->addMonths(-(Month::HISTORY_MONTHS - 1)));
         $last = self::earliest($to, $current);
 

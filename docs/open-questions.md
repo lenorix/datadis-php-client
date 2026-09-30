@@ -18,6 +18,7 @@
 - Whether a per-CUPS daily quota exists beyond the identical-query rule.
 - Real success bodies for reactive energy and max power (max-power `period` may be `"1"` or `"P1"`, and the unit is kW in practice).
 - Quarter-hourly `time` format and row counts.
+- Which point types really offer quarter-hourly data. The captured parameter description says types 1 and 2, and 3 for E-distribución; one sector note says Datadis widened quarter-hourly data in 2025, and an implementation that validated this locally had to relax its checks. The client does not refuse any point type: a wrong local refusal would leave no way around it.
 - Whether `authorizedNif` is tolerated for own supplies, and which NIF formats (hyphens, spaces, lowercase) are accepted.
 - Tolerated month range per call (multi-month) and the payload ceiling.
 - Whether `-v2` responses differ from v1 in item field names (`accessFare` vs `accesFare`, `installedCapacity` vs `installedCapacityKW`).

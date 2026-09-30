@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Data;
 
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
+use SensitiveParameter;
 
 /**
  * Reads the distributors-with-supplies answer, which has a different shape in each version:
@@ -19,7 +20,7 @@ final class DistributorCodes
      * @param  array<array-key, mixed>  $decoded
      * @return ApiResult<string>
      */
-    public static function result(array $decoded, string $endpoint): ApiResult
+    public static function result(#[SensitiveParameter] array $decoded, string $endpoint): ApiResult
     {
         $lists = match (true) {
             $decoded === [] => [],
@@ -60,7 +61,7 @@ final class DistributorCodes
      * @param  list<mixed>  $items
      * @return list<mixed>
      */
-    private static function fromList(array $items, string $endpoint): array
+    private static function fromList(#[SensitiveParameter] array $items, string $endpoint): array
     {
         $lists = [];
         $scalars = [];

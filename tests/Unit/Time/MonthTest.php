@@ -90,3 +90,11 @@ it('accepts the first and last representable years and is not before itself', fu
         ->and(Month::of(9999, 12)->format())->toBe('9999/12')
         ->and(Month::of(2026, 1)->isBefore(Month::of(2026, 1)))->toBeFalse();
 });
+
+it('knows the current month on the Madrid calendar', function () {
+    $lateCanary = new DateTimeImmutable('2026-09-30 23:30:00', new DateTimeZone('Atlantic/Canary'));
+
+    expect(Month::current($lateCanary)->format())->toBe('2026/10')
+        ->and(Month::of(2026, 10)->isFuture($lateCanary))->toBeFalse()
+        ->and(Month::of(2024, 10)->isWithinHistory($lateCanary))->toBeFalse();
+});

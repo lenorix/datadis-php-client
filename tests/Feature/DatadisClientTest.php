@@ -360,6 +360,8 @@ it('reads reactive energy tolerantly but never turns an unknown answer into an e
 })->with([
     'message only' => ['{"message":"Internal error"}', null],
     'unknown object' => ['{"foo":1}', null],
+    'empty object' => ['{}', null],
+    'list of scalars' => ['{"reactiveEnergy":[1,2]}', null],
     'bare list' => ['[{"cups":"x","energy":[]}]', null],
     'reactive energy is a scalar' => ['{"reactiveEnergy":"x"}', null],
     'reactive energy as a list' => ['{"reactiveEnergy":[{"cups":"x","energy":[{"date":"2026/01","energy_p1":1}]},{"cups":"y"}]}', 2],
@@ -431,4 +433,20 @@ it('counts unusable distributor codes and keeps reading after them', function ()
     $result = $client->distributors();
 
     expect($result->records)->toBe(['2', '5', '8'])->and($result->skippedRows)->toBe(2);
+});
+
+it('refuses an empty object where an envelope was expected', function () {
+    [$client, $http] = scenario();
+    $http->queue(Responses::json('{}'));
+
+    $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+})->throws(UninterpretableResponseException::class);
+
+it('keeps a distributor error sent as plain text', function () {
+    [$client, $http] = scenario();
+    $http->queue(Responses::json('{"timeCurve":[],"distributorError":"Error interno distribuidora"}'));
+
+    $result = $client->consumption(Cups::fromString(CUPS22), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+
+    expect($result->isEmptyBecauseOfErrors())->toBeTrue()->and($result->distributorErrors[0]->errorDescription)->toBe('Error interno distribuidora');
 });

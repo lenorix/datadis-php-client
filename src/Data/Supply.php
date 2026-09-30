@@ -6,6 +6,7 @@ namespace Lenorix\DatadisClient\Data;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use SensitiveParameter;
 
 /**
  * A supply point of the account (or of an authorized third party).
@@ -37,7 +38,7 @@ final readonly class Supply
      * @param  array<array-key, mixed>  $row
      * @return self|null null when the row has no CUPS
      */
-    public static function fromRow(array $row, DateTimeZone $zone): ?self
+    public static function fromRow(#[SensitiveParameter] array $row, DateTimeZone $zone): ?self
     {
         $cups = Fields::nonEmptyText($row, 'cups');
 

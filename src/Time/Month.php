@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Time;
 
+use DateTimeImmutable;
 use DateTimeInterface;
+use DateTimeZone;
 use InvalidArgumentException;
 use Stringable;
 
@@ -18,6 +20,9 @@ final readonly class Month implements Stringable
 {
     /** Months of history the API serves, counting the current month. */
     public const int HISTORY_MONTHS = 24;
+
+    /** Datadis is a Spanish service and is assumed to judge its month window by the Madrid calendar (UNVERIFIED). */
+    public const string SERVICE_TIME_ZONE = 'Europe/Madrid';
 
     private function __construct(
         public int $year,
@@ -49,6 +54,12 @@ final readonly class Month implements Stringable
     public static function fromDate(DateTimeInterface $date): self
     {
         return self::of((int) $date->format('Y'), (int) $date->format('n'));
+    }
+
+    /** The current month on the Madrid calendar, whatever the zone of $now. */
+    public static function current(DateTimeInterface $now): self
+    {
+        return self::fromDate(DateTimeImmutable::createFromInterface($now)->setTimezone(new DateTimeZone(self::SERVICE_TIME_ZONE)));
     }
 
     /**
@@ -110,13 +121,13 @@ final readonly class Month implements Stringable
 
     public function isFuture(DateTimeInterface $now): bool
     {
-        return $this->isAfter(self::fromDate($now));
+        return $this->isAfter(self::current($now));
     }
 
     /** Whether the API serves this month: not in the future and not older than the history window. */
     public function isWithinHistory(DateTimeInterface $now): bool
     {
-        $current = self::fromDate($now);
+        $current = self::current($now);
         $age = $current->diffInMonths($this);
 
         return $age >= 0 && $age <= self::HISTORY_MONTHS - 1;

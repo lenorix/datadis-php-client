@@ -54,9 +54,6 @@ final class DatadisClient
 {
     private const string API = '/api-private/api/';
 
-    /** The zone Datadis is assumed to judge its month window in. */
-    private const string SERVICE_TIME_ZONE = 'Europe/Madrid';
-
     /** The endpoints subject to the 24 hour repetition rule. */
     private const array GUARDED = ['get-consumption-data', 'get-max-power', 'get-reactive-data'];
 
@@ -87,8 +84,9 @@ final class DatadisClient
         $this->timeZone = $timeZone ?? new DateTimeZone('Europe/Madrid');
 
         $factory = new HttpFactory;
-        $requests = new RequestFactory($config, $requestFactory ?? $factory, $streamFactory ?? $factory);
-        $transport = new Transport($http ?? GuzzleClientFactory::create($config));
+        $streamFactory ??= $factory;
+        $requests = new RequestFactory($config, $requestFactory ?? $factory, $streamFactory);
+        $transport = new Transport($http ?? GuzzleClientFactory::create($config), $streamFactory);
         $tokens = new TokenProvider($config, $requests, $transport, $tokenCache, $this->clock);
 
         $this->caller = new ApiCaller($requests, $transport, $tokens);
@@ -402,6 +400,6 @@ final class DatadisClient
      */
     private function now(): DateTimeImmutable
     {
-        return $this->clock->now()->setTimezone(new DateTimeZone(self::SERVICE_TIME_ZONE));
+        return $this->clock->now()->setTimezone(new DateTimeZone(Month::SERVICE_TIME_ZONE));
     }
 }

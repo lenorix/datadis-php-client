@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Lenorix\DatadisClient\Time\DatadisDate;
 use Lenorix\DatadisClient\Time\TimeInstant;
+use SensitiveParameter;
 
 /**
  * The maximum power of a day, with the instant it was reached.
@@ -33,7 +34,7 @@ final readonly class MaxPowerReading
      * @param  array<array-key, mixed>  $row
      * @return self|null null when the row has no readable date or value
      */
-    public static function fromRow(array $row, DateTimeZone $zone): ?self
+    public static function fromRow(#[SensitiveParameter] array $row, DateTimeZone $zone): ?self
     {
         $date = Fields::text($row, 'date');
         $time = Fields::text($row, 'time');

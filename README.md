@@ -74,7 +74,7 @@ Every list method returns an `ApiResult`:
 | `isEmptyBecauseOfErrors()` | Empty because a distributor failed, not because there is no data. |
 | `skippedRows` | Rows that could not be used (Datadis sends `null` consumption at times). |
 
-Numbers are decimal strings with a fixed scale (energy 3, power 2), never floats. Dates that Datadis sends empty for open-ended contracts are `null`, with `isOpenEnded()` to ask.
+Numbers are decimal strings with a fixed scale, never floats: three decimals for energy, maximum power and installed capacity, two for contracted power. Dates that Datadis sends empty for open-ended contracts are `null`, with `isOpenEnded()` to ask.
 
 ### Hours and daylight saving time
 
@@ -91,7 +91,7 @@ $client = new DatadisClient($config, timeZone: Territory::Canarias->timeZone());
 
 ## Errors
 
-Every exception extends `DatadisException`, which carries `httpStatus`, `endpoint`, a redacted `detail` of what Datadis answered, and `requestSent`. `requestSent` is `false` only when the request provably never left: use it to decide whether a query is still available. CUPS, NIF, NIE, CIF, tokens and passwords are removed from messages and details.
+Every exception raised while talking to Datadis extends `DatadisException`, which carries `httpStatus`, `endpoint`, a redacted `detail` of what Datadis answered, and `requestSent`. `requestSent` is `false` only when the request provably never left: use it to decide whether a query is still available. CUPS, NIF, NIE, CIF, tokens and passwords are removed from messages and details.
 
 | Exception | When |
 |-----------|------|
@@ -107,6 +107,8 @@ Every exception extends `DatadisException`, which carries `httpStatus`, `endpoin
 | `UninterpretableResponseException` | An answer that cannot be read (HTML page, unknown shape). |
 | `UnsupportedOperationException` | The operation does not exist in the chosen API version. |
 | `LedgerUnavailableException` | The guard's store failed, so the query was not sent. |
+
+Value objects (`Cups`, `Nif`, `Month`, labels) and helpers throw `InvalidArgumentException` for malformed input. A supply's `cups` comes from Datadis, so check it with `Cups::isValid()` before `Cups::fromString()` if you cannot trust it.
 
 ## Configuration
 

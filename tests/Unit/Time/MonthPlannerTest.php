@@ -45,3 +45,9 @@ it('refuses a reversed range or an empty group', function (Closure $call) {
     [fn () => MonthPlanner::ranges(Month::of(2026, 3), Month::of(2026, 1), new DateTimeImmutable('2026-09-15'))],
     [fn () => MonthPlanner::ranges(Month::of(2026, 1), Month::of(2026, 3), new DateTimeImmutable('2026-09-15'), 0)],
 ])->throws(InvalidArgumentException::class);
+
+it('judges the current month on the Madrid calendar whatever zone now is given in', function () use ($format) {
+    $lateUtc = new DateTimeImmutable('2026-09-30 22:30:00', new DateTimeZone('UTC'));
+
+    expect($format(MonthPlanner::ranges(Month::of(2020, 1), Month::of(2030, 1), $lateUtc, 24)))->toBe(['2024/11-2026/10']);
+});
