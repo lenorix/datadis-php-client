@@ -3,7 +3,15 @@
 declare(strict_types=1);
 
 use Eris\TestTrait;
+use Lenorix\DatadisClient\ApiVersion;
+use Lenorix\DatadisClient\DatadisClient;
+use Lenorix\DatadisClient\DatadisConfig;
+use Lenorix\DatadisClient\Guard\RequestFingerprinter;
+use Lenorix\DatadisClient\Guard\RequestLedger;
+use Lenorix\DatadisClient\Http\RetryingClient;
+use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
+use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 
 uses(TestTrait::class)->in('Property');
 
@@ -40,4 +48,20 @@ function pbtIterations(): int
     $value = getenv('DATADIS_PBT_ITERATIONS');
 
     return $value !== false && ctype_digit($value) && (int) $value > 0 ? (int) $value : 100;
+}
+
+/** @return array{DatadisClient, FakeHttpClient, FrozenClock} */
+function flowClient(ApiVersion $version = ApiVersion::V2, bool $ledger = false, bool $retries = false): array
+{
+    $http = new FakeHttpClient;
+    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $client = new DatadisClient(
+        new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'),
+        http: $retries ? new RetryingClient($http, sleep: static function (int $ms): void {}) : $http,
+        version: $version,
+        clock: $clock,
+        ledger: $ledger ? new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock) : null,
+    );
+
+    return [$client, $http, $clock];
 }

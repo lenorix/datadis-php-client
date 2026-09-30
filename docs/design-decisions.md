@@ -12,6 +12,7 @@ The architecture as built. Each decision states the reason so it can be revisite
 
 - **Names are Datadis's own** (decided September 2026). Methods are the endpoint names in camelCase (`getConsumptionData()`, `listAuthorization()`, `apiSearchAuto()`), parameters are the query parameter names (`startDate`, `endDate`, `authorizedNif`), and DTO fields are the JSON keys exactly as Datadis sends them, odd casing included (`contractedPowerkW`, `municipioCode`, `code_desc`). Values the client derives (intervals, `hourOfDay`, `openEnded`, the grouped reactive `periods`) have their own names.
 - **v2 is the default version**, although every real capture so far came from v1 paths: it is the current API and the only one with reactive data, groups and distributor errors.
+- **A client per holder** (`forHolder()`), since reading supplies of people who authorized the account is the professional use: a copy of the client that sends the holder's NIF on every supply and data call and refuses a different one. It is optional; `authorizedNif` per call still works.
 - **No client interface.** Applications fake Datadis over HTTP in their tests; an interface would turn every new endpoint into a breaking change.
 - **Kept as they are:** tolerated answer shapes no source documents (marked `TOLERATED, NO SOURCE` in the code), contract detail as a list like Datadis's answer, raw answers of the calls never captured (typed once a real answer is seen), and one time zone per client.
 

@@ -49,7 +49,9 @@ Applied:
 
 Decided with the maintainer afterwards (see [design-decisions.md](design-decisions.md)): Datadis's own names for methods, parameters and fields; v2 as the default; no client interface; tolerated shapes, contract detail as a list, raw answers of uncaptured calls and one time zone per client kept as they are.
 
-Still open: `PublicApi\PublicApi` repeating its namespace, moving the decoding helpers out of `Data`, a scoped client per holder, and merging the constructor with `fromArray()`.
+Also decided: a client per holder (`forHolder()`).
+
+Still open: `PublicApi\PublicApi` repeating its namespace, moving the decoding helpers out of `Data`, and merging the constructor with `fromArray()`.
 
 ## Bugs of other implementations checked
 

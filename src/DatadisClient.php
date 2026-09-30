@@ -65,6 +65,9 @@ final class DatadisClient
 
     private readonly DateTimeZone $timeZone;
 
+    /** The holder whose supplies this client reads (see forHolder()); null for the account's own. */
+    private ?Nif $holder = null;
+
     /**
      * @param  ClientInterface|null  $http  any PSR-18 client; Guzzle is used when omitted
      * @param  CacheInterface|null  $tokenCache  any PSR-16 store to share the token between processes; it holds a live credential
@@ -131,6 +134,19 @@ final class DatadisClient
             timeZone: $timeZone,
             ledger: $ledger,
         );
+    }
+
+    /**
+     * The same client, reading the supplies of a holder who authorized the account: the holder's NIF
+     * goes as `authorizedNif` on every supply and data call, so no call can forget it. It shares the
+     * login, the connection and the 24 hour guard with this client, which stays as it was.
+     */
+    public function forHolder(Nif $holder): self
+    {
+        $client = clone $this;
+        $client->holder = $holder;
+
+        return $client;
     }
 
     /**
@@ -492,6 +508,12 @@ final class DatadisClient
     /** authorizedNif is only for a third party's supplies: for the account itself it must be omitted. */
     private function authorized(?Nif $nif): ?string
     {
+        if ($nif !== null && $this->holder !== null && $nif->value() !== $this->holder->value()) {
+            throw new InvalidRequestException('This client reads the supplies of one holder; use forHolder() for another one.');
+        }
+
+        $nif ??= $this->holder;
+
         return $nif === null || $nif->value() === $this->config->username ? null : $nif->value();
     }
 

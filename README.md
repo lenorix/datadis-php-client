@@ -64,17 +64,19 @@ foreach ($result->records as $reading) {
 
 ### Read someone else's supplies
 
-Pass the holder's NIF as `authorizedNif` to every call. The holder must have authorized your account in Datadis first.
+The holder must have authorized your account in Datadis first. Then ask for a client for that holder: it sends their NIF as `authorizedNif` on every call, so none can forget it and end up asking about your own account.
 
 ```php
 use Lenorix\DatadisClient\Values\Nif;
 
-$holder = Nif::fromString('12345678Z');
+$holder = $client->forHolder(Nif::fromString('87654321X'));
 
-$supplies = $client->getSupplies($holder);
-$supply = $client->findSupply(Cups::fromString('ES0031300000000001JN0F'), $holder);
-$result = $client->getConsumptionDataOf($supply, Month::of(2026, 7), authorizedNif: $holder);
+$supplies = $holder->getSupplies();
+$supply = $holder->findSupply(Cups::fromString('ES0031300000000001JN0F'));
+$result = $holder->getConsumptionDataOf($supply, Month::of(2026, 7));
 ```
+
+It shares the login and the 24 hour guard with `$client`, which keeps reading your own supplies. Passing a different `authorizedNif` to a holder's client is refused before anything is sent. You can also pass `authorizedNif` call by call on the account client instead.
 
 ### Get the contract and its access tariff
 
