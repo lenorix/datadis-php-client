@@ -54,6 +54,8 @@ Left for the maintainer to decide before 1.0 (not changed):
 - The time zone per client rather than per supply, a scoped client per holder (`forHolder()`), a public testing fake, and merging the constructor with `fromArray()`.
 - Defensive shapes no source documents but the code accepts: `distributorError` as text or a single object, `distExistenceUser` as a bare list, the v1 list-wrapped distributors answer, `reactiveEnergy` as a list, and the public API `content`/`data` envelopes and single-object answer.
 - Whether `ApiVersion::V2` stays the default while every real capture so far was on v1 paths.
+- Whether applications may implement `DatadisClientInterface` or only mock it: if they implement it, every endpoint added later is a breaking change for them.
+- `foreach` and `count()` on an `ApiResult` now walk its records; changing that later would break callers silently.
 
 ## Bugs of other implementations checked
 
