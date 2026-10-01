@@ -140,4 +140,5 @@ CUPS, NIF and consumption curves are personal data (curves reveal occupancy habi
 
 - An empty consumption or contract answer can mean a wrong `distributorCode` that happens to exist: Datadis answers `[]`, not an error (verified). Take the code from `get-supplies`.
 - `pointType` is not checked against the supply (verified), so a wrong one does not show.
+- Quarter-hourly labels are UNVERIFIED for point types 1 to 3. Two conventions are possible: the end of each quarter (`00:15`..`24:00`), or the hour that ends followed by the minute the quarter starts (`01:00`..`24:45`), which one open-source client in production assumes (it subtracts one hour from every label). Only the first has labels at hour `00`, only the second has `24:15`..`24:45`, so `QuarterHourConvention::detect()` tells them apart per answer; an answer with neither (or both) gets no intervals.
 - Maximum power times look like the END of a quarter, like consumption labels: a real row at `00:00` in period 2 (llano) only fits the quarter 23:45-24:00 of the previous day, since 00:00-00:15 is valley. The instant is the same either way; mind it when attributing a maximum to a period.

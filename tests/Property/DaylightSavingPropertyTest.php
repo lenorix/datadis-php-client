@@ -8,6 +8,7 @@ use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
 use Lenorix\DatadisClient\Time\HourLabel;
 use Lenorix\DatadisClient\Time\Month;
+use Lenorix\DatadisClient\Time\QuarterHourConvention;
 use Lenorix\DatadisClient\Time\QuarterHourLabel;
 use Lenorix\DatadisClient\Values\Cups;
 
@@ -90,6 +91,31 @@ it('turns the last Sunday of any month into its quarter hours, if quarter labels
             foreach (realDay($midnight, 900) as [$label, $start]) {
                 $occurrence = $occurrences[$label] = ($occurrences[$label] ?? -1) + 1;
                 $interval = QuarterHourLabel::parse($label)->interval($midnight, $occurrence);
+
+                expect($interval)->not->toBeNull()
+                    ->and($interval[0]->getTimestamp())->toBe($start)
+                    ->and($interval[1]->getTimestamp())->toBe($start + 900);
+            }
+        });
+});
+
+it('turns the last Sunday of any month into its quarter hours in the other possible convention too (unverified)', function () {
+    $this->limitTo(pbtIterations())
+        ->forAll(
+            Generators::map(fn (array $p) => "last sunday of {$p[0]}-{$p[1]}", Generators::tuple(Generators::choose(2000, 2037), Generators::elements('01', '03', '06', '10'))),
+            Generators::elements('Europe/Madrid', 'Atlantic/Canary'),
+        )
+        ->then(function (string $when, string $zoneName) {
+            $zone = new DateTimeZone($zoneName);
+            $midnight = (new DateTimeImmutable($when, $zone))->setTime(0, 0);
+            $occurrences = [];
+
+            foreach (realDay($midnight, 900) as [, $start]) {
+                // The hour that ends, then the minute the quarter starts at, on the wall clock.
+                $wall = (new DateTimeImmutable('@'.$start))->setTimezone($zone);
+                $label = sprintf('%02d:%s', (int) $wall->format('G') + 1, $wall->format('i'));
+                $occurrence = $occurrences[$label] = ($occurrences[$label] ?? -1) + 1;
+                $interval = QuarterHourLabel::parse($label, QuarterHourConvention::HourEndingWithStartMinute)->interval($midnight, $occurrence);
 
                 expect($interval)->not->toBeNull()
                     ->and($interval[0]->getTimestamp())->toBe($start)

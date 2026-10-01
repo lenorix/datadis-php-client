@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Lenorix\DatadisClient\Decoding\Fields;
 use Lenorix\DatadisClient\Time\HourLabel;
+use Lenorix\DatadisClient\Time\QuarterHourConvention;
 use Lenorix\DatadisClient\Time\QuarterHourLabel;
 use Lenorix\DatadisClient\Values\MeasurementType;
 use SensitiveParameter;
@@ -51,8 +52,13 @@ final readonly class ConsumptionReading
      *                           tells the two `03:00` rows of the autumn change day apart
      * @return self|null null when the row has no readable date or consumption (Datadis sends null values)
      */
-    public static function fromRow(#[SensitiveParameter] array $row, DateTimeZone $zone, MeasurementType $type, int $occurrence = 0): ?self
-    {
+    public static function fromRow(
+        #[SensitiveParameter] array $row,
+        DateTimeZone $zone,
+        MeasurementType $type,
+        int $occurrence = 0,
+        ?QuarterHourConvention $quarters = QuarterHourConvention::QuarterEnd,
+    ): ?self {
         $date = Fields::text($row, 'date');
         $time = Fields::text($row, 'time');
         $consumptionKWh = Fields::decimal($row, 3, 'consumptionKWh');
@@ -62,7 +68,11 @@ final readonly class ConsumptionReading
             return null;
         }
 
-        $label = $type === MeasurementType::Hourly ? HourLabel::tryParse($time) : QuarterHourLabel::tryParse($time);
+        $label = match (true) {
+            $type === MeasurementType::Hourly => HourLabel::tryParse($time),
+            $quarters === null => null,
+            default => QuarterHourLabel::tryParse($time, $quarters),
+        };
         $interval = $label?->interval($day, $occurrence);
 
         return new self(

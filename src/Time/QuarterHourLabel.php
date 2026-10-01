@@ -8,29 +8,34 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 
 /**
- * A quarter-hourly consumption label (`measurementType=1`), assumed to mark the END of a 15 minute
- * interval, from `00:15` to `24:00`.
+ * A quarter-hourly consumption label (`measurementType=1`), in either convention of
+ * QuarterHourConvention. It is kept as the minute of the day the quarter ends at.
  *
- * UNVERIFIED: no source documents the real quarter-hourly format. This follows the hourly convention.
+ * UNVERIFIED: no source documents the real quarter-hourly format; see QuarterHourConvention.
  */
 final readonly class QuarterHourLabel
 {
     private function __construct(private int $minutes) {}
 
-    public static function tryParse(string $label): ?self
+    public static function tryParse(string $label, QuarterHourConvention $convention = QuarterHourConvention::QuarterEnd): ?self
     {
         if (preg_match('/^(\d{2}):(00|15|30|45)$/D', $label, $m) !== 1) {
             return null;
         }
 
-        $minutes = (int) $m[1] * 60 + (int) $m[2];
+        [$hour, $minute] = [(int) $m[1], (int) $m[2]];
 
-        return $minutes >= 15 && $minutes <= 1440 ? new self($minutes) : null;
+        $end = match ($convention) {
+            QuarterHourConvention::QuarterEnd => $hour * 60 + $minute,
+            QuarterHourConvention::HourEndingWithStartMinute => $hour >= 1 ? ($hour - 1) * 60 + $minute + 15 : 0,
+        };
+
+        return $end >= 15 && $end <= 1440 ? new self($end) : null;
     }
 
-    public static function parse(string $label): self
+    public static function parse(string $label, QuarterHourConvention $convention = QuarterHourConvention::QuarterEnd): self
     {
-        return self::tryParse($label) ?? throw new InvalidArgumentException('Not a quarter-hourly label between 00:15 and 24:00.');
+        return self::tryParse($label, $convention) ?? throw new InvalidArgumentException('Not a quarter-hourly label in that convention.');
     }
 
     /** Quarter of the day the label describes, 0 to 95. */

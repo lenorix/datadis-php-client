@@ -35,6 +35,7 @@ use Lenorix\DatadisClient\Http\Endpoint;
 use Lenorix\DatadisClient\Support\PersonalDataRedactor;
 use Lenorix\DatadisClient\Support\SystemClock;
 use Lenorix\DatadisClient\Time\Month;
+use Lenorix\DatadisClient\Time\QuarterHourConvention;
 use Lenorix\DatadisClient\Values\Cups;
 use Lenorix\DatadisClient\Values\MeasurementType;
 use Lenorix\DatadisClient\Values\Nif;
@@ -237,13 +238,16 @@ final class DatadisClient
             'authorizedNif' => $this->authorized($authorizedNif),
         ]);
 
+        // Two quarter-hourly conventions are possible (unverified); the labels of the answer tell which.
+        $quarters = $measurementType === MeasurementType::QuarterHourly ? QuarterHourConvention::detect(self::labels($decoded)) : null;
+
         // Rows keep their order, so the n-th row with the same date and time is its n-th occurrence.
         $seen = [];
-        $decode = function (array $row) use (&$seen, $measurementType): ?ConsumptionReading {
+        $decode = function (array $row) use (&$seen, $measurementType, $quarters): ?ConsumptionReading {
             $key = json_encode([$row['date'] ?? null, $row['time'] ?? null]);
             $occurrence = $seen[$key] = ($seen[$key] ?? -1) + 1;
 
-            return ConsumptionReading::fromRow($row, $this->timeZone, $measurementType, $occurrence);
+            return ConsumptionReading::fromRow($row, $this->timeZone, $measurementType, $occurrence, $quarters);
         };
 
         return Envelope::build($decoded, 'timeCurve', $this->name(Endpoint::Consumption), $decode);
@@ -533,6 +537,26 @@ final class DatadisClient
         }
 
         return [Cups::fromString($supply->cups), $supply->distributorCode, $supply->pointType];
+    }
+
+    /**
+     * The time labels of a consumption answer, in either version's shape.
+     *
+     * @param  array<array-key, mixed>  $decoded
+     * @return list<string>
+     */
+    private static function labels(#[SensitiveParameter] array $decoded): array
+    {
+        $rows = array_is_list($decoded) ? $decoded : ($decoded['timeCurve'] ?? []);
+        $labels = [];
+
+        foreach (is_array($rows) ? $rows : [] as $row) {
+            if (is_array($row) && is_string($row['time'] ?? null)) {
+                $labels[] = $row['time'];
+            }
+        }
+
+        return $labels;
     }
 
     /**
