@@ -207,7 +207,7 @@ foreach ($api->apiSearchAll($query) as $record) {
 }
 ```
 
-There are also `apiSumSearch()`, `apiSearchAuto()` and `apiSumSearchAuto()`.
+`apiSearchAll()` reads at most 1000 pages unless you pass another `maxPages` (at least 1). There are also `apiSumSearch()`, `apiSearchAuto()` and `apiSumSearchAuto()`.
 
 ## Working with the results
 
@@ -428,7 +428,7 @@ The same works in any framework: read the settings however it does, pass them to
 - **Store what you receive.** You cannot ask again for 24 hours, so keep `raw` if you might want to reinterpret the data later.
 - **Nothing for the current day, little for the last two.** Distributors publish with a delay; a month can keep changing for some days after it ends.
 - **Maximum power times mark the end of a quarter hour**, like consumption labels. A peak at `00:00` belongs to the last quarter of the previous day.
-- **Keep credentials out of logs.** The package never logs anything and hides the password and token from `var_dump`, `print_r` and `var_export` of its objects, including the token cache and ledger store you give it, and the account NIF from `var_dump` and `print_r`. `var_export` still shows the NIF, which is the public `username` of the configuration, and your cache shows the token if you dump it directly.
+- **Keep credentials out of logs.** The package never logs anything and hides the password and token from `var_dump`, `print_r` and `var_export` of its objects, including the token cache and ledger store you give it, and the account NIF from `var_dump` and `print_r`. A `Nif` (a delegated holder, an `authorizedNif`) hides its value from all three. `var_export` still shows the NIF, which is the public `username` of the configuration, and your cache shows the token if you dump it directly.
 
 ## What is not verified yet
 

@@ -7,6 +7,7 @@ namespace Lenorix\DatadisClient;
 use Generator;
 use Lenorix\DatadisClient\Data\ApiResult;
 use Lenorix\DatadisClient\Decoding\Envelope;
+use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Http\ApiCaller;
@@ -78,6 +79,8 @@ final class PublicApiClient
      * shorter than the page size or $maxPages pages were read.
      *
      * @return Generator<int, PublicRecord>
+     *
+     * @throws InvalidRequestException when $maxPages is below 1
      */
     public function apiSearchAll(PublicSearchQuery $query, int $maxPages = 1000): Generator
     {
@@ -88,6 +91,8 @@ final class PublicApiClient
      * Every record of api-search-auto, page after page. See apiSearchAll().
      *
      * @return Generator<int, PublicRecord>
+     *
+     * @throws InvalidRequestException when $maxPages is below 1
      */
     public function apiSearchAutoAll(SelfConsumptionSearchQuery $query, int $maxPages = 1000): Generator
     {
@@ -101,6 +106,20 @@ final class PublicApiClient
      * @return Generator<int, PublicRecord>
      */
     private function walk(string $endpoint, array $query, int $maxPages): Generator
+    {
+        // Refused at the call, not at the first read: a limit that reads no page would look like no data.
+        if ($maxPages < 1) {
+            throw new InvalidRequestException("The page limit must be at least 1, {$maxPages} given.");
+        }
+
+        return $this->pages($endpoint, $query, $maxPages);
+    }
+
+    /**
+     * @param  array<string, string|int>  $query
+     * @return Generator<int, PublicRecord>
+     */
+    private function pages(string $endpoint, array $query, int $maxPages): Generator
     {
         for ($read = 0, $page = (int) $query['page']; $read < $maxPages; $read++, $page++) {
             $result = $this->call($endpoint, ['page' => $page] + $query);

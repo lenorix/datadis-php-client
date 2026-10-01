@@ -165,3 +165,31 @@ it('keeps the account NIF out of var_dump, print_r and debug_zval_dump of the cl
 
     expect((string) ob_get_clean().print_r($client, true))->not->toContain('A00000000');
 });
+
+it('keeps the NIF of a delegated holder out of every dump of the client and of trace arguments', function () {
+    $previous = ini_set('zend.exception_ignore_args', '0');
+
+    try {
+        $s = Scenario::make();
+        $client = $s->client->forHolder(Nif::fromString('00000000T'));
+
+        ob_start();
+        var_dump($client);
+        debug_zval_dump($client);
+        $dumps = (string) ob_get_clean().print_r($client, true).var_export($client, true);
+
+        $s->http->queue(new ConnectException('timeout', new Request('GET', 'https://datadis.test')));
+
+        try {
+            $client->getSupplies(Nif::fromString('00000000T'));
+        } catch (DatadisException $e) {
+            // Every argument, objects included, as a dump would show it.
+            $args = array_map(fn (array $frame) => $frame['args'] ?? [], $e->getTrace());
+            $dumps .= print_r($args, true).var_export($args, true);
+        }
+
+        expect($dumps)->not->toContain('00000000T')->toContain('[hidden]');
+    } finally {
+        ini_set('zend.exception_ignore_args', (string) $previous);
+    }
+});

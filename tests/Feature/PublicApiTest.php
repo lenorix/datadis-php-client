@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use GuzzleHttp\Psr7\HttpFactory;
 use Lenorix\DatadisClient\DatadisConfig;
+use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
@@ -125,6 +126,14 @@ it('stops walking at the page limit', function () {
 
     expect($records)->toHaveCount(3)->and($http->requests())->toHaveCount(3);
 });
+
+it('refuses a page limit below 1 at the call, before reading anything', function (string $method, int $maxPages) {
+    $http = new FakeHttpClient;
+    $query = $method === 'apiSearchAll' ? searchQuery() : autoQuery();
+
+    expect(fn () => publicApi($http)->{$method}($query, $maxPages))->toThrow(InvalidRequestException::class, 'at least 1')
+        ->and($http->requests())->toBe([]);
+})->with(['apiSearchAll', 'apiSearchAutoAll'])->with([0, -1]);
 
 it('walks every page of the self-consumption search', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},{"a":2}]'), Responses::json('[{"a":3}]'));

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Values;
 
+use Closure;
 use InvalidArgumentException;
 use Stringable;
 
@@ -14,6 +15,9 @@ use Stringable;
  * (trimmed, uppercase) is what gets sent. The control character is checked by default: a mistyped
  * NIF would be sent and refused, and a refused data query still counts against the 24 hour rule.
  * Pass `checkControl: false` to take one as it is.
+ *
+ * It is personal data, so the value lives in a closure, which var_export cannot show, and
+ * __debugInfo leaves it out of var_dump and print_r. serialize() keeps it, to store it on purpose.
  */
 final readonly class Nif implements Stringable
 {
@@ -22,7 +26,13 @@ final readonly class Nif implements Stringable
     /** The NIF and NIE letter of each remainder of the number divided by 23. */
     private const string LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE';
 
-    private function __construct(private string $value) {}
+    /** @var Closure(): string */
+    private Closure $value;
+
+    private function __construct(string $value)
+    {
+        $this->value = static fn (): string => $value;
+    }
 
     public static function fromString(string $value, bool $checkControl = true): self
     {
@@ -48,17 +58,37 @@ final readonly class Nif implements Stringable
 
     public function value(): string
     {
-        return $this->value;
+        return ($this->value)();
     }
 
     public function equals(self $other): bool
     {
-        return $this->value === $other->value;
+        return $this->value() === $other->value();
     }
 
     public function __toString(): string
     {
-        return $this->value;
+        return $this->value();
+    }
+
+    /** @return array<string, string> */
+    public function __debugInfo(): array
+    {
+        return ['value' => '[hidden]'];
+    }
+
+    /** @return array{value: string} */
+    public function __serialize(): array
+    {
+        return ['value' => $this->value()];
+    }
+
+    /** @param  array<mixed>  $data */
+    public function __unserialize(array $data): void
+    {
+        // Checked again: a stored value may have been tampered with or written by hand.
+        $value = self::fromString(is_string($data['value'] ?? null) ? $data['value'] : '', false)->value();
+        $this->value = static fn (): string => $value;
     }
 
     /** Takes a value that already has the shape of a NIF, NIE or CIF. */

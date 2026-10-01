@@ -51,3 +51,29 @@ it('compares after normalisation', function () {
     expect(Nif::fromString('A00000000')->equals(Nif::fromString(' a00000000')))->toBeTrue()
         ->and(Nif::fromString('A00000000')->equals(Nif::fromString('00000000T')))->toBeFalse();
 });
+
+it('keeps its value out of var_dump, print_r, debug_zval_dump and var_export', function () {
+    $nif = Nif::fromString('00000000T');
+
+    ob_start();
+    var_dump($nif);
+    debug_zval_dump($nif);
+
+    expect((string) ob_get_clean().print_r($nif, true).var_export($nif, true))->not->toContain('00000000T')->toContain('[hidden]');
+});
+
+it('keeps its value through serialize, which stores it on purpose', function () {
+    $nif = unserialize(serialize(Nif::fromString('x0000000t')));
+
+    expect($nif)->toBeInstanceOf(Nif::class)
+        ->and($nif->value())->toBe('X0000000T')
+        ->and($nif->equals(Nif::fromString('X0000000T')))->toBeTrue();
+});
+
+it('refuses to unserialize a value that is not a NIF, NIE or CIF', function (string $tampered) {
+    unserialize(str_replace('s:5:"value";s:9:"00000000T";', $tampered, serialize(Nif::fromString('00000000T'))));
+})->with([
+    'not a NIF' => ['s:5:"value";s:9:"AAAAAAAAA";'],
+    'not a string' => ['s:5:"value";i:1;'],
+    'no value' => ['s:5:"other";s:9:"00000000T";'],
+])->throws(InvalidArgumentException::class);
