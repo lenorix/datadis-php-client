@@ -10,6 +10,9 @@ Checked against a new set of real answers (October 2026): the v2 paths, the auth
 
 ### Changed
 
+- `DatadisConfig` refuses a username that is not a NIF, NIE or CIF, or whose control character does not match, before anything is sent. Pass `checkUsernameControl: false` (or `check_username_control` in `fromArray()`) to take one with the right shape and a control character that does not match.
+- `Nif` requires the kind of control character the first letter of a CIF calls for: a digit for A, B, E and H, a letter for P, Q and S. `A0000000J` was accepted before.
+
 - `PublicApiClient` needs a `DatadisConfig`: the public API answers 401 without the login token.
 - `partnerUserList()` returns `PartnerUser` results and `partnerAgreementDate()` returns the date, or null, instead of the raw answer.
 - The code description of reactive data is `codeDescription`, the key Datadis really sends.
@@ -25,7 +28,7 @@ Checked against a new set of real answers (October 2026): the v2 paths, the auth
 
 ### Fixed
 
-- Dumping a client (`var_dump`, `print_r`, `var_export`) no longer shows the login token when the token cache or the ledger store is one of yours that shows its values. Both are now kept out of reach of those functions.
+- Dumping a client (`var_dump`, `print_r`, `var_export`) no longer shows the login token when the token cache or the ledger store is one of yours that shows its values. `var_dump` and `print_r` of the client no longer show the account NIF either.
 
 - The 24 hour guard ignores a stored time more than ten minutes ahead of the clock, which could block a query for far longer than the window, and with an `AtomicStore` a held key always counts until the store expires it, so two workers cannot both take it back.
 - `PublicSearchQuery` and `SelfConsumptionSearchQuery` keep a copy of their dates, so changing the `DateTime` they were given no longer makes `startDate` and `endDate` disagree with what is sent. Both properties are now `DateTimeImmutable`.

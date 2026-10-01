@@ -154,3 +154,14 @@ it('keeps the password out of stack trace arguments when a setting is wrong', fu
 
     throw new LogicException('Expected a ConfigurationException.');
 });
+
+it('keeps the account NIF out of var_dump, print_r and debug_zval_dump of the client', function () {
+    $ledger = new RequestLedger(new QuirkyCache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'));
+    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), ledger: $ledger);
+
+    ob_start();
+    var_dump($client);
+    debug_zval_dump($client);
+
+    expect((string) ob_get_clean().print_r($client, true))->not->toContain('A00000000');
+});

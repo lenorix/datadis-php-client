@@ -43,7 +43,8 @@ final class TokenProvider
 
     /**
      * The store holds the live token, and one given by the application may show its values when
-     * dumped. Kept inside a closure, which var_dump, print_r and var_export cannot look into.
+     * dumped. var_export cannot show what a closure holds, and __debugInfo leaves it out of
+     * var_dump and print_r.
      *
      * @var Closure(): CacheInterface
      */

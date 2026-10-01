@@ -20,7 +20,18 @@ use Throwable;
  */
 final readonly class RepetitionGuard
 {
-    public function __construct(private RequestLedger $ledger, private string $account) {}
+    /**
+     * The account NIF, kept out of dumps of the client: var_export cannot show what a closure holds,
+     * and __debugInfo leaves it out of var_dump and print_r.
+     *
+     * @var Closure(): string
+     */
+    private Closure $account;
+
+    public function __construct(private RequestLedger $ledger, #[SensitiveParameter] string $account)
+    {
+        $this->account = static fn (): string => $account;
+    }
 
     /**
      * @template T
@@ -38,7 +49,7 @@ final readonly class RepetitionGuard
         $key = self::repetitionKey($endpoint, $query);
 
         try {
-            $last = $this->ledger->claim($this->account, $key);
+            $last = $this->ledger->claim(($this->account)(), $key);
         } catch (LedgerUnavailableException $e) {
             throw new LedgerUnavailableException("{$name}: {$e->getMessage()}", $name, $e);
         }
@@ -56,7 +67,7 @@ final readonly class RepetitionGuard
         } catch (DatadisException $e) {
             if (! $e->requestSent) {
                 try {
-                    $this->ledger->forget($this->account, $key);
+                    $this->ledger->forget(($this->account)(), $key);
                 } catch (Throwable) {
                     // The original failure matters more; the entry expires with the window.
                 }
@@ -77,5 +88,11 @@ final readonly class RepetitionGuard
     private static function repetitionKey(Endpoint $endpoint, #[SensitiveParameter] array $query): array
     {
         return $endpoint === Endpoint::Consumption ? $query : array_merge($query, ['authorizedNif' => null]);
+    }
+
+    /** @return array<string, mixed> */
+    public function __debugInfo(): array
+    {
+        return ['ledger' => $this->ledger, 'account' => '[hidden]'];
     }
 }

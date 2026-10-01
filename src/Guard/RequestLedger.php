@@ -37,8 +37,8 @@ final class RequestLedger
 
     /**
      * The stores are often the application's own cache, which may also hold the login token and
-     * show its values when dumped. Kept inside closures, which var_dump, print_r and var_export
-     * cannot look into.
+     * show its values when dumped. var_export cannot show what a closure holds, and __debugInfo
+     * leaves them out of var_dump and print_r.
      *
      * @var Closure(): CacheInterface
      */
