@@ -446,7 +446,7 @@ Most behaviour here was checked against real Datadis answers, on both API versio
 
 ```bash
 composer test            # Pest, including property-based tests with Eris
-composer test-coverage   # fails under 98 % line coverage
+composer test-coverage   # fails under 100 % line coverage
 composer phpstan         # static analysis at level max
 composer lint            # Pint, checking only
 composer format          # Pint, fixing

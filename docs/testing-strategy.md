@@ -54,4 +54,4 @@ Additional scenario tests required: mislabelled gzip body, HTTP 200 HTML page, n
 
 ## Quality gates before every commit
 
-`composer test` green, `composer test-coverage` at 98 % or more, `composer phpstan` clean at level max, `vendor/bin/pint` clean, no NIF or CUPS other than the all-zero values above (`git grep` for the NIF, NIE, CIF and CUPS shapes).
+`composer test` green, `composer test-coverage` at 100 %, `composer phpstan` clean at level max, `vendor/bin/pint` clean, no NIF or CUPS other than the all-zero values above (`git grep` for the NIF, NIE, CIF and CUPS shapes).

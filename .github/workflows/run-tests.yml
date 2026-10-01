@@ -60,7 +60,7 @@ jobs:
         run: composer show -D
 
       - name: Execute tests with the coverage threshold
-        run: vendor/bin/pest --ci --fail-on-warning --fail-on-risky --fail-on-deprecation --coverage --min=98
+        run: vendor/bin/pest --ci --fail-on-warning --fail-on-risky --fail-on-deprecation --coverage --min=100
 
       - name: Static analysis
         run: composer phpstan

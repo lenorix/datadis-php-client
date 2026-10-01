@@ -7,6 +7,7 @@ use Eris\Generators;
 use Lenorix\DatadisClient\ApiVersion;
 use Lenorix\DatadisClient\Data\ReactiveEnergy;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
+use Lenorix\DatadisClient\Tests\Support\Gen;
 use Lenorix\DatadisClient\Tests\Support\Payloads;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
@@ -38,13 +39,22 @@ function junkValue(): Generator
     );
 }
 
-/** A row with a random subset of the known keys, each holding a random value. */
-function junkRow(): Generator
+const ACCOUNT_FUZZ_KEYS = [
+    'id', 'cups', 'status', 'ownerDocument', 'requesterDocument', 'validityDateStart', 'validityDateEnd',
+    'distributorCodeFather', 'name', 'description', 'document', 'email', 'registrationDate', 'registerApp',
+];
+
+/**
+ * A row with a random subset of the known keys, each holding a random value.
+ *
+ * @param  list<string>  $keys
+ */
+function junkRow(array $keys = FUZZ_KEYS): Generator
 {
     return Generators::map(
-        function (array $values): array {
+        function (array $values) use ($keys): array {
             $row = [];
-            foreach (FUZZ_KEYS as $i => $key) {
+            foreach ($keys as $i => $key) {
                 if ($values[$i] !== '__absent__') {
                     $row[$key] = $values[$i];
                 }
@@ -52,7 +62,7 @@ function junkRow(): Generator
 
             return $row;
         },
-        Generators::tuple(...array_map(fn () => Generators::oneOf(Generators::constant('__absent__'), junkValue()), FUZZ_KEYS)),
+        Generators::tuple(...array_map(fn () => Generators::oneOf(Generators::constant('__absent__'), junkValue()), $keys)),
     );
 }
 
@@ -182,6 +192,92 @@ it('reads any reactive or distributors payload as a result or a DatadisException
                 }
             } catch (DatadisException $e) {
                 expect($e->requestSent)->toBeTrue();
+            }
+        });
+});
+
+$accountCalls = [
+    'authorizations' => ['authorizations', fn ($c) => $c->listAuthorization()],
+    'groups' => ['groups', fn ($c) => $c->getGroups()],
+    'partner users' => ['users', fn ($c) => $c->partnerUserList()],
+];
+
+foreach ($accountCalls as $name => [$key, $call]) {
+    it("only ever returns a result or a DatadisException for junk account rows ({$name})", function () use ($key, $call) {
+        $this->limitTo(pbtIterations())
+            ->forAll(Generators::seq(junkRow(ACCOUNT_FUZZ_KEYS)), Generators::bool())
+            ->then(function (array $rows, bool $wrapped) use ($key, $call) {
+                $s = Scenario::make(ApiVersion::V2);
+                $s->http->queue(Responses::json((string) json_encode($wrapped ? [$key => $rows] : $rows, JSON_PARTIAL_OUTPUT_ON_ERROR)));
+
+                try {
+                    $result = $call($s->client);
+
+                    expect($result->skippedRows + count($result->records))->toBe(count($rows));
+                } catch (DatadisException $e) {
+                    expect($e->requestSent)->toBeTrue();
+                }
+            });
+    });
+}
+
+it('reads any partner agreement date answer as text, null or a DatadisException', function () {
+    $this->limitTo(pbtIterations())
+        ->forAll(Generators::oneOf(junkValue(), Generators::associative(['partnerAgreementDate' => junkValue()])))
+        ->then(function (mixed $payload) {
+            $s = Scenario::make(ApiVersion::V2);
+            $s->http->queue(Responses::json((string) json_encode($payload, JSON_PARTIAL_OUTPUT_ON_ERROR)));
+
+            try {
+                $date = $s->client->partnerAgreementDate();
+
+                expect($date === null || (is_string($date) && trim($date) !== ''))->toBeTrue();
+            } catch (DatadisException $e) {
+                expect($e->requestSent)->toBeTrue();
+            }
+        });
+});
+
+it('decodes valid account rows field by field, keeping each row as raw', function () {
+    $this->limitTo(pbtIterations())
+        ->forAll(
+            Generators::seq(Generators::tuple(Gen::letters(6), Generators::choose(1577836800, 1893456000), Generators::choose(0, 999), Generators::bool())),
+        )
+        ->then(function (array $specs) {
+            $zone = new DateTimeZone('Europe/Madrid');
+            $authorizations = $users = $groups = [];
+
+            foreach ($specs as $i => [$text, $seconds, $millis, $flag]) {
+                $local = (new DateTimeImmutable('@'.$seconds))->setTimezone($zone);
+                $authorizations[] = ['id' => "{$i}", 'ownerDocument' => 'A00000000', 'status' => $text, 'validityDateStart' => $local->format('Y-m-d H:i:s').'.0', 'validityDateEnd' => $local->format('Y/m/d')];
+                $users[] = ['name' => $text, 'document' => 'A00000000', 'email' => null, 'registrationDate' => $seconds * 1000 + $millis, 'registerApp' => $flag];
+                $groups[] = ['name' => "{$text}{$i}", 'description' => $flag ? $text : null];
+            }
+
+            $s = Scenario::make(ApiVersion::V2);
+            $s->http->queue(
+                Responses::json((string) json_encode($authorizations)),
+                Responses::json((string) json_encode(['users' => $users])),
+                Responses::json((string) json_encode(['groups' => $groups])),
+            );
+            $readAuthorizations = $s->client->listAuthorization()->records;
+            $readUsers = $s->client->partnerUserList()->records;
+            $readGroups = $s->client->getGroups()->records;
+
+            expect(array_map(fn ($a) => $a->raw, $readAuthorizations))->toBe($authorizations)
+                ->and(array_map(fn ($u) => $u->raw, $readUsers))->toBe($users)
+                ->and(array_map(fn ($g) => $g->raw, $readGroups))->toBe($groups);
+
+            foreach ($specs as $i => [$text, $seconds, , $flag]) {
+                $local = (new DateTimeImmutable('@'.$seconds))->setTimezone($zone);
+
+                expect($readAuthorizations[$i]->status)->toBe($text)
+                    // The wall clock: without an offset, the hour repeated in October is ambiguous.
+                    ->and($readAuthorizations[$i]->validityDateStart?->format('Y-m-d H:i:s'))->toBe($local->format('Y-m-d H:i:s'))
+                    ->and($readAuthorizations[$i]->validityDateEnd?->format('Y-m-d H:i:s'))->toBe($local->format('Y-m-d').' 00:00:00')
+                    ->and($readUsers[$i]->registrationDate?->getTimestamp())->toBe($seconds)
+                    ->and($readUsers[$i]->registerApp)->toBe($flag)
+                    ->and($readGroups[$i]->description)->toBe($flag ? $text : null);
             }
         });
 });

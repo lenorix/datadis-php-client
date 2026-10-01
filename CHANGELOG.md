@@ -25,6 +25,9 @@ Checked against a new set of real answers (October 2026): the v2 paths, the auth
 
 ### Fixed
 
+- The 24 hour guard ignores a stored time more than ten minutes ahead of the clock, which could block a query for far longer than the window, and with an `AtomicStore` it takes back a key held by a stale or unreadable value instead of refusing the query until it expires.
+- `PublicSearchQuery` and `SelfConsumptionSearchQuery` keep a copy of their dates, so changing the `DateTime` they were given no longer makes `startDate` and `endDate` disagree with what is sent. Both properties are now `DateTimeImmutable`.
+
 - The validity dates of the authorization list carry a time of day and were read as null.
 - An account without groups got an exception: Datadis answers the text `No groups`.
 - Reactive data for a period without data gave one empty record instead of an empty result.

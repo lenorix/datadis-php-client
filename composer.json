@@ -60,7 +60,7 @@
     },
     "scripts": {
         "test": "vendor/bin/pest --parallel --fail-on-warning --fail-on-risky --fail-on-deprecation",
-        "test-coverage": "XDEBUG_MODE=coverage vendor/bin/pest --parallel --coverage --min=98",
+        "test-coverage": "XDEBUG_MODE=coverage vendor/bin/pest --parallel --coverage --min=100",
         "format": "vendor/bin/pint",
         "lint": "vendor/bin/pint --test",
         "phpstan": "vendor/bin/phpstan analyse src"
