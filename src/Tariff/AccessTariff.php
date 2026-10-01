@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Tariff;
 
+use Lenorix\DatadisClient\Calendar\Territory;
+
 /**
  * Access tariffs (peajes de acceso) of Circular CNMC 3/2020.
  *
@@ -28,5 +30,11 @@ enum AccessTariff: string
     public function powerPeriods(): int
     {
         return $this === self::T20TD ? 2 : 6;
+    }
+
+    /** The calendar that tells the energy period of each hour: the fixed 2.0TD one, or the six-period one. */
+    public function schedule(Territory $territory = Territory::Peninsula): PeriodMapper
+    {
+        return $this === self::T20TD ? new FixedSchedulePeriods($territory) : new SixPeriodSchedule($territory);
     }
 }

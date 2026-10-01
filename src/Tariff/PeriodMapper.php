@@ -9,9 +9,9 @@ use DateTimeInterface;
 /**
  * Tells which energy period applies to an hour of a day.
  *
- * Only the 2.0TD fixed schedule ships with the package (FixedSchedulePeriods). The 3.0TD and 6.XTD
- * calendars depend on regulated season tables per territory; implement this interface with your
- * own tables for them.
+ * The package ships the 2.0TD calendar (FixedSchedulePeriods) and the six-period one of 3.0TD and
+ * 6.1TD to 6.4TD (SixPeriodSchedule), both from Circular CNMC 3/2020; AccessTariff::schedule() picks
+ * one. Implement it yourself to count regional or local holidays, which neither does.
  */
 interface PeriodMapper
 {

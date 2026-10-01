@@ -109,22 +109,20 @@ foreach ($result->records as $reading) {
 
 ### Know which tariff period each hour belongs to
 
-For 2.0TD the schedule is fixed and ships with the package; it knows weekends, national holidays and the Ceuta and Melilla schedule:
+Both calendars of Circular CNMC 3/2020 ship with the package: the fixed one of 2.0TD (P1 to P3) and the six-period one of 3.0TD and 6.1TD to 6.4TD, with its seasons, its high and medium hours, and the differences of the Balearic and Canary Islands, Ceuta and Melilla. Weekends, 6 January and the national holidays count; regional and local holidays do not.
 
 ```php
 use Lenorix\DatadisClient\Calendar\Territory;
-use Lenorix\DatadisClient\Tariff\FixedSchedulePeriods;
 
-$periods = new FixedSchedulePeriods(Territory::fromPostalCode($supply->postalCode) ?? Territory::Peninsula);
+$territory = Territory::fromPostalCode($supply->postalCode) ?? Territory::Peninsula;
+$periods = $contract->tariff()?->schedule($territory);   // FixedSchedulePeriods or SixPeriodSchedule
 
 foreach ($result->records as $reading) {
-    if ($reading->hourOfDay !== null) {
-        $period = $periods->periodFor($reading->day, $reading->hourOfDay);   // 1, 2 or 3
+    if ($periods !== null && $reading->hourOfDay !== null) {
+        $period = $periods->periodFor($reading->day, $reading->hourOfDay);   // 1 to 3 for 2.0TD, 1 to 6 for the others
     }
 }
 ```
-
-The 3.0TD and 6.XTD calendars depend on regulated season tables; implement the `PeriodMapper` interface with yours.
 
 ### Quarter-hourly consumption, maximum power, reactive energy
 

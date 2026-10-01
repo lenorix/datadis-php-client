@@ -21,7 +21,7 @@ Only what a Datadis client needs to interpret data. Regulatory sources: Circular
 ## Periods (informational; consumers decide whether to use them)
 
 - 2.0TD hours (Peninsula, Baleares, Canarias): P1 punta 10-13 and 18-21, P2 llano 8-9, 14-17, 22-23, P3 valle 0-7. Ceuta and Melilla shift one hour later. Weekends and national holidays are all P3.
-- 3.0TD/6.XTD use season and day-type calendars per territory. Weekends and national holidays are P6. Period attribution is regulated data; this package may offer only an interface plus the fixed 2.0TD mapper.
+- 3.0TD and 6.1TD to 6.4TD share one six-period calendar (Circular 3/2020, art. 7.2, unchanged by its amendments), shipped as `SixPeriodSchedule`. Seasons by month per territory (Peninsula: high Jan, Feb, Jul, Dec; medium-high Mar, Nov; medium Jun, Aug, Sep; low Apr, May, Oct; the islands, Ceuta and Melilla have their own). On working days 00-08 is P6, the "high" hours are 9-14 and 18-22 on the Peninsula, 10-15 and 18-22 in the Balearic and Canary Islands, 10-15 and 19-23 in Ceuta and Melilla, and the rest "medium". High/medium give P1/P2, P2/P3, P3/P4 and P4/P5 by season, except in the Canary Islands (P1/P3, P2/P3, P2/P4, P4/P5) and Ceuta (P1/P4, P2/P3, P2/P4, P3/P5). Weekends, 6 January and national holidays are P6.
 - National fixed holidays for period purposes: 1 Jan, 6 Jan, 1 May, 15 Aug, 12 Oct, 1 Nov, 6 Dec, 8 Dec, 25 Dec. **Good Friday is excluded** (movable and substitutable holidays are not counted). Regional and local holidays are out of scope.
 
 ## Metering points (`pointType`)
