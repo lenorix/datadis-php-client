@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\PublicApi;
 
+use DateTimeImmutable;
 use DateTimeInterface;
 
 /**
@@ -18,6 +19,11 @@ final readonly class SelfConsumptionSearchQuery
         '61', '62', '63', '64', '71', '72', '73', '74', '77',
     ];
 
+    /** A copy taken when the query is built, so it always shows the dates that are sent. */
+    public DateTimeImmutable $startDate;
+
+    public DateTimeImmutable $endDate;
+
     /** @var array<string, string|int> */
     private array $query;
 
@@ -29,8 +35,8 @@ final readonly class SelfConsumptionSearchQuery
      * @param  array<string>  $sort  field names, a leading `-` for descending
      */
     public function __construct(
-        public DateTimeInterface $startDate,
-        public DateTimeInterface $endDate,
+        DateTimeInterface $startDate,
+        DateTimeInterface $endDate,
         public array $community,
         public int $page = 0,
         public int $pageSize = QueryRules::MAX_PAGE_SIZE,
@@ -39,14 +45,16 @@ final readonly class SelfConsumptionSearchQuery
         public array $province = [],
         public array $sort = [],
     ) {
-        QueryRules::dates($startDate, $endDate);
+        $this->startDate = DateTimeImmutable::createFromInterface($startDate);
+        $this->endDate = DateTimeImmutable::createFromInterface($endDate);
+        QueryRules::dates($this->startDate, $this->endDate);
         QueryRules::paging($page, $pageSize);
 
         $types = '/^('.implode('|', self::SELF_CONSUMPTION_TYPES).')$/D';
 
         $this->query = array_filter([
-            'startDate' => $startDate->format('Y/m/d'),
-            'endDate' => $endDate->format('Y/m/d'),
+            'startDate' => $this->startDate->format('Y/m/d'),
+            'endDate' => $this->endDate->format('Y/m/d'),
             'page' => $page,
             'pageSize' => $pageSize,
             'community' => QueryRules::communities($community),

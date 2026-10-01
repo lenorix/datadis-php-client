@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\PublicApi\Community;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
+use Lenorix\DatadisClient\PublicApi\SelfConsumptionSearchQuery;
 
 $from = new DateTimeImmutable('2026-01-01');
 $to = new DateTimeImmutable('2026-01-31');
@@ -111,3 +112,19 @@ it('leaves paging out of the sum query', function () use ($from, $to) {
 it('accepts the date fields of the answers as sort fields', function () use ($from, $to) {
     expect((new PublicSearchQuery($from, $to, [Community::Madrid], sort: ['dataYear', '-dataMonth', 'dataDay']))->toQuery()['sort'])->toBe('dataYear,-dataMonth,dataDay');
 });
+
+it('keeps the dates it sends even if the caller changes its DateTime afterwards', function (Closure $build) {
+    $start = new DateTime('2026-01-01');
+    $end = new DateTime('2026-01-31');
+    $query = $build($start, $end);
+
+    $start->modify('+1 month');
+    $end->modify('+1 month');
+
+    expect($query->startDate->format('Y/m/d'))->toBe('2026/01/01')
+        ->and($query->endDate->format('Y/m/d'))->toBe($query->toQuery()['endDate'])
+        ->and($query->toQuery()['startDate'])->toBe('2026/01/01');
+})->with([
+    'search' => [fn ($s, $e) => new PublicSearchQuery($s, $e, [Community::Madrid])],
+    'self-consumption search' => [fn ($s, $e) => new SelfConsumptionSearchQuery($s, $e, [Community::Madrid])],
+]);
