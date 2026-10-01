@@ -281,3 +281,83 @@ it('decodes valid account rows field by field, keeping each row as raw', functio
             }
         });
 });
+
+/** A value in thousandths as Datadis may send it, and the text the client must give back with at least $scale decimals. */
+function sentDecimal(int $thousandths, bool $asText, int $scale = 3): array
+{
+    $text = sprintf('%d.%03d', intdiv($thousandths, 1000), $thousandths % 1000);
+    $expected = $scale === 2 && str_ends_with($text, '0') ? substr($text, 0, -1) : $text;
+
+    return [$asText ? $text : $thousandths / 1000, $expected];
+}
+
+it('decodes valid supply, contract, consumption and maximum power rows exactly, keeping each row as raw', function () {
+    $this->limitTo(pbtIterations())
+        ->forAll(
+            Generators::seq(Generators::tuple(
+                Generators::choose(0, 99999999),
+                Generators::bool(),
+                Generators::choose(1, 28),
+                Generators::choose(1, 24),
+                Generators::choose(1, 5),
+                Generators::elements('Real', 'Estimada'),
+            )),
+            Generators::elements(ApiVersion::V1, ApiVersion::V2),
+        )
+        ->then(function (array $specs, ApiVersion $version) {
+            $zone = new DateTimeZone('Europe/Madrid');
+            $supplies = $contracts = $readings = $peaks = $expected = [];
+
+            foreach ($specs as $i => [$thousandths, $asText, $day, $hour, $pointType, $method]) {
+                [$sent, $text] = sentDecimal($thousandths, $asText);
+                [$power, $powerText] = sentDecimal($thousandths, $asText, 2);
+                $date = sprintf('2025/11/%02d', $day);
+                $supplies[] = ['cups' => Scenario::CUPS, 'validDateFrom' => $date, 'validDateTo' => $asText ? '' : '2026/01/01', 'pointType' => $pointType, 'distributorCode' => (string) $pointType];
+                $contracts[] = ['cups' => Scenario::CUPS, 'contractedPowerkW' => array_fill(0, $pointType, $power), 'startDate' => $date, 'endDate' => ''];
+                $readings[] = ['cups' => Scenario::CUPS, 'date' => $date, 'time' => sprintf('%02d:00', $hour), 'consumptionKWh' => $sent, 'obtainMethod' => $method, 'surplusEnergyKWh' => $asText ? null : $sent];
+                $peaks[] = ['cups' => Scenario::CUPS, 'date' => $date, 'time' => sprintf('%02d:%02d', $hour - 1, ($i % 4) * 15), 'maxPower' => $sent, 'period' => (string) $pointType];
+                $expected[] = [$text, $powerText, $date, $hour];
+            }
+
+            $body = fn (string $key, array $rows) => $version === ApiVersion::V1 ? (string) json_encode($rows) : Payloads::envelope($key, $rows);
+            $s = Scenario::make($version);
+            $s->http->queue(
+                Responses::datadis($body('supplies', $supplies)),
+                Responses::datadis($body('contract', $contracts)),
+                Responses::datadis($body('timeCurve', $readings)),
+                Responses::datadis($body('maxPower', $peaks)),
+            );
+            $cups = Cups::fromString(Scenario::CUPS);
+            $readSupplies = $s->client->getSupplies()->records;
+            $readContracts = $s->client->getContractDetail($cups, '2')->records;
+            $readReadings = $s->client->getConsumptionData($cups, '2', 5, Month::of(2025, 11), Month::of(2025, 11))->records;
+            $readPeaks = $s->client->getMaxPower($cups, '2', Month::of(2025, 11), Month::of(2025, 11))->records;
+
+            expect(array_map(fn ($r) => $r->raw, $readSupplies))->toBe($supplies)
+                ->and(array_map(fn ($r) => $r->raw, $readContracts))->toBe($contracts)
+                ->and(array_map(fn ($r) => $r->raw, $readReadings))->toBe($readings)
+                ->and(array_map(fn ($r) => $r->raw, $readPeaks))->toBe($peaks);
+
+            $seen = [];
+
+            foreach ($expected as $i => [$text, $powerText, $date, $hour]) {
+                $midnight = new DateTimeImmutable(str_replace('/', '-', $date), $zone);
+                [, $asText, , , $pointType, $method] = $specs[$i];
+                // A label repeated on a day without a clock change has no interval of its own.
+                $start = isset($seen["{$date} {$hour}"]) ? null : $midnight->modify('+'.($hour - 1).' hours')->getTimestamp();
+                $seen["{$date} {$hour}"] = true;
+
+                expect($readSupplies[$i]->pointType)->toBe($pointType)
+                    ->and($readSupplies[$i]->validDateFrom?->format('Y/m/d'))->toBe($date)
+                    ->and($readSupplies[$i]->validDateTo?->format('Y/m/d'))->toBe($asText ? null : '2026/01/01')
+                    ->and($readContracts[$i]->contractedPowerkW)->toBe(array_fill(0, $pointType, $powerText))
+                    ->and($readReadings[$i]->consumptionKWh)->toBe($text)
+                    ->and($readReadings[$i]->surplusEnergyKWh)->toBe($asText ? null : $text)
+                    ->and($readReadings[$i]->obtainMethod)->toBe($method)
+                    ->and($readReadings[$i]->start?->getTimestamp())->toBe($start)
+                    ->and($readReadings[$i]->hasValidTime() ? $readReadings[$i]->end->getTimestamp() - $start : null)->toBe($start === null ? null : 3600)
+                    ->and($readPeaks[$i]->maxPower)->toBe($text)
+                    ->and($readPeaks[$i]->instant?->format('Y/m/d H:i'))->toBe($date.' '.$peaks[$i]['time']);
+            }
+        });
+});
