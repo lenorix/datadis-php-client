@@ -10,7 +10,7 @@ Found by an independent review in M6 (all confirmed by running code unless noted
 6. ~~Unbounded decimal exponents~~ fixed: numeric strings are limited to 64 characters and a three digit exponent; reactive decoding has the same boundary as the other endpoints.
 7. ~~Unexpected shapes become empty results~~ fixed: every known shape of reactive and distributor answers is read (including lists of codes and `reactiveEnergy` as a list), anything else is an `UninterpretableResponseException`, and a single `distributorError` object is kept.
 8. ~~Window checked in the client zone~~ fixed: the window is judged on the Madrid calendar (an assumption, marked UNVERIFIED).
-9. ~~CUPS and NIF in stack trace arguments~~ fixed with `#[SensitiveParameter]` on queries, requests and tokens. `Cups` and `Nif` objects still appear as objects in trace arguments.
+9. ~~CUPS and NIF in stack trace arguments~~ fixed with `#[SensitiveParameter]` on queries, requests and tokens. `Cups` and `Nif` objects hide their value from dumps since 0.2.0, so they no longer show it in trace arguments either.
 10. ~~Redactor gaps~~ fixed: separators and labels glued to NIF/NIE/CIF are redacted.
 11. ~~Latin-1 bodies~~ fixed: a body that is not UTF-8 is read as Windows-1252.
 12. ~~Docblocks~~ fixed.
@@ -84,6 +84,25 @@ Four reviews ran side by side: mutation testing (Infection), a property-based bu
   - `HourLabel` and `QuarterHourLabel` kept public.
 - Simplified: one `ApiCaller` for both APIs, one date parser, shared month query, dead code the mutants exposed.
 - Mutation score went from 90.9 % (180 survivors) to 92 % (150). The survivors left are equivalent mutants, message wording, and inputs Datadis never sends.
+
+## Reviews after 0.1.0 (October 2026)
+
+Fixed, each with a regression test:
+
+- personal data in stack trace arguments:
+  - the body of an answer that is not valid JSON, through the chained `JsonException`;
+  - the account NIF when the ledger store fails;
+  - a refused username, NIF or CUPS;
+  - `Cups` and `Nif` objects;
+  - the closures that carry the query;
+- the NIF of a delegated holder in dumps of the client;
+- NIF K, L and M (people without a DNI or NIE), which take the DNI letter of their seven digits, refused or checked as a CIF, and not redacted;
+- silently accepted limits:
+  - a page limit below 1 read no page;
+  - a negative row occurrence gave no interval;
+  - a huge number of months per request failed outside the exception contract.
+
+The trace test now looks inside objects and at the calls the package makes to PHP's own functions.
 
 ## Bugs of other implementations checked
 

@@ -53,6 +53,10 @@ final readonly class HourLabel
      */
     public function interval(DateTimeImmutable $day, int $occurrence = 0): ?array
     {
+        if ($occurrence < 0) {
+            throw new InvalidArgumentException("The occurrence must be 0 or more, {$occurrence} given.");
+        }
+
         $end = WallClock::instants($day, $this->hour * 60, true)[$occurrence] ?? null;
 
         return $end === null ? null : [WallClock::before($end, 3600), $end];

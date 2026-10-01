@@ -58,6 +58,10 @@ final readonly class QuarterHourLabel
      */
     public function interval(DateTimeImmutable $day, int $occurrence = 0): ?array
     {
+        if ($occurrence < 0) {
+            throw new InvalidArgumentException("The occurrence must be 0 or more, {$occurrence} given.");
+        }
+
         $end = WallClock::instants($day, $this->minutes, true)[$occurrence] ?? null;
 
         return $end === null ? null : [WallClock::before($end, 900), $end];

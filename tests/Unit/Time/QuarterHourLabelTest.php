@@ -62,3 +62,7 @@ it('tells the convention of an answer from the labels only one of them has', fun
     'no labels' => [[], null],
     'only labels that merely contain them' => [['100:15', '00:150', "00:15\n", '124:30', '24:300', "24:45\n"], null],
 ]);
+
+it('refuses a negative occurrence instead of answering as if the quarter never happened', function () {
+    QuarterHourLabel::parse('05:15')->interval(new DateTimeImmutable('2025-01-15', new DateTimeZone('Europe/Madrid')), -1);
+})->throws(InvalidArgumentException::class, 'occurrence');

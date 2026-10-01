@@ -12,6 +12,9 @@ Checked against a new set of real answers (October 2026): the v2 paths, the auth
 
 - `DatadisConfig` refuses a username that is not a NIF, NIE or CIF, or whose control character does not match, before anything is sent. Pass `checkUsernameControl: false` (or `check_username_control` in `fromArray()`) to take one with the right shape and a control character that does not match.
 - `Nif` requires the kind of control character the first letter of a CIF calls for: a digit for A, B, E and H, a letter for P, Q and S. `A0000000J` was accepted before.
+- `Nif` takes a NIF K, L or M (Spaniards under 14 or living abroad, foreigners without an NIE) with the DNI letter of its seven digits, as Orden EHA/451/2008 sets. Before, it checked them as a CIF and refused them with the right letter, even with `checkControl: false`. The redaction of error texts covers them too.
+- `HourLabel::interval()` and `QuarterHourLabel::interval()` refuse a negative occurrence instead of answering null, as for an hour the clock never showed.
+- `MonthPlanner::ranges()` takes any number of months per request above 24 as one request for the whole range.
 - `apiSearchAll()` and `apiSearchAutoAll()` refuse a `maxPages` below 1 with an `InvalidRequestException`, at the call. Before, they read no page and gave no records, which looked like no data.
 
 - `PublicApiClient` needs a `DatadisConfig`: the public API answers 401 without the login token.
@@ -30,7 +33,8 @@ Checked against a new set of real answers (October 2026): the v2 paths, the auth
 ### Fixed
 
 - Dumping a client (`var_dump`, `print_r`, `var_export`) no longer shows the login token when the token cache or the ledger store is one of yours that shows its values. `var_dump` and `print_r` of the client no longer show the account NIF either.
-- A `Nif` no longer shows its value in `var_dump`, `print_r` or `var_export`, so the holder of a client from `forHolder()` and an `authorizedNif` in the arguments of a stack trace stay hidden. `value()`, string casts and `serialize()` still give it.
+- A `Nif` or a `Cups` no longer shows its value in `var_dump`, `print_r` or `var_export`, so the holder of a client from `forHolder()`, an `authorizedNif` and a supply in the arguments of a stack trace stay hidden. `value()`, string casts and `serialize()` still give it.
+- The arguments recorded in stack traces no longer carry the body of an answer that is not valid JSON, the account NIF when the ledger store fails, a refused username, NIF or CUPS, nor the query inside the closures the client passes around.
 
 - The 24 hour guard ignores a stored time more than ten minutes ahead of the clock, which could block a query for far longer than the window, and with an `AtomicStore` a held key always counts until the store expires it, so two workers cannot both take it back.
 - `PublicSearchQuery` and `SelfConsumptionSearchQuery` keep a copy of their dates, so changing the `DateTime` they were given no longer makes `startDate` and `endDate` disagree with what is sent. Both properties are now `DateTimeImmutable`.

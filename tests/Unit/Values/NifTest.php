@@ -11,7 +11,7 @@ it('normalises to trimmed uppercase', function () {
 
 it('accepts a NIF, NIE or CIF whose control character matches', function (string $value) {
     expect(Nif::isValid($value))->toBeTrue()->and(Nif::fromString($value)->value())->toBe(strtoupper($value));
-})->with(['00000000T', '00000000t', 'X0000000T', 'A00000000', 'Q0000000J', 'C00000000', 'C0000000J']);
+})->with(['00000000T', '00000000t', 'X0000000T', 'A00000000', 'Q0000000J', 'C00000000', 'C0000000J', 'K0000000T', 'L0000000T', 'M0000000T', 'M0000001R']);
 
 it('refuses one whose control character does not match, before anything is sent', function (string $value) {
     expect(Nif::isValid($value))->toBeFalse()
@@ -22,7 +22,14 @@ it('refuses one whose control character does not match, before anything is sent'
     'CIF with the wrong control letter' => ['A0000000A'],
     'CIF of a company with a letter, which takes a digit' => ['A0000000J'],
     'CIF of a public body with a digit, which takes a letter' => ['Q00000000'],
+    'NIF K, L or M with the CIF control, which takes the DNI letter' => ['M0000000J'],
+    'NIF K, L or M with a mistyped letter' => ['K0000000R'],
 ]);
+
+it('takes a NIF K, L or M only with a letter, also without checking the control', function () {
+    expect(Nif::isValid('M0000000R', false))->toBeTrue()
+        ->and(Nif::isValid('M00000000', false))->toBeFalse();
+});
 
 it('requires the kind of control character the first letter of a CIF calls for', function (string $first, string $kind) {
     // 0000000 sums to 0, whose control is the digit 0 or the letter J.

@@ -50,16 +50,11 @@ final class ResponseClassifier
             $body = mb_convert_encoding($body, 'UTF-8', 'Windows-1252');
         }
 
-        try {
-            $decoded = json_decode(trim($body), true, 512, JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING);
-        } catch (JsonException $e) {
-            throw new UninterpretableResponseException(
-                "{$endpoint}: the answer is not valid JSON.",
-                $status,
-                self::detail($body),
-                $endpoint,
-                previous: $e,
-            );
+        // Not chained to a JsonException: its trace holds the whole body, personal data included.
+        $decoded = json_decode(trim($body), true, 512, JSON_BIGINT_AS_STRING);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new UninterpretableResponseException("{$endpoint}: the answer is not valid JSON.", $status, self::detail($body), $endpoint);
         }
 
         // An empty object decodes like an empty list, but it is never a valid answer: every object

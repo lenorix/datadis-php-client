@@ -41,3 +41,7 @@ it('uses the wall clock and ignores the time of day of the given date', function
 
     expect($start->format('Y-m-d H:i'))->toBe('2025-01-15 02:00');
 });
+
+it('refuses a negative occurrence instead of answering as if the hour never happened', function () use ($madrid) {
+    HourLabel::parse('05:00')->interval(new DateTimeImmutable('2025-01-15', $madrid), -1);
+})->throws(InvalidArgumentException::class, 'occurrence');

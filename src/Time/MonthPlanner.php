@@ -7,6 +7,7 @@ namespace Lenorix\DatadisClient\Time;
 use DateTimeInterface;
 use InvalidArgumentException;
 use Lenorix\DatadisClient\Data\Supply;
+use SensitiveParameter;
 
 /**
  * Splits a wanted range of months into the requests worth making.
@@ -22,7 +23,7 @@ final class MonthPlanner
      * @param  DateTimeInterface  $now  any zone: the current month is judged on the Madrid calendar, like the client does
      * @return list<array{0: Month, 1: Month}> consecutive, non-overlapping ranges, both ends included
      */
-    public static function ranges(Month $from, Month $to, DateTimeInterface $now, int $monthsPerRequest = 1, ?Supply $supply = null): array
+    public static function ranges(Month $from, Month $to, DateTimeInterface $now, int $monthsPerRequest = 1, #[SensitiveParameter] ?Supply $supply = null): array
     {
         if ($from->isAfter($to)) {
             throw new InvalidArgumentException('The first month must not be after the last one.');
@@ -32,6 +33,8 @@ final class MonthPlanner
             throw new InvalidArgumentException('At least one month per request.');
         }
 
+        // No range is longer than the history Datadis serves, so a larger number means one request.
+        $monthsPerRequest = min($monthsPerRequest, Month::HISTORY_MONTHS);
         $current = Month::current($now);
         $first = self::latest($from, $current->addMonths(-(Month::HISTORY_MONTHS - 1)));
         $last = self::earliest($to, $current);

@@ -79,7 +79,7 @@ final class RequestFactory
      *
      * @param  Closure(): RequestInterface  $build
      */
-    private function build(Closure $build): RequestInterface
+    private function build(#[SensitiveParameter] Closure $build): RequestInterface
     {
         try {
             return $build();

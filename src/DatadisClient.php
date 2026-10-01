@@ -291,7 +291,7 @@ final class DatadisClient
      *
      * @return ApiResult<ContractDetail>
      */
-    public function getContractDetailOf(Supply $supply, ?Nif $authorizedNif = null): ApiResult
+    public function getContractDetailOf(#[SensitiveParameter] Supply $supply, ?Nif $authorizedNif = null): ApiResult
     {
         [$cups, $code] = $this->queryable($supply);
 
@@ -304,7 +304,7 @@ final class DatadisClient
      * @return ApiResult<ConsumptionReading>
      */
     public function getConsumptionDataOf(
-        Supply $supply,
+        #[SensitiveParameter] Supply $supply,
         Month $startDate,
         ?Month $endDate = null,
         MeasurementType $measurementType = MeasurementType::Hourly,
@@ -320,7 +320,7 @@ final class DatadisClient
      *
      * @return ApiResult<MaxPowerReading>
      */
-    public function getMaxPowerOf(Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
+    public function getMaxPowerOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
         [$cups, $code] = $this->queryable($supply);
 
@@ -332,7 +332,7 @@ final class DatadisClient
      *
      * @return ApiResult<ReactiveEnergy>
      */
-    public function getReactiveDataOf(Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
+    public function getReactiveDataOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
         [$cups, $code] = $this->queryable($supply);
 
@@ -530,7 +530,7 @@ final class DatadisClient
     }
 
     /** @return array{Cups, string, int} */
-    private function queryable(Supply $supply): array
+    private function queryable(#[SensitiveParameter] Supply $supply): array
     {
         if (! $supply->isQueryable()) {
             throw new InvalidRequestException('The supply was listed without a usable CUPS, distributor code or point type; list the supplies again.');

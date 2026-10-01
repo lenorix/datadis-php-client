@@ -28,7 +28,7 @@ final class Envelope
      *
      * @throws UninterpretableResponseException
      */
-    public static function build(#[SensitiveParameter] array $decoded, string $key, string $endpoint, callable $decodeRow): ApiResult
+    public static function build(#[SensitiveParameter] array $decoded, string $key, string $endpoint, #[SensitiveParameter] callable $decodeRow): ApiResult
     {
         [$rows, $errors] = self::open($decoded, $key, $endpoint);
 
@@ -167,7 +167,7 @@ final class Envelope
      * @param  array<array-key, mixed>  $row
      * @return T
      */
-    public static function decodeRow(callable $decodeRow, #[SensitiveParameter] array $row, string $endpoint): mixed
+    public static function decodeRow(#[SensitiveParameter] callable $decodeRow, #[SensitiveParameter] array $row, string $endpoint): mixed
     {
         try {
             return $decodeRow($row);

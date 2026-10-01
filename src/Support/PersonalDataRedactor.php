@@ -22,7 +22,7 @@ final class PersonalDataRedactor
         // NIF, NIE and CIF may be written with a dash or any whitespace before the letter, or glued
         // to a label such as "NIF00000000A" or "CIFA0000000A". Only digits around them are ruled out.
         '/(?<!\d)\d{8}(?:\s+|-)?[A-Z](?![0-9])/i',
-        '/(?<!\d)[XYZ](?:\s+|-)?\d{7}(?:\s+|-)?[A-Z](?![0-9])/i',
+        '/(?<!\d)[XYZKLM](?:\s+|-)?\d{7}(?:\s+|-)?[A-Z](?![0-9])/i',
         '/(?<!\d)[A-HJ-NP-SUVW](?:\s+|-)?\d{7}(?:\s+|-)?[0-9A-J](?![0-9])/i',
     ];
 

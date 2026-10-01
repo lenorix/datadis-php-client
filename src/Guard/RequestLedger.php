@@ -73,7 +73,7 @@ final class RequestLedger
      *
      * @throws LedgerUnavailableException when the store cannot be read
      */
-    public function lastAttempt(string $account, #[SensitiveParameter] array $query): ?DateTimeImmutable
+    public function lastAttempt(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): ?DateTimeImmutable
     {
         return $this->attemptIn($this->read($account, $query));
     }
@@ -83,7 +83,7 @@ final class RequestLedger
      *
      * @throws LedgerUnavailableException when the store cannot be read
      */
-    private function read(string $account, #[SensitiveParameter] array $query): mixed
+    private function read(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): mixed
     {
         try {
             return ($this->cache)()->get($this->key($account, $query));
@@ -116,7 +116,7 @@ final class RequestLedger
      *
      * @throws LedgerUnavailableException when the store cannot be read or written
      */
-    public function claim(string $account, #[SensitiveParameter] array $query): ?DateTimeImmutable
+    public function claim(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): ?DateTimeImmutable
     {
         if ($this->atomic === null) {
             $last = $this->lastAttempt($account, $query);
@@ -141,7 +141,7 @@ final class RequestLedger
     }
 
     /** @param  array<string, string|int|list<string>|null>  $query */
-    private function add(AtomicStore $atomic, string $account, #[SensitiveParameter] array $query, int $now): bool
+    private function add(AtomicStore $atomic, #[SensitiveParameter] string $account, #[SensitiveParameter] array $query, int $now): bool
     {
         try {
             return $atomic->add($this->key($account, $query), $now, self::WINDOW_SECONDS);
@@ -155,7 +155,7 @@ final class RequestLedger
      *
      * @throws LedgerUnavailableException when the store cannot keep the record
      */
-    public function record(string $account, #[SensitiveParameter] array $query): void
+    public function record(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): void
     {
         try {
             $stored = ($this->cache)()->set($this->key($account, $query), $this->clock->now()->getTimestamp(), self::WINDOW_SECONDS);
@@ -173,7 +173,7 @@ final class RequestLedger
      *
      * @throws LedgerUnavailableException when the store cannot remove the record
      */
-    public function forget(string $account, #[SensitiveParameter] array $query): void
+    public function forget(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): void
     {
         try {
             ($this->cache)()->delete($this->key($account, $query));
@@ -183,7 +183,7 @@ final class RequestLedger
     }
 
     /** @param array<string, string|int|list<string>|null> $query */
-    private function key(string $account, #[SensitiveParameter] array $query): string
+    private function key(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): string
     {
         // PSR-16 keys allow only [A-Za-z0-9_.] and 64 characters.
         return 'datadis_query_'.substr($this->fingerprinter->fingerprint($account, $query), 0, 48);

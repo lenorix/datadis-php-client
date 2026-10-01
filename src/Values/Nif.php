@@ -6,6 +6,7 @@ namespace Lenorix\DatadisClient\Values;
 
 use Closure;
 use InvalidArgumentException;
+use SensitiveParameter;
 use Stringable;
 
 /**
@@ -21,7 +22,8 @@ use Stringable;
  */
 final readonly class Nif implements Stringable
 {
-    private const string PATTERN = '/^(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-HJ-NP-SUVW]\d{7}[0-9A-J])$/D';
+    /** A DNI, an NIE, a NIF K, L or M (people without a DNI or NIE), or a CIF. */
+    private const string PATTERN = '/^(?:\d{8}[A-Z]|[XYZKLM]\d{7}[A-Z]|[A-HJNP-SUVW]\d{7}[0-9A-J])$/D';
 
     /** The NIF and NIE letter of each remainder of the number divided by 23. */
     private const string LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE';
@@ -29,12 +31,12 @@ final readonly class Nif implements Stringable
     /** @var Closure(): string */
     private Closure $value;
 
-    private function __construct(string $value)
+    private function __construct(#[SensitiveParameter] string $value)
     {
         $this->value = static fn (): string => $value;
     }
 
-    public static function fromString(string $value, bool $checkControl = true): self
+    public static function fromString(#[SensitiveParameter] string $value, bool $checkControl = true): self
     {
         $normalised = self::normalise($value);
 
@@ -49,7 +51,7 @@ final readonly class Nif implements Stringable
         return new self($normalised);
     }
 
-    public static function isValid(string $value, bool $checkControl = true): bool
+    public static function isValid(#[SensitiveParameter] string $value, bool $checkControl = true): bool
     {
         $normalised = self::normalise($value);
 
@@ -92,7 +94,7 @@ final readonly class Nif implements Stringable
     }
 
     /** Takes a value that already has the shape of a NIF, NIE or CIF. */
-    private static function hasValidControl(string $value): bool
+    private static function hasValidControl(#[SensitiveParameter] string $value): bool
     {
         $first = $value[0];
 
@@ -101,6 +103,11 @@ final readonly class Nif implements Stringable
             $number = (int) strtr(substr($value, 0, 8), ['X' => '0', 'Y' => '1', 'Z' => '2']);
 
             return $value[8] === self::LETTERS[$number % 23];
+        }
+
+        // NIF K, L and M (Orden EHA/451/2008): the letter of the seven digits, as for a DNI.
+        if (str_contains('KLM', $first)) {
+            return $value[8] === self::LETTERS[(int) substr($value, 1, 7) % 23];
         }
 
         // CIF: digits in odd places are doubled and their digits added; the control is a digit or its letter.
@@ -123,7 +130,7 @@ final readonly class Nif implements Stringable
         };
     }
 
-    private static function normalise(string $value): string
+    private static function normalise(#[SensitiveParameter] string $value): string
     {
         return strtoupper(trim($value));
     }

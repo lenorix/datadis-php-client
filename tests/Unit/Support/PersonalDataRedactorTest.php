@@ -18,6 +18,9 @@ it('redacts CUPS, NIF, NIE and CIF by shape', function (string $identifier) {
     'NIF lower' => 'a00000000',
     'NIE' => 'X0000000A',
     'CIF' => 'A00000000',
+    'NIF K' => 'K0000000T',
+    'NIF L' => 'L0000000T',
+    'NIF M' => 'M0000000T',
 ]);
 
 it('leaves text without identifiers untouched', function () {

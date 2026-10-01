@@ -51,3 +51,7 @@ it('judges the current month on the Madrid calendar whatever zone now is given i
 
     expect($format(MonthPlanner::ranges(Month::of(2020, 1), Month::of(2030, 1), $lateUtc, 24)))->toBe(['2024/11-2026/10']);
 });
+
+it('plans one request for any number of months per request above the history Datadis serves', function (int $monthsPerRequest) use ($now, $format) {
+    expect($format(MonthPlanner::ranges(Month::of(2020, 1), Month::of(2030, 1), $now, $monthsPerRequest)))->toBe(['2024/10-2026/09']);
+})->with([24, 25, 200000, PHP_INT_MAX]);

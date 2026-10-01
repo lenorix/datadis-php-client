@@ -54,7 +54,7 @@ final readonly class DatadisConfig
      *                                      control character does not match, as Nif::fromString() does
      */
     public function __construct(
-        string $username,
+        #[SensitiveParameter] string $username,
         #[SensitiveParameter] string $password,
         string $baseUrl = self::DEFAULT_BASE_URL,
         float $timeout = self::DEFAULT_TIMEOUT,

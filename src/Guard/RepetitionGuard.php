@@ -40,7 +40,7 @@ final readonly class RepetitionGuard
      * @param  Closure(): T  $send
      * @return T
      */
-    public function call(Endpoint $endpoint, string $name, #[SensitiveParameter] array $query, Closure $send): mixed
+    public function call(Endpoint $endpoint, string $name, #[SensitiveParameter] array $query, #[SensitiveParameter] Closure $send): mixed
     {
         if (! $endpoint->isGuarded()) {
             return $send();
