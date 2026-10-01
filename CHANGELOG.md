@@ -19,6 +19,7 @@ Checked against a new set of real answers (October 2026): the v2 paths, the auth
 
 - `SixPeriodSchedule`, the six-period calendar of 3.0TD and 6.1TD to 6.4TD from Circular CNMC 3/2020 (seasons, high and medium hours, and the differences of every territory), and `AccessTariff::schedule()` to pick the calendar of a tariff.
 - `Authorization::$cups`.
+- `AtomicStore`: give the 24 hour guard a store that can add a key only if absent (Laravel's `Cache::add()`, Redis, Memcached) and checking and recording become one step, so two workers starting the same query at once cannot both send it.
 - Quarter-hourly labels in either possible convention: the end of each quarter (`00:15`..`24:00`) or the hour that ends followed by the minute the quarter starts (`01:00`..`24:45`). `QuarterHourConvention` tells which one an answer uses; quarters are placed on their real time in both, daylight saving days included, and an answer that cannot tell gets no intervals instead of a guess.
 
 ### Fixed

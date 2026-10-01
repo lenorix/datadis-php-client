@@ -15,6 +15,7 @@ use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Support\InMemoryCache;
+use Lenorix\DatadisClient\Tests\Support\AtomicCache;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 use Lenorix\DatadisClient\Tests\Support\QuirkyCache;
@@ -253,4 +254,58 @@ it('does not keep a query blocked when its request could not even be built', fun
     $consumption($client);
 
     expect($http->requests())->toHaveCount(2);
+});
+
+/** @return array{DatadisClient, FakeHttpClient} a worker of an application, on a store several workers share */
+function worker(AtomicCache $store, FrozenClock $clock, bool $atomic): array
+{
+    $http = new FakeHttpClient;
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $atomic ? $store : null);
+
+    return [new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger), $http];
+}
+
+it('lets only one of two workers send the same query at once when the store adds atomically', function () use ($consumption) {
+    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    // Each worker checks before the other has written: only an atomic add can tell them apart.
+    $store = new AtomicCache(staleReads: true);
+    [$first, $firstHttp] = worker($store, $clock, atomic: true);
+    [$second, $secondHttp] = worker($store, $clock, atomic: true);
+    $firstHttp->queue(login($clock), Responses::datadis('{"timeCurve":[]}'));
+
+    $consumption($first);
+
+    expect(fn () => $consumption($second))->toThrow(RepetitionWindowException::class)
+        ->and($secondHttp->requests())->toBe([]);
+});
+
+it('sends the query from both workers in that race with a plain PSR-16 store, as documented', function () use ($consumption) {
+    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $store = new AtomicCache(staleReads: true);
+    [$first, $firstHttp] = worker($store, $clock, atomic: false);
+    [$second, $secondHttp] = worker($store, $clock, atomic: false);
+    $firstHttp->queue(login($clock), Responses::datadis('{"timeCurve":[]}'));
+    $secondHttp->queue(login($clock), Responses::datadis('{"timeCurve":[]}'));
+
+    $consumption($first);
+    $consumption($second);
+
+    expect($secondHttp->requests())->toHaveCount(2);
+});
+
+it('frees an unsent query again with an atomic store, and sends nothing when the store fails', function () use ($consumption) {
+    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $store = new AtomicCache;
+    [$client, $http] = worker($store, $clock, atomic: true);
+    $http->queue(Responses::text('bad credentials', 401), login($clock), Responses::datadis('{"timeCurve":[]}'));
+
+    expect(fn () => $consumption($client))->toThrow(AuthenticationException::class);
+
+    $consumption($client);
+    $store->failAdd = true;
+    $store->items = [];
+
+    expect($http->requests())->toHaveCount(3)
+        ->and(fn () => $consumption($client))->toThrow(LedgerUnavailableException::class)
+        ->and($http->requests())->toHaveCount(3);
 });

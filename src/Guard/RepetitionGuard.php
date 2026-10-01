@@ -38,7 +38,7 @@ final readonly class RepetitionGuard
         $key = self::repetitionKey($endpoint, $query);
 
         try {
-            $last = $this->ledger->lastAttempt($this->account, $key);
+            $last = $this->ledger->claim($this->account, $key);
         } catch (LedgerUnavailableException $e) {
             throw new LedgerUnavailableException("{$name}: {$e->getMessage()}", $name, $e);
         }
@@ -49,12 +49,6 @@ final readonly class RepetitionGuard
                 endpoint: $name,
                 requestSent: false,
             );
-        }
-
-        try {
-            $this->ledger->record($this->account, $key);
-        } catch (LedgerUnavailableException $e) {
-            throw new LedgerUnavailableException("{$name}: {$e->getMessage()}", $name, $e);
         }
 
         try {

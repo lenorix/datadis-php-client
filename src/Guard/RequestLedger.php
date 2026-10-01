@@ -27,10 +27,15 @@ final class RequestLedger
 
     private readonly ClockInterface $clock;
 
+    /**
+     * @param  AtomicStore|null  $atomic  the same store, able to add a key only if absent: then checking
+     *                                    and recording are one step and concurrent workers cannot both send
+     */
     public function __construct(
         private readonly CacheInterface $cache,
         private readonly RequestFingerprinter $fingerprinter,
         ?ClockInterface $clock = null,
+        private readonly ?AtomicStore $atomic = null,
     ) {
         $this->clock = $clock ?? new SystemClock;
     }
@@ -62,6 +67,38 @@ final class RequestLedger
         }
 
         return (new DateTimeImmutable)->setTimestamp($value);
+    }
+
+    /**
+     * Records the attempt unless the query was already attempted in the window: null when it may
+     * be sent now, or the time of the earlier attempt. With an AtomicStore this is a single step.
+     *
+     * @param  array<string, string|int|list<string>|null>  $query
+     *
+     * @throws LedgerUnavailableException when the store cannot be read or written
+     */
+    public function claim(string $account, #[SensitiveParameter] array $query): ?DateTimeImmutable
+    {
+        if ($this->atomic === null) {
+            $last = $this->lastAttempt($account, $query);
+
+            if ($last === null) {
+                $this->record($account, $query);
+            }
+
+            return $last;
+        }
+
+        $now = $this->clock->now()->getTimestamp();
+
+        try {
+            $added = $this->atomic->add($this->key($account, $query), $now, self::WINDOW_SECONDS);
+        } catch (Throwable $e) {
+            throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
+        }
+
+        // Another worker holds the key; when its time cannot be read yet, it is now.
+        return $added ? null : ($this->lastAttempt($account, $query) ?? (new DateTimeImmutable)->setTimestamp($now));
     }
 
     /**

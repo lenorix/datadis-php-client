@@ -293,7 +293,9 @@ $ledger = new RequestLedger($psr16Cache, new RequestFingerprinter($aSecretOfAtLe
 $client = new DatadisClient($config, ledger: $ledger);
 ```
 
-A repeat then fails with a `RepetitionWindowException` whose `requestSent` is `false`, before anything is sent. Only a keyed hash of each query is stored, never the CUPS. Two workers that start the same query at the same instant can still both send it, so give each supply to one worker at a time.
+A repeat then fails with a `RepetitionWindowException` whose `requestSent` is `false`, before anything is sent. Only a keyed hash of each query is stored, never the CUPS.
+
+PSR-16 cannot store a key only if it is absent, so with a plain PSR-16 cache the ledger checks and records in two steps, and two workers that start the same query at the same instant can both send it. If your store can add atomically (Redis, Memcached, a database), wrap that call in an `AtomicStore` and pass it too: checking and recording become one step, and only one worker sends. With Laravel's cache it is one line, as in [the Laravel section](#using-it-in-a-laravel-application).
 
 ### Share the login token
 
@@ -362,6 +364,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\DatadisConfig;
+use Lenorix\DatadisClient\Guard\AtomicStore;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Http\GuzzleClientFactory;
@@ -377,9 +380,20 @@ public function register(): void
             // The package's Guzzle settings (timeouts, no redirects, no automatic decompression)
             // on Laravel's handler stack, so Http::fake() and Http::assertSent() see every call.
             http: GuzzleClientFactory::create(DatadisConfig::fromArray($settings), ['handler' => Http::buildHandlerStack()]),
-            // The token and the 24 hour guard live in the cache every worker shares.
+            // The token and the 24 hour guard live in the cache every worker shares. Cache::add() is
+            // atomic on Redis, Memcached and the database store, so two workers never both send a query.
             tokenCache: Cache::store(),
-            ledger: new RequestLedger(Cache::store(), new RequestFingerprinter(config('app.key'))),
+            ledger: new RequestLedger(
+                Cache::store(),
+                new RequestFingerprinter(config('app.key')),
+                atomic: new class implements AtomicStore
+                {
+                    public function add(string $key, mixed $value, int $ttlSeconds): bool
+                    {
+                        return Cache::add($key, $value, $ttlSeconds);
+                    }
+                },
+            ),
         );
     });
 }
