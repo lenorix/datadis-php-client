@@ -13,6 +13,7 @@ Checked against a new set of real answers (October 2026): the v2 paths, the auth
 - `PublicApiClient` needs a `DatadisConfig`: the public API answers 401 without the login token.
 - `partnerUserList()` returns `PartnerUser` results and `partnerAgreementDate()` returns the date, or null, instead of the raw answer.
 - The code description of reactive data is `codeDescription`, the key Datadis really sends.
+- A quarter-hourly answer whose labels cannot tell which convention it uses (a partial day with neither hour `00` nor `24:15` to `24:45`) now gets readings without `start` and `end`, where 0.1.0 assumed the end of each quarter.
 - `isEmptyBecauseOfErrors()` no longer counts a distributor that says it has no data for the period (error code 8) as a failure; `DistributorError::isNoData()` tells it.
 
 ### Added

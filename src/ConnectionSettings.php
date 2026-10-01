@@ -7,8 +7,8 @@ namespace Lenorix\DatadisClient;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 
 /**
- * Where and how to connect, without credentials. The public API needs only this; the private API
- * gets it from DatadisConfig. Invalid settings raise a ConfigurationException before anything is sent.
+ * Where and how to connect, without the credentials, which DatadisConfig adds. Both APIs need the
+ * account. Invalid settings raise a ConfigurationException before anything is sent.
  */
 final readonly class ConnectionSettings
 {

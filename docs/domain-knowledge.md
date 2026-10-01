@@ -44,6 +44,6 @@ Penalised in 3.0TD and 6.XTD in every period except P6 when reactive exceeds 33 
 
 A holder (titular) authorises a third party's NIF inside Datadis (up to about 2 years, needs renewal, not always instant). The third party queries with **its own** credentials plus `authorizedNif`, never with the holder's password.
 
-## Public API (no authentication, v1-style only)
+## Public API (v1-style only, needs the login token)
 
 `/api-public/api-search`, `api-sum-search`, `api-search-auto`, `api-sum-search-auto`. Dates `YYYY/MM/DD`, `page` from 0, `pageSize` up to 2000, `community` mandatory, hourly totals `mi1`..`mi25`. Parameters and answer shapes are in [api-reference.md](api-reference.md).
