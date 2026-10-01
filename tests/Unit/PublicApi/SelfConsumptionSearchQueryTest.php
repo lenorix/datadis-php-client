@@ -31,6 +31,7 @@ it('refuses unknown self-consumption types and malformed province', function (Cl
     'type 30' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], selfConsumption: ['30'])],
     'type 75' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], selfConsumption: ['75'])],
     'province 3 digits' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], province: ['035'])],
+    'a community code instead of the enum' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, ['13'])],
 ])->throws(InvalidRequestException::class);
 
 it('builds the minimal query without empty filters', function () use ($from, $to) {

@@ -65,6 +65,8 @@ it('refuses invalid queries', function (Closure $build) use ($from, $to) {
     'no community' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [], ['05'])],
     'three communities' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid, Community::Ceuta, Community::Melilla], ['05'])],
     'repeated community' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid, Community::Madrid], ['05'])],
+    'a community code instead of the enum' => [fn ($f, $t) => new PublicSearchQuery($f, $t, ['13'], ['05'])],
+    'null as a community' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid, null], ['05'])],
     'measurement type 06' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['06'])],
     'measurement type 5' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['5'])],
     'reversed dates' => [fn ($f, $t) => new PublicSearchQuery($t, $f, [Community::Madrid], ['05'])],

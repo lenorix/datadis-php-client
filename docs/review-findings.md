@@ -96,13 +96,15 @@ Fixed, each with a regression test:
   - `Cups` and `Nif` objects;
   - the closures that carry the query;
 - the NIF of a delegated holder in dumps of the client;
-- NIF K, L and M (people without a DNI or NIE), which take the DNI letter of their seven digits, refused or checked as a CIF, and not redacted;
+- NIF K, L and M (people without a DNI or NIE), which take the DNI letter of their seven digits (checked against the AEAT guide to the composition of the NIF), refused or checked as a CIF, and not redacted;
 - silently accepted limits:
   - a page limit below 1 read no page;
   - a negative row occurrence gave no interval;
   - a huge number of months per request failed outside the exception contract.
 
 The trace test now looks inside objects and at the calls the package makes to PHP's own functions.
+
+Also fixed: a `distributorError` that is not a list of objects (a number, text, `true`) was dropped, so an empty answer read as "no data"; any such value now counts as a distributor failure. A public query with something other than a `Community` case failed with a `TypeError` instead of `InvalidRequestException`.
 
 ## Bugs of other implementations checked
 

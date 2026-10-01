@@ -112,35 +112,22 @@ final class Envelope
     {
         $raw = $decoded['distributorError'] ?? [];
 
-        // TOLERATED, NO SOURCE: documented as a list of objects; text is accepted so a failure is not lost.
-        if (is_string($raw) && trim($raw) !== '') {
-            return [DistributorError::fromRow(['errorDescription' => $raw])];
-        }
-
-        if (! is_array($raw)) {
-            return [];
-        }
-
-        // TOLERATED, NO SOURCE: documented as a list; a single error object is accepted so it is not lost.
-        if ($raw !== [] && ! array_is_list($raw)) {
-            $raw = [$raw];
-        }
+        // TOLERATED, NO SOURCE: documented as a list of objects. A single object, text or any other
+        // value still counts as a failure, so an answer that reports one is never read as "no data".
+        $items = is_array($raw) && array_is_list($raw) ? $raw : [$raw];
 
         $errors = [];
-        foreach ($raw as $item) {
-            if (is_array($item)) {
-                $errors[] = DistributorError::fromRow($item);
+        foreach ($items as $item) {
+            if ($item === null || $item === false || (is_string($item) && trim($item) === '')) {
+                continue;
             }
+
+            $errors[] = DistributorError::fromRow(is_array($item) ? $item : ['errorDescription' => Fields::scalar($item)]);
         }
 
         return $errors;
     }
 
-    /**
-     * Whether every field of a row is empty: an empty or blank string, null or an empty list.
-     *
-     * @param  array<array-key, mixed>  $row
-     */
     /**
      * Every field empty, null or an empty list: Datadis's way of sending nothing (verified for
      * contract detail and reactive data).

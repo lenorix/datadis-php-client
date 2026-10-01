@@ -71,11 +71,22 @@ it('fails on shapes that are not an envelope', function (array $decoded) use ($d
     'list key is an object' => [['timeCurve' => ['a' => 1]]],
 ])->throws(UninterpretableResponseException::class);
 
-it('ignores malformed distributor errors instead of failing', function () use ($decoder) {
-    $result = Envelope::build(['timeCurve' => [], 'distributorError' => ['text', null, ['errorCode' => '9']]], 'timeCurve', 'endpoint', $decoder);
+it('counts a distributor error of any shape as a failure, never as no data', function (mixed $errors, array $descriptions) use ($decoder) {
+    $result = Envelope::build(['timeCurve' => [], 'distributorError' => $errors], 'timeCurve', 'endpoint', $decoder);
 
-    expect($result->distributorErrors)->toHaveCount(1)->and($result->distributorErrors[0]->errorCode)->toBe('9');
-});
+    expect(array_map(fn ($e) => $e->errorDescription, $result->distributorErrors))->toBe($descriptions)
+        ->and($result->isEmptyBecauseOfErrors())->toBeTrue();
+})->with([
+    'a number' => [17, ['17']],
+    'true' => [true, [null]],
+    'text' => ['boom', ['boom']],
+    'one object' => [['errorDescription' => 'boom'], ['boom']],
+    'a list with text, a number and an object' => [['text', 3, ['errorDescription' => 'boom']], ['text', '3', 'boom']],
+]);
+
+it('reads no failure from an empty distributor error', function (mixed $errors) use ($decoder) {
+    expect(Envelope::build(['timeCurve' => [], 'distributorError' => $errors], 'timeCurve', 'endpoint', $decoder)->distributorErrors)->toBe([]);
+})->with(['null' => [null], 'false' => [false], 'blank text' => [' '], 'empty list' => [[]], 'a list of blanks' => [[null, '', false]]]);
 
 it('wraps an unexpected throwable from a row decoder at the boundary', function () {
     Envelope::build(['timeCurve' => [['a' => 1]]], 'timeCurve', 'endpoint', fn (array $row) => throw new TypeError('boom'));

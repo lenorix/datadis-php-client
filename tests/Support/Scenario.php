@@ -21,7 +21,13 @@ final class Scenario
      */
     public static function otherCups(): string
     {
-        return 'ES'.str_repeat('0', 15).'1AA';
+        return self::numberedCups(1);
+    }
+
+    /** The all-zero CUPS with $n in its last digits, built when the test runs: 0 is CUPS itself, without the suffix. */
+    public static function numberedCups(int $n): string
+    {
+        return sprintf('ES%016dAA', $n);
     }
 
     public function __construct(

@@ -44,11 +44,19 @@ final class QueryRules
     /**
      * Community is mandatory and at most two can be combined.
      *
-     * @param  array<Community>  $communities
+     * @param  array<mixed>  $communities  checked at runtime: callers may pass anything
      */
     public static function communities(array $communities): string
     {
-        $codes = array_map(static fn (Community $c): string => $c->value, $communities);
+        $codes = [];
+
+        foreach ($communities as $community) {
+            if (! $community instanceof Community) {
+                throw new InvalidRequestException('Each community must be a '.Community::class.' case, '.get_debug_type($community).' given.');
+            }
+
+            $codes[] = $community->value;
+        }
 
         if ($codes === [] || count($codes) > 2 || count(array_unique($codes)) !== count($codes)) {
             throw new InvalidRequestException('Give one or two different communities.');

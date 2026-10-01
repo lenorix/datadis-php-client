@@ -105,7 +105,7 @@ final readonly class Nif implements Stringable
             return $value[8] === self::LETTERS[$number % 23];
         }
 
-        // NIF K, L and M (Orden EHA/451/2008): the letter of the seven digits, as for a DNI.
+        // NIF K, L and M (RD 1065/2007; AEAT guide to the NIF): the same letter algorithm as a DNI, on the seven digits.
         if (str_contains('KLM', $first)) {
             return $value[8] === self::LETTERS[(int) substr($value, 1, 7) % 23];
         }

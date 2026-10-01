@@ -12,9 +12,10 @@ Checked against a new set of real answers (October 2026): the v2 paths, the auth
 
 - `DatadisConfig` refuses a username that is not a NIF, NIE or CIF, or whose control character does not match, before anything is sent. Pass `checkUsernameControl: false` (or `check_username_control` in `fromArray()`) to take one with the right shape and a control character that does not match.
 - `Nif` requires the kind of control character the first letter of a CIF calls for: a digit for A, B, E and H, a letter for P, Q and S. `A0000000J` was accepted before.
-- `Nif` takes a NIF K, L or M (Spaniards under 14 or living abroad, foreigners without an NIE) with the DNI letter of its seven digits, as Orden EHA/451/2008 sets. Before, it checked them as a CIF and refused them with the right letter, even with `checkControl: false`. The redaction of error texts covers them too.
+- `Nif` takes a NIF K, L or M (Spaniards under 14 or living abroad, foreigners without an NIE) with the DNI letter of its seven digits, as the AEAT sets for these NIF (RD 1065/2007). Before, it checked them as a CIF and refused them with the right letter, even with `checkControl: false`. The redaction of error texts covers them too.
 - `HourLabel::interval()` and `QuarterHourLabel::interval()` refuse a negative occurrence instead of answering null, as for an hour the clock never showed.
 - `MonthPlanner::ranges()` takes any number of months per request above 24 as one request for the whole range.
+- A `distributorError` that is not a list of objects (a number, text, `true`, or such items in the list) counts as a distributor failure. Before, it was dropped and an empty answer looked like "no data".
 - `apiSearchAll()` and `apiSearchAutoAll()` refuse a `maxPages` below 1 with an `InvalidRequestException`, at the call. Before, they read no page and gave no records, which looked like no data.
 
 - `PublicApiClient` needs a `DatadisConfig`: the public API answers 401 without the login token.
@@ -39,6 +40,7 @@ Checked against a new set of real answers (October 2026): the v2 paths, the auth
 - The 24 hour guard ignores a stored time more than ten minutes ahead of the clock, which could block a query for far longer than the window, and with an `AtomicStore` a held key always counts until the store expires it, so two workers cannot both take it back.
 - `PublicSearchQuery` and `SelfConsumptionSearchQuery` keep a copy of their dates, so changing the `DateTime` they were given no longer makes `startDate` and `endDate` disagree with what is sent. Both properties are now `DateTimeImmutable`.
 
+- A public query with something other than a `Community` case among its communities fails with `InvalidRequestException` instead of a `TypeError`.
 - The validity dates of the authorization list carry a time of day and were read as null.
 - An account without groups got an exception: Datadis answers the text `No groups`.
 - Reactive data for a period without data gave one empty record instead of an empty result.

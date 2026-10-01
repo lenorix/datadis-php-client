@@ -4,11 +4,11 @@ Namespace `Lenorix\DatadisClient`. Every milestone follows TDD (red, green, refa
 
 ## Status
 
-All milestones M0 to M6 are done. This plan is kept as it was written: class and method names in it are those of the time, and several were renamed later (the current ones follow Datadis's own names, see [design-decisions.md](design-decisions.md)). M6 (review and hardening) found and fixed the defects listed in [review-findings.md](review-findings.md). The quality gates are in [testing-strategy.md](testing-strategy.md).
+All milestones M0 to M6 are done. This plan is kept as it was written: class and method names in it are those of the time, and several were renamed later (the current ones follow Datadis's own names, see [design-decisions.md](design-decisions.md)). Where later findings changed what a milestone assumed, a note under it says so. M6 (review and hardening) found and fixed the defects listed in [review-findings.md](review-findings.md). The quality gates are in [testing-strategy.md](testing-strategy.md).
 
 ## Decisions taken for this plan (revisit on request)
 
-- The client supports **v1 and v2** (`ApiVersion` enum, default v2). v1 differs only in path (no `-v2` suffix) and in returning a bare JSON list without `distributorError`; reactive is v2 only. Functionality that exists only in v1 is **included**: authorization endpoints and the public API (UNVERIFIED, synthetic fixtures).
+- The client supports **v1 and v2** (`ApiVersion` enum, default v2). v1 differs only in path (no `-v2` suffix) and in returning a bare JSON list without `distributorError`; reactive is v2 only. Functionality that exists only in v1 is **included**: authorization endpoints and the public API (UNVERIFIED, synthetic fixtures at the time; checked against real captures since, see the note under M4b).
 - PSR-18 agnosticism is kept only while it causes no bugs; Guzzle is the default and required.
 - Runtime dependencies: `psr/http-client`, `psr/http-factory`, `psr/http-message`, `psr/simple-cache`, `psr/clock`, `brick/math`, `guzzlehttp/guzzle` (default transport). Any PSR-18 client can replace Guzzle because the client only type-hints the PSR interfaces.
 - Eris works inside Pest 4 with `uses(Eris\TestTrait::class)` (smoke-tested: passing properties pass, failing ones fail and print a seed). Iterations are set with `->limitTo()` through a helper reading our own env var; `ERIS_ITERATIONS` does not exist in Eris. Reproduce with `ERIS_SEED=<seed> vendor/bin/pest --filter ...`.
@@ -78,6 +78,8 @@ For each of the six v2 endpoints: request parameter object (validates required f
 Commit per two or three endpoints, or one commit for the milestone if the diff stays reviewable.
 
 ## M4b v1-only endpoints (UNVERIFIED, synthetic fixtures)
+
+> Superseded since this was written: the public API needs the login token (Datadis answers 401 without it, and the official manual sends `Authorization: Bearer` on these queries too), so `PublicApiClient` takes a `DatadisConfig` and logs in. Its answers, the authorization list and the partner calls have since been checked against real captures. The README and [design-decisions.md](design-decisions.md) describe the current behaviour.
 
 - Authorization: `newAuthorization(Nif $authorizedNif, ?Month $from, ?Month $to, Cups ...$cups)`, `cancelAuthorization(Nif, Cups ...)`, `listAuthorizations(Nif $owner)` returning `Authorization` DTOs (`id`, `ownerDocument`, `requesterDocument`, `status`, `validityDateStart`, `validityDateEnd`, `distributorCodeFather`). Array parameters are sent as repeated `cups` keys or `cups[]`: the wire form is unknown, so it is one small isolated encoder.
 - Public API: `PublicApiClient` class (no token, built from `ConnectionSettings`) with `search`, `sumSearch`, `searchSelfConsumption`, `sumSearchSelfConsumption` and paging helpers; typed query object (dates `YYYY/MM/DD`, `page` from 0, `pageSize` up to 2000, mandatory `community`, code lists as enums or validated strings); responses decoded tolerantly (`mi1`..`mi25` kept as raw plus a typed accessor) because the shape is unknown.

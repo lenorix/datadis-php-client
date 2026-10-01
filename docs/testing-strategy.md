@@ -36,10 +36,11 @@ Every fixture file lives under `tests/Fixtures/` and its provenance is recorded 
 
 **No NIF and no CUPS in the repository, not even made-up ones.** Only these all-zero values, with every digit `0` and every letter `A`, appear:
 
-- CUPS: `ES0000000000000000AA0A` (22 chars) and `ES0000000000000000AA` (20 chars). The `ES` country prefix is kept so the value is still a CUPS. A test that needs a second, different supply gets it from `Scenario::otherCups()`, built when the test runs.
+- CUPS: `ES0000000000000000AA0A` (22 chars) and `ES0000000000000000AA` (20 chars). The `ES` country prefix is kept so the value is still a CUPS. A test that needs a second, different supply gets it from `Scenario::otherCups()`, or several from `Scenario::numberedCups()`, built when the test runs.
 - Account: `A00000000`, which is also a valid CIF (control digit 0).
 - Third party: `00000000T`, the one exception to "letters are A", because a holder's NIF must pass the control letter check.
-- NIE and CIF control checks: `X0000000T`, `C0000000J`, `Q0000000J` (valid), and `00000000A`, `X0000000A`, `A0000000A`, `A0000000J`, `Q00000000` (wrong control character, or the wrong kind for the first letter).
+- NIE, NIF K, L, M and CIF control checks: `X0000000T`, `K0000000T`, `L0000000T`, `M0000000T`, `M0000001R`, `C0000000J`, `Q0000000J` (valid), and `00000000A`, `00000000R`, `X0000000A`, `K0000000R`, `M0000000J`, `A0000000A`, `A0000000J`, `Q00000000` (wrong control character, or the wrong kind for the first letter).
+- Values generated while the tests run: property tests draw random digits and letters for CUPS and NIF shapes (normalisation, redaction), and a few tests build numbered all-zero CUPS. They live only in memory during the run, and are never written to the repository or printed by a passing test; the rule above is about what the repository holds.
 - Base URL in tests: `https://datadis.test`.
 
 A real capture is anonymised the same way before anything reaches the repository: identifiers become all-zero values, and names, emails, addresses, postal codes, ids, dates and consumption values are replaced by made-up ones in the same format.

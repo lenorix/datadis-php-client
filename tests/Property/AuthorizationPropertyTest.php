@@ -13,7 +13,7 @@ it('sends each CUPS once, in order, and refuses duplicates before sending', func
     $this->limitTo(pbtIterations())
         ->forAll(Generators::seq(Generators::choose(0, 5)))
         ->then(function (array $picks) {
-            $pool = array_map(fn (int $i) => Cups::fromString(sprintf('ES%016dAA', $i)), range(0, 5));
+            $pool = array_map(fn (int $i) => Cups::fromString(Scenario::numberedCups($i)), range(0, 5));
             $cups = array_map(fn (int $i) => $pool[$i], $picks);
             $s = Scenario::make();
             $s->http->queue(Responses::empty(200));
