@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Guard;
 
+use Closure;
 use DateTimeImmutable;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Support\SystemClock;
@@ -35,15 +36,29 @@ final class RequestLedger
     private readonly ClockInterface $clock;
 
     /**
+     * The stores are often the application's own cache, which may also hold the login token and
+     * show its values when dumped. Kept inside closures, which var_dump, print_r and var_export
+     * cannot look into.
+     *
+     * @var Closure(): CacheInterface
+     */
+    private readonly Closure $cache;
+
+    /** @var (Closure(): AtomicStore)|null */
+    private readonly ?Closure $atomic;
+
+    /**
      * @param  AtomicStore|null  $atomic  the same store, able to add a key only if absent: then checking
      *                                    and recording are one step and concurrent workers cannot both send
      */
     public function __construct(
-        private readonly CacheInterface $cache,
+        CacheInterface $cache,
         private readonly RequestFingerprinter $fingerprinter,
         ?ClockInterface $clock = null,
-        private readonly ?AtomicStore $atomic = null,
+        ?AtomicStore $atomic = null,
     ) {
+        $this->cache = static fn (): CacheInterface => $cache;
+        $this->atomic = $atomic === null ? null : static fn (): AtomicStore => $atomic;
         $this->clock = $clock ?? new SystemClock;
     }
 
@@ -71,7 +86,7 @@ final class RequestLedger
     private function read(string $account, #[SensitiveParameter] array $query): mixed
     {
         try {
-            return $this->cache->get($this->key($account, $query));
+            return ($this->cache)()->get($this->key($account, $query));
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be read.', previous: $e);
         }
@@ -115,7 +130,7 @@ final class RequestLedger
 
         $now = $this->clock->now()->getTimestamp();
 
-        if ($this->add($this->atomic, $account, $query, $now)) {
+        if ($this->add(($this->atomic)(), $account, $query, $now)) {
             return null;
         }
 
@@ -143,7 +158,7 @@ final class RequestLedger
     public function record(string $account, #[SensitiveParameter] array $query): void
     {
         try {
-            $stored = $this->cache->set($this->key($account, $query), $this->clock->now()->getTimestamp(), self::WINDOW_SECONDS);
+            $stored = ($this->cache)()->set($this->key($account, $query), $this->clock->now()->getTimestamp(), self::WINDOW_SECONDS);
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
         }
@@ -161,7 +176,7 @@ final class RequestLedger
     public function forget(string $account, #[SensitiveParameter] array $query): void
     {
         try {
-            $this->cache->delete($this->key($account, $query));
+            ($this->cache)()->delete($this->key($account, $query));
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
         }
@@ -172,5 +187,11 @@ final class RequestLedger
     {
         // PSR-16 keys allow only [A-Za-z0-9_.] and 64 characters.
         return 'datadis_query_'.substr($this->fingerprinter->fingerprint($account, $query), 0, 48);
+    }
+
+    /** @return array<string, mixed> */
+    public function __debugInfo(): array
+    {
+        return ['cache' => '[hidden]', 'atomic' => $this->atomic === null ? null : '[hidden]'];
     }
 }

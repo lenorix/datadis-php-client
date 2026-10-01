@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Auth;
 
+use Closure;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
@@ -40,7 +41,13 @@ final class TokenProvider
 
     private const string ENDPOINT = 'login';
 
-    private readonly CacheInterface $cache;
+    /**
+     * The store holds the live token, and one given by the application may show its values when
+     * dumped. Kept inside a closure, which var_dump, print_r and var_export cannot look into.
+     *
+     * @var Closure(): CacheInterface
+     */
+    private readonly Closure $cache;
 
     private readonly ClockInterface $clock;
 
@@ -54,7 +61,8 @@ final class TokenProvider
         ?ClockInterface $clock = null,
     ) {
         $this->clock = $clock ?? new SystemClock;
-        $this->cache = $cache ?? new InMemoryCache($this->clock);
+        $store = $cache ?? new InMemoryCache($this->clock);
+        $this->cache = static fn (): CacheInterface => $store;
         // PSR-16 keys allow only [A-Za-z0-9_.] and 64 characters.
         $this->cacheKey = 'datadis_token_'.substr(hash('sha256', $config->baseUrl."\n".$config->username), 0, 40);
     }
@@ -66,7 +74,7 @@ final class TokenProvider
     public function token(): string
     {
         try {
-            $cached = $this->cache->get($this->cacheKey);
+            $cached = ($this->cache)()->get($this->cacheKey);
         } catch (Throwable) {
             $cached = null;
         }
@@ -86,7 +94,7 @@ final class TokenProvider
 
         if ($ttl > 0) {
             try {
-                $this->cache->set($this->cacheKey, $token, $ttl);
+                ($this->cache)()->set($this->cacheKey, $token, $ttl);
             } catch (Throwable) {
                 // Not cached: the next call logs in again.
             }
@@ -98,7 +106,7 @@ final class TokenProvider
     public function invalidate(): void
     {
         try {
-            $this->cache->delete($this->cacheKey);
+            ($this->cache)()->delete($this->cacheKey);
         } catch (Throwable) {
             // Nothing else to do: a stale token is detected by the 401 it causes.
         }
@@ -152,5 +160,11 @@ final class TokenProvider
         $token = preg_replace('/^Bearer\s+/i', '', $token) ?? $token;
 
         return preg_match(RequestFactory::TOKEN_PATTERN, $token) === 1 ? $token : null;
+    }
+
+    /** @return array<string, mixed> */
+    public function __debugInfo(): array
+    {
+        return ['config' => $this->config, 'cache' => '[hidden]'];
     }
 }
