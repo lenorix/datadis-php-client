@@ -25,6 +25,13 @@ final class RequestLedger
     /** 24 hours plus a margin for clock differences with Datadis. */
     public const int WINDOW_SECONDS = 86400 + 600;
 
+    /**
+     * How far ahead of this clock a stored time may be and still count: another worker's clock can
+     * run a little fast. A time further ahead is corrupt and would block the query for longer than
+     * the window, so it is ignored.
+     */
+    public const int CLOCK_TOLERANCE_SECONDS = 600;
+
     private readonly ClockInterface $clock;
 
     /**
@@ -44,7 +51,8 @@ final class RequestLedger
      * When the query was last attempted, or null if not within the window.
      *
      * The stored timestamp is checked against the clock too, so a store that ignores TTLs does
-     * not block a query forever, and numeric strings are accepted because some stores return them.
+     * not block a query forever, nor a time far in the future for longer than the window. Numeric
+     * strings are accepted because some stores return them.
      *
      * @param  array<string, string|int|list<string>|null>  $query
      *
@@ -52,17 +60,33 @@ final class RequestLedger
      */
     public function lastAttempt(string $account, #[SensitiveParameter] array $query): ?DateTimeImmutable
     {
+        return $this->attemptIn($this->read($account, $query));
+    }
+
+    /**
+     * @param  array<string, string|int|list<string>|null>  $query
+     *
+     * @throws LedgerUnavailableException when the store cannot be read
+     */
+    private function read(string $account, #[SensitiveParameter] array $query): mixed
+    {
         try {
-            $value = $this->cache->get($this->key($account, $query));
+            return $this->cache->get($this->key($account, $query));
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be read.', previous: $e);
         }
+    }
 
+    /** The attempt a stored value stands for, or null when it does not count. */
+    private function attemptIn(mixed $value): ?DateTimeImmutable
+    {
         if (is_string($value) && preg_match('/^\d{1,19}$/D', $value) === 1) {
             $value = (int) $value;
         }
 
-        if (! is_int($value) || $this->clock->now()->getTimestamp() - $value >= self::WINDOW_SECONDS) {
+        $elapsed = is_int($value) ? $this->clock->now()->getTimestamp() - $value : null;
+
+        if ($elapsed === null || $elapsed >= self::WINDOW_SECONDS || $elapsed < -self::CLOCK_TOLERANCE_SECONDS) {
             return null;
         }
 
@@ -91,14 +115,36 @@ final class RequestLedger
 
         $now = $this->clock->now()->getTimestamp();
 
-        try {
-            $added = $this->atomic->add($this->key($account, $query), $now, self::WINDOW_SECONDS);
-        } catch (Throwable $e) {
-            throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
+        if ($this->add($account, $query, $now)) {
+            return null;
+        }
+
+        $value = $this->read($account, $query);
+        $last = $this->attemptIn($value);
+
+        // The key is held by a value that does not count: a store that ignored the TTL, or a time we
+        // did not write. Take it back and claim it again, still in one step against other workers.
+        // Nothing readable means another worker's write is not visible yet: that one counts.
+        if ($last === null && $value !== null) {
+            $this->forget($account, $query);
+
+            if ($this->add($account, $query, $now)) {
+                return null;
+            }
         }
 
         // Another worker holds the key; when its time cannot be read yet, it is now.
-        return $added ? null : ($this->lastAttempt($account, $query) ?? (new DateTimeImmutable)->setTimestamp($now));
+        return $last ?? (new DateTimeImmutable)->setTimestamp($now);
+    }
+
+    /** @param  array<string, string|int|list<string>|null>  $query */
+    private function add(string $account, #[SensitiveParameter] array $query, int $now): bool
+    {
+        try {
+            return (bool) $this->atomic?->add($this->key($account, $query), $now, self::WINDOW_SECONDS);
+        } catch (Throwable $e) {
+            throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
+        }
     }
 
     /**
