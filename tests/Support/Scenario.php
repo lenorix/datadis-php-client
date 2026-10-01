@@ -13,7 +13,16 @@ use Lenorix\DatadisClient\DatadisConfig;
 /** A client wired to a fake HTTP client whose first answer is a valid login, at a frozen "now" of 2026-09-15. */
 final class Scenario
 {
-    public const string CUPS = 'ES0031300000000001JN0F';
+    public const string CUPS = 'ES0000000000000000AA0A';
+
+    /**
+     * A second supply, for tests that need two that differ. The repository holds no CUPS but the
+     * all-zero one, so this one is built when the test runs.
+     */
+    public static function otherCups(): string
+    {
+        return 'ES'.str_repeat('0', 15).'1AA';
+    }
 
     public function __construct(
         public readonly DatadisClient $client,
@@ -26,7 +35,7 @@ final class Scenario
         $http = new FakeHttpClient;
         $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
         $client = new DatadisClient(
-            new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'),
+            new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'),
             http: $http,
             version: $version,
             clock: $clock,

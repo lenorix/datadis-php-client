@@ -2,7 +2,7 @@
     "supplies": [
         {
             "address": "CALLE EJEMPLO 1",
-            "cups": "ES0031300000000001JN0F",
+            "cups": "ES0000000000000000AA0A",
             "postalCode": "28001",
             "province": "MADRID",
             "provinceCode": "28",
@@ -16,7 +16,7 @@
         },
         {
             "address": "-",
-            "cups": "ES0031300000000002JN",
+            "cups": "ES0000000000000000AA",
             "postalCode": "28002",
             "province": "MADRID",
             "provinceCode": "28",

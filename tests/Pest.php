@@ -56,7 +56,7 @@ function flowClient(ApiVersion $version = ApiVersion::V2, bool $ledger = false, 
     $http = new FakeHttpClient;
     $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
     $client = new DatadisClient(
-        new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'),
+        new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'),
         http: $retries ? new RetryingClient($http, sleep: static function (int $ms): void {}) : $http,
         version: $version,
         clock: $clock,

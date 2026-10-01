@@ -10,7 +10,7 @@ use RuntimeException;
 /** A lazily streamed body whose transfer fails when it is read, as a streaming PSR-18 client can. */
 final class ThrowingStream implements StreamInterface
 {
-    public function __construct(private string $message = 'transfer failed for https://datadis.test/x?cups=ES0031300000000001JN0F&authorizedNif=87654321X') {}
+    public function __construct(private string $message = 'transfer failed for https://datadis.test/x?cups=ES0000000000000000AA0A&authorizedNif=00000000T') {}
 
     public function __toString(): string
     {

@@ -34,14 +34,15 @@ Red (write a failing test that states the behaviour), green (smallest code that 
 
 Every fixture file lives under `tests/Fixtures/` and its provenance is recorded in `tests/Fixtures/README.md` as one of VERIFIED (real capture, anonymised), SPEC (from the captured specification), or SYNTHETIC. A previous project passed its whole suite on hand-made fixtures that did not match the real API, so **synthetic fixtures must be marked and the behaviours they cover listed as unverified**.
 
-Fictitious safe identifiers:
+**No NIF and no CUPS in the repository, not even made-up ones.** Only these all-zero values, with every digit `0` and every letter `A`, appear:
 
-- CUPS: `ES0031300000000001JN0F` (22 chars), `ES0031300000000001JN` (20 chars)
-- NIF: `12345678Z`, account and third party: `12345678Z` / `87654321X`
-- Credentials: `test-user` / `test-password`
-- Base URL in tests: `https://datadis.test`
+- CUPS: `ES0000000000000000AA0A` (22 chars) and `ES0000000000000000AA` (20 chars). The `ES` country prefix is kept so the value is still a CUPS. A test that needs a second, different supply gets it from `Scenario::otherCups()`, built when the test runs.
+- Account: `A00000000`, which is also a valid CIF (control digit 0).
+- Third party: `00000000T`, the one exception to "letters are A", because a holder's NIF must pass the control letter check.
+- NIE and CIF control checks: `X0000000T`, `A0000000J`, `Q0000000J` (valid), and `00000000A`, `X0000000A`, `A0000000A` (wrong control character).
+- Base URL in tests: `https://datadis.test`.
 
-Never copy real payloads with real CUPS, NIF, addresses or postal codes of real people.
+A real capture is anonymised the same way before anything reaches the repository: identifiers become all-zero values, and names, emails, addresses, postal codes, ids, dates and consumption values are replaced by made-up ones in the same format.
 
 Minimum fixture set per endpoint: normal success, empty list, `distributorError` only, `distributorError` plus data, null-heavy row, and the real error answers listed in [quirks-and-rules.md](quirks-and-rules.md) (400 and 404 as plain text labelled JSON, 401 Spring JSON, 500 with an empty body). Hourly consumption additionally: 24-hour day, 25-hour day (`03:00` twice), 23-hour day (`03:00` missing), the `00:00` glitch row, `24:00` at month and year end, `consumptionKWh: null`, `obtainMethod: ""`.
 
@@ -53,4 +54,4 @@ Additional scenario tests required: mislabelled gzip body, HTTP 200 HTML page, n
 
 ## Quality gates before every commit
 
-`composer test` green, `composer test-coverage` at 98 % or more, `composer phpstan` clean at level max, `vendor/bin/pint` clean, no real personal data (`grep` for `ES\d{16}` patterns that are not the fictitious ones).
+`composer test` green, `composer test-coverage` at 98 % or more, `composer phpstan` clean at level max, `vendor/bin/pint` clean, no NIF or CUPS other than the all-zero values above (`git grep` for the NIF, NIE, CIF and CUPS shapes).

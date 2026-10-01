@@ -27,14 +27,14 @@ it('always throws for non-2xx statuses and never leaks an identifier', function 
     $this->limitTo(pbtIterations())
         ->forAll(Generators::choose(300, 599), Generators::string())
         ->then(function (int $status, string $noise) {
-            $body = $noise.' ES0031300000000001JN0F '.$noise.' 12345678Z';
+            $body = $noise.' ES0000000000000000AA0A '.$noise.' A00000000';
 
             try {
                 ResponseClassifier::decode(new Response($status, [], $body), 'get-supplies-v2');
                 throw new LogicException('Expected an exception.');
             } catch (DatadisException $e) {
-                expect($e->getMessage())->not->toContain('ES0031300000000001JN0F')->not->toContain('12345678Z')
-                    ->and((string) $e->detail)->not->toContain('ES0031300000000001JN0F');
+                expect($e->getMessage())->not->toContain('ES0000000000000000AA0A')->not->toContain('A00000000')
+                    ->and((string) $e->detail)->not->toContain('ES0000000000000000AA0A');
             }
         });
 });

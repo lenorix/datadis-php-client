@@ -11,8 +11,8 @@ it('decodes an authorization', function () use ($zone, $rows) {
     $authorization = Authorization::fromRow($rows()[0], $zone);
 
     expect($authorization->id)->toBe('1234')
-        ->and($authorization->ownerDocument)->toBe('12345678Z')
-        ->and($authorization->requesterDocument)->toBe('87654321X')
+        ->and($authorization->ownerDocument)->toBe('A00000000')
+        ->and($authorization->requesterDocument)->toBe('00000000T')
         ->and($authorization->status)->toBe('ACTIVE')
         ->and($authorization->validityDateStart?->format('Y-m-d'))->toBe('2026-01-01')
         ->and($authorization->validityDateEnd?->format('Y-m-d'))->toBe('2027-12-31')
@@ -34,7 +34,7 @@ it('rejects a row without any identifying field', function () use ($zone) {
 
 it('accepts a row identified by any one of its fields', function (array $row) use ($zone) {
     expect(Authorization::fromRow($row, $zone))->not->toBeNull();
-})->with([[['id' => 1]], [['ownerDocument' => '12345678Z']], [['requesterDocument' => '87654321X']]]);
+})->with([[['id' => 1]], [['ownerDocument' => 'A00000000']], [['requesterDocument' => '00000000T']]]);
 
 it('reads dates with surrounding spaces', function () use ($zone) {
     expect(Authorization::fromRow(['id' => 1, 'validityDateStart' => ' 2026/01/01 '], $zone)->validityDateStart?->format('Y-m-d'))->toBe('2026-01-01');

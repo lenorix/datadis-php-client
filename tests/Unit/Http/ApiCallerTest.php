@@ -99,14 +99,14 @@ it('treats a network failure on a data call as possibly sent and does not retry'
 
 it('does not leak query identifiers through a transport failure', function () {
     $stack = new Stack;
-    $uri = 'https://datadis.test/x?cups=ES0031300000000001JN0F&authorizedNif=12345678Z';
+    $uri = 'https://datadis.test/x?cups=ES0000000000000000AA0A&authorizedNif=A00000000';
     $stack->http->queue($stack->loginOk(), new ConnectException("cURL error 28 for {$uri}", new Request('GET', $uri)));
 
     try {
         $stack->caller->get(CONSUMPTION, [], 'get-consumption-data-v2');
     } catch (TransportException $e) {
-        expect($e->getMessage())->not->toContain('ES0031300000000001JN0F')->not->toContain('12345678Z')
-            ->and((string) $e->detail)->not->toContain('ES0031300000000001JN0F')->not->toContain('12345678Z')
+        expect($e->getMessage())->not->toContain('ES0000000000000000AA0A')->not->toContain('A00000000')
+            ->and((string) $e->detail)->not->toContain('ES0000000000000000AA0A')->not->toContain('A00000000')
             ->and($e->getPrevious())->toBeNull();
 
         return;
@@ -181,13 +181,13 @@ it('reports the call as sent when the network fails while logging in again', fun
 });
 
 it('wraps whatever a misbehaving HTTP client throws', function (bool $preflight) {
-    $transport = new Transport((new FakeHttpClient)->queue(new RuntimeException('boom ES0031300000000001JN0F')), new HttpFactory);
+    $transport = new Transport((new FakeHttpClient)->queue(new RuntimeException('boom ES0000000000000000AA0A')), new HttpFactory);
 
     try {
         $transport->send(new Request('GET', 'https://datadis.test/x'), 'get-supplies-v2', $preflight);
     } catch (TransportException $e) {
         expect($e->requestSent)->toBe(! $preflight)
-            ->and($e->getMessage().$e->detail)->not->toContain('ES0031300000000001JN0F');
+            ->and($e->getMessage().$e->detail)->not->toContain('ES0000000000000000AA0A');
 
         return;
     }

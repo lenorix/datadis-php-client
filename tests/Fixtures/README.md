@@ -6,7 +6,7 @@ Every fixture states where it comes from. Use only these levels:
 - **SPEC**: derived from the captured API specification or the official manual.
 - **SYNTHETIC**: hand-made. Behaviour covered only by synthetic fixtures is unverified against the live API.
 
-Identifiers are fictitious: CUPS `ES0031300000000001JN0F` (22 chars) and `ES0031300000000001JN` (20 chars), NIF `12345678Z`, third party `87654321X`. Never add real personal data.
+There is no NIF or CUPS in any fixture but the all-zero values: CUPS `ES0000000000000000AA0A` (22 chars) and `ES0000000000000000AA` (20 chars), account `A00000000`, third party `00000000T`. Everything else personal (names, emails, addresses, postal codes, ids, dates, consumption values) is made up, in the format Datadis sends. See [testing-strategy.md](../../docs/testing-strategy.md).
 
 | File | Level | Notes |
 |------|-------|-------|

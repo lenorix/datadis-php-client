@@ -32,12 +32,12 @@ it('finds a supply by the CUPS printed on an invoice and queries it with the CUP
     );
 
     // Invoices often print the 20 character form; Datadis refuses it on data calls (verified).
-    $supply = $client->findSupply(Cups::fromString('es0031300000000001jn'));
+    $supply = $client->findSupply(Cups::fromString('es0000000000000000aa'));
     $client->getConsumptionDataOf($supply, Month::of(2026, 7));
 
     parse_str($http->requests()[2]->getUri()->getQuery(), $query);
 
-    expect($query['cups'])->toBe('ES0031300000000001JN0F')
+    expect($query['cups'])->toBe('ES0000000000000000AA0A')
         ->and($query['distributorCode'])->toBe('2')
         ->and($query['pointType'])->toBe('5');
 });

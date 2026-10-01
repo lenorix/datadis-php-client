@@ -25,7 +25,7 @@ final class Stack
         public readonly CacheInterface $cache = new InMemoryCache(new FrozenClock),
         ?DatadisConfig $config = null,
     ) {
-        $this->config = $config ?? new DatadisConfig('12345678Z', self::PASSWORD, baseUrl: 'https://datadis.test');
+        $this->config = $config ?? new DatadisConfig('A00000000', self::PASSWORD, baseUrl: 'https://datadis.test');
         $factory = new HttpFactory;
         $this->requests = new RequestFactory($this->config->connection(), $factory, $factory);
         $this->transport = new Transport($this->http, $factory);

@@ -9,7 +9,7 @@ $payload = fn () => json_decode((string) file_get_contents(__DIR__.'/../../Fixtu
 it('decodes reactive energy per period', function () use ($payload) {
     $reactive = ReactiveEnergy::fromRow($payload());
 
-    expect($reactive->cups)->toBe('ES0031300000000001JN0F')
+    expect($reactive->cups)->toBe('ES0000000000000000AA0A')
         ->and($reactive->code)->toBe('0')
         ->and($reactive->code_desc)->toBe('OK')
         ->and($reactive->energy)->toHaveCount(2)

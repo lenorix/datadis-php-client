@@ -133,7 +133,7 @@ it('reports an authorizedNif that authorized nothing as an authorization failure
     $s = Scenario::make(ApiVersion::V1);
     $s->http->queue(Responses::datadisError('No authorized supplies', 403));
 
-    expectRealFailure($s, fn ($c) => $c->getSupplies(Nif::fromString('87654321X')), AuthorizationException::class, 403);
+    expectRealFailure($s, fn ($c) => $c->getSupplies(Nif::fromString('00000000T')), AuthorizationException::class, 403);
 });
 
 it('reads the all-blank contract row Datadis sends for a CUPS it cannot see as no contract', function () {

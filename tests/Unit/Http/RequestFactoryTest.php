@@ -6,10 +6,11 @@ use GuzzleHttp\Psr7\HttpFactory;
 use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Http\RequestFactory;
+use Lenorix\DatadisClient\Tests\Support\Scenario;
 
 function account(): DatadisConfig
 {
-    return new DatadisConfig('12345678Z', 'p&ss=w rd/é', baseUrl: 'https://datadis.test');
+    return new DatadisConfig('A00000000', 'p&ss=w rd/é', baseUrl: 'https://datadis.test');
 }
 
 function requests(?DatadisConfig $config = null): RequestFactory
@@ -26,8 +27,8 @@ it('builds the login request with credentials in a form body, never in the url',
     expect($request->getMethod())->toBe('POST')
         ->and((string) $request->getUri())->toBe('https://datadis.test/nikola-auth/tokens/login')
         ->and($request->getHeaderLine('Content-Type'))->toBe('application/x-www-form-urlencoded')
-        ->and($form)->toBe(['username' => '12345678Z', 'password' => 'p&ss=w rd/é'])
-        ->and((string) $request->getUri())->not->toContain('p&ss')->not->toContain('12345678Z');
+        ->and($form)->toBe(['username' => 'A00000000', 'password' => 'p&ss=w rd/é'])
+        ->and((string) $request->getUri())->not->toContain('p&ss')->not->toContain('A00000000');
 });
 
 it('sends the headers Datadis needs on every data call', function () {
@@ -50,7 +51,7 @@ it('sends the headers on the login request too', function () {
 
 it('drops null query values and encodes the rest', function () {
     $request = requests()->get('/api-private/api/get-max-power-v2', [
-        'cups' => 'ES0031300000000001JN0F',
+        'cups' => 'ES0000000000000000AA0A',
         'startDate' => '2025/03',
         'authorizedNif' => null,
         'pointType' => 5,
@@ -58,7 +59,7 @@ it('drops null query values and encodes the rest', function () {
 
     parse_str($request->getUri()->getQuery(), $query);
 
-    expect($query)->toBe(['cups' => 'ES0031300000000001JN0F', 'startDate' => '2025/03', 'pointType' => '5'])
+    expect($query)->toBe(['cups' => 'ES0000000000000000AA0A', 'startDate' => '2025/03', 'pointType' => '5'])
         ->and($request->getUri()->getQuery())->toContain('startDate=2025%2F03')
         ->and($request->getUri()->getQuery())->not->toContain('authorizedNif');
 });
@@ -74,11 +75,11 @@ it('refuses a token that could inject headers', function (string $token) {
 
 it('repeats the key for list values, which is how array parameters are bound', function () {
     $request = requests()->get('/api-private/api/new-authorization', [
-        'authorizedNif' => '87654321X',
-        'cups' => ['ES0031300000000001JN0F', 'ES0031300000000002JN'],
+        'authorizedNif' => '00000000T',
+        'cups' => ['ES0000000000000000AA0A', Scenario::otherCups()],
     ], 't');
 
-    expect($request->getUri()->getQuery())->toBe('authorizedNif=87654321X&cups=ES0031300000000001JN0F&cups=ES0031300000000002JN');
+    expect($request->getUri()->getQuery())->toBe('authorizedNif=00000000T&cups=ES0000000000000000AA0A&cups='.Scenario::otherCups());
 });
 
 it('drops an empty list', function () {

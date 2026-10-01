@@ -73,5 +73,5 @@ it('sends nothing for a supply listed without usable codes', function (array $ro
 })->with([
     'no distributor code' => [['distributorCode' => '']],
     'no point type' => [['pointType' => null]],
-    'not a CUPS' => [['cups' => 'ES00313']],
+    'not a CUPS' => [['cups' => 'ES000']],
 ]);

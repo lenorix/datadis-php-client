@@ -35,12 +35,12 @@ it('carries the status, the endpoint and the redacted detail', function () {
 
 it('redacts identifiers from the message and the detail whatever the caller passes', function () {
     $exception = new RequestRejectedException(
-        'value ES0031300000000001JN0F rejected for 12345678Z',
-        detail: 'echo ES0031300000000001JN and X1234567L',
+        'value ES0000000000000000AA0A rejected for A00000000',
+        detail: 'echo ES0000000000000000AA and X0000000A',
     );
 
-    expect($exception->getMessage())->not->toContain('ES0031300000000001JN0F')->not->toContain('12345678Z')
-        ->and($exception->detail)->not->toContain('ES0031300000000001JN')->not->toContain('X1234567L');
+    expect($exception->getMessage())->not->toContain('ES0000000000000000AA0A')->not->toContain('A00000000')
+        ->and($exception->detail)->not->toContain('ES0000000000000000AA')->not->toContain('X0000000A');
 });
 
 it('keeps the previous exception', function () {

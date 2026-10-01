@@ -35,13 +35,13 @@ foreach ($calls as $name => [$call, $body]) {
     it("sends authorizedNif for a third party and omits it for the account itself ({$name})", function () use ($call, $body) {
         $third = Scenario::make();
         $third->http->queue(Responses::datadis($body));
-        $call($third->client, Nif::fromString('87654321x'));
+        $call($third->client, Nif::fromString('00000000t'));
 
         $own = Scenario::make();
         $own->http->queue(Responses::datadis($body));
-        $call($own->client, Nif::fromString('12345678Z'));
+        $call($own->client, Nif::fromString('A00000000'));
 
-        expect($third->query()['authorizedNif'] ?? null)->toBe('87654321X')
+        expect($third->query()['authorizedNif'] ?? null)->toBe('00000000T')
             ->and($own->query())->not->toHaveKey('authorizedNif');
     });
 }
@@ -67,13 +67,13 @@ it('accepts a one day authorization and one with only a start or an end', functi
     $s = Scenario::make();
     $s->http->queue(Responses::empty(200));
 
-    $s->client->newAuthorization(Nif::fromString('87654321X'), $from === null ? null : new DateTimeImmutable($from), $to === null ? null : new DateTimeImmutable($to));
+    $s->client->newAuthorization(Nif::fromString('00000000T'), $from === null ? null : new DateTimeImmutable($from), $to === null ? null : new DateTimeImmutable($to));
 
     expect($s->http->requests()[1]->getUri()->getQuery())->toBe($query);
 })->with([
-    'one day' => ['2026-10-01', '2026-10-01', 'authorizedNif=87654321X&startDate=2026%2F10%2F01&endDate=2026%2F10%2F01'],
-    'only a start' => ['2026-10-01', null, 'authorizedNif=87654321X&startDate=2026%2F10%2F01'],
-    'only an end' => [null, '2026-10-01', 'authorizedNif=87654321X&endDate=2026%2F10%2F01'],
+    'one day' => ['2026-10-01', '2026-10-01', 'authorizedNif=00000000T&startDate=2026%2F10%2F01&endDate=2026%2F10%2F01'],
+    'only a start' => ['2026-10-01', null, 'authorizedNif=00000000T&startDate=2026%2F10%2F01'],
+    'only an end' => [null, '2026-10-01', 'authorizedNif=00000000T&endDate=2026%2F10%2F01'],
 ]);
 
 it('counts repeated labels per day, not across days', function () {
@@ -128,7 +128,7 @@ it('builds requests with the PSR-17 factories it is given', function () {
         }
     };
     $http = (new FakeHttpClient)->queue(Responses::text(Tokens::datadis(time())), Responses::datadis('{"supplies":[]}'));
-    $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, requestFactory: $requests, streamFactory: $streams);
+    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, requestFactory: $requests, streamFactory: $streams);
 
     $client->getSupplies();
 

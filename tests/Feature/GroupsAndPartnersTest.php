@@ -32,21 +32,21 @@ it('refuses groups in v1, where they do not exist', function () {
 
 it('lists the users of a partner', function () {
     $s = Scenario::make();
-    $s->http->queue(Responses::datadis('[{"nif":"87654321X"}]'));
+    $s->http->queue(Responses::datadis('[{"nif":"00000000T"}]'));
 
     $users = $s->client->partnerUserList();
 
     expect($s->http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/partner-user-list')
-        ->and($users)->toBe([['nif' => '87654321X']]);
+        ->and($users)->toBe([['nif' => '00000000T']]);
 });
 
 it('unlinks a user from the partner', function () {
     $s = Scenario::make();
     $s->http->queue(Responses::text('OK'));
 
-    expect($s->client->partnerDeleteUser(Nif::fromString('87654321x')))->toBe('OK')
+    expect($s->client->partnerDeleteUser(Nif::fromString('00000000t')))->toBe('OK')
         ->and($s->http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/partner-delete-user')
-        ->and($s->http->requests()[1]->getUri()->getQuery())->toBe('nif=87654321X');
+        ->and($s->http->requests()[1]->getUri()->getQuery())->toBe('nif=00000000T');
 });
 
 it('reads the agreement date of the partner, optionally for a given NIF', function (?string $nif, string $query) {
@@ -56,4 +56,4 @@ it('reads the agreement date of the partner, optionally for a given NIF', functi
     expect($s->client->partnerAgreementDate($nif === null ? null : Nif::fromString($nif)))->toBe('2026/01/01')
         ->and($s->http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/partner-agreement-date')
         ->and($s->http->requests()[1]->getUri()->getQuery())->toBe($query);
-})->with([[null, ''], ['87654321X', 'nif=87654321X']]);
+})->with([[null, ''], ['00000000T', 'nif=00000000T']]);

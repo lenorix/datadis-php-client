@@ -13,7 +13,7 @@ use Psr\Http\Client\ClientInterface;
 function guzzleWith(MockHandler $mock, ?DatadisConfig $config = null): ClientInterface
 {
     return GuzzleClientFactory::create(
-        $config ?? new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test', timeout: 42.0, connectTimeout: 7.0),
+        $config ?? new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test', timeout: 42.0, connectTimeout: 7.0),
         ['handler' => HandlerStack::create($mock)],
     );
 }

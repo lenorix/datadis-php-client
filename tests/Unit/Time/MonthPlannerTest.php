@@ -32,8 +32,8 @@ it('returns nothing when the range is outside the window', function () use ($now
 
 it('skips the months outside the supply contract', function () use ($now, $format) {
     $zone = new DateTimeZone('Europe/Madrid');
-    $closed = Supply::fromRow(['cups' => 'ES0031300000000001JN', 'validDateFrom' => '2025/11/20', 'validDateTo' => '2026/02/03'], $zone);
-    $open = Supply::fromRow(['cups' => 'ES0031300000000001JN', 'validDateFrom' => '2026/08/01', 'validDateTo' => ''], $zone);
+    $closed = Supply::fromRow(['cups' => 'ES0000000000000000AA', 'validDateFrom' => '2025/11/20', 'validDateTo' => '2026/02/03'], $zone);
+    $open = Supply::fromRow(['cups' => 'ES0000000000000000AA', 'validDateFrom' => '2026/08/01', 'validDateTo' => ''], $zone);
 
     expect($format(MonthPlanner::ranges(Month::of(2025, 1), Month::of(2026, 9), $now, 12, $closed)))->toBe(['2025/11-2026/02'])
         ->and($format(MonthPlanner::ranges(Month::of(2025, 1), Month::of(2026, 12), $now, 1, $open)))->toBe(['2026/08-2026/08', '2026/09-2026/09']);

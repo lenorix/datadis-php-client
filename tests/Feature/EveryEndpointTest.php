@@ -18,8 +18,8 @@ use Lenorix\DatadisClient\Values\Nif;
  * and a realistic answer decoded. v1 answers are bare lists (verified); v2 answers are envelopes.
  */
 
-$cups = 'ES0031300000000001JN0F';
-$third = '87654321X';
+$cups = 'ES0000000000000000AA0A';
+$third = '00000000T';
 
 $envelope = fn (string $key, mixed $rows) => [$key => $rows, 'distributorError' => []];
 
@@ -133,11 +133,11 @@ it('calls the authorization and partner endpoints on the same paths whatever the
         Responses::text('2026/01/01'),
     );
 
-    $s->client->newAuthorization(Nif::fromString('87654321X'));
-    $s->client->cancelAuthorization(Nif::fromString('87654321X'));
+    $s->client->newAuthorization(Nif::fromString('00000000T'));
+    $s->client->cancelAuthorization(Nif::fromString('00000000T'));
     $s->client->listAuthorization();
     $s->client->partnerUserList();
-    $s->client->partnerDeleteUser(Nif::fromString('87654321X'));
+    $s->client->partnerDeleteUser(Nif::fromString('00000000T'));
     $s->client->partnerAgreementDate();
 
     expect(array_map(fn ($r) => $r->getUri()->getPath(), array_slice($s->http->requests(), 1)))->toBe([

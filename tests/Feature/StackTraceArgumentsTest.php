@@ -37,11 +37,11 @@ it('keeps CUPS, NIF and credentials out of the arguments recorded in stack trace
         $s->http->queue(new ConnectException('timeout', new Request('GET', 'https://datadis.test')));
 
         try {
-            $s->client->getConsumptionData(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: Nif::fromString('87654321X'));
+            $s->client->getConsumptionData(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: Nif::fromString('00000000T'));
         } catch (DatadisException $e) {
             $strings = traceStrings(array_map(fn (array $frame) => $frame['args'] ?? [], $e->getTrace()));
 
-            expect(implode("\n", $strings))->not->toContain('ES0031300000000001JN0F')->not->toContain('87654321X');
+            expect(implode("\n", $strings))->not->toContain('ES0000000000000000AA0A')->not->toContain('00000000T');
 
             return;
         }
@@ -57,14 +57,14 @@ it('keeps personal data of decoded answers out of stack trace arguments', functi
 
     try {
         $s = Scenario::make();
-        $s->http->queue(Responses::datadis('{"timeCurve":[{"cups":"ES0031300000000001JN0F","date":"x","time":"01:00","consumptionKWh":null}]}'));
+        $s->http->queue(Responses::datadis('{"timeCurve":[{"cups":"ES0000000000000000AA0A","date":"x","time":"01:00","consumptionKWh":null}]}'));
 
         try {
-            $s->client->getConsumptionData(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+            $s->client->getConsumptionData(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
         } catch (DatadisException $e) {
             $strings = traceStrings(array_map(fn (array $frame) => $frame['args'] ?? [], $e->getTrace()));
 
-            expect(implode("\n", $strings))->not->toContain('ES0031300000000001JN0F');
+            expect(implode("\n", $strings))->not->toContain('ES0000000000000000AA0A');
 
             return;
         }
@@ -89,7 +89,7 @@ it('never shows the token or the password when the client is dumped', function (
     };
     $token = Tokens::jwt(['exp' => time() + 3600]);
     $http->answers = [Responses::text($token), Responses::datadis('{"supplies":[]}')];
-    $client = new DatadisClient(new DatadisConfig('12345678Z', 'never-dump-this', baseUrl: 'https://datadis.test'), http: $http);
+    $client = new DatadisClient(new DatadisConfig('A00000000', 'never-dump-this', baseUrl: 'https://datadis.test'), http: $http);
     $client->getSupplies();
 
     ob_start();
@@ -103,7 +103,7 @@ it('keeps the password out of stack trace arguments when a setting is wrong', fu
     $previous = ini_set('zend.exception_ignore_args', '0');
 
     try {
-        DatadisClient::fromArray(['username' => '12345678Z', 'password' => 'never-show-this', 'timeout' => '30s']);
+        DatadisClient::fromArray(['username' => 'A00000000', 'password' => 'never-show-this', 'timeout' => '30s']);
     } catch (ConfigurationException $e) {
         expect(implode("\n", traceStrings(array_map(fn (array $frame) => $frame['args'] ?? [], $e->getTrace()))))->not->toContain('never-show-this');
 

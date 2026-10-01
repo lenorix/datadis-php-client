@@ -24,7 +24,7 @@ A PHP 8.4+ package that is **only the client side of Datadis**: the code and the
 ## Hard rules
 
 1. Nothing in this repository may mention the private projects that inspired it, nor any git-ignored local file.
-2. No real CUPS, NIF, credentials or personal data anywhere (code, tests, fixtures, docs). Use the fictitious values in [testing-strategy.md](testing-strategy.md).
+2. No CUPS, NIF, credentials or personal data anywhere (code, tests, fixtures, docs), not even made-up ones: only the all-zero values listed in [testing-strategy.md](testing-strategy.md).
 3. The library has no filesystem side effects and never writes logs by itself.
 4. Code, comments and docs are written in English. Spanish terms are kept only where translation loses precision (e.g. `comercializadora`, `distribuidora`).
 5. Commit messages are plain descriptive sentences for a human reader. **No conventional commits** and **no co-author trailer**.

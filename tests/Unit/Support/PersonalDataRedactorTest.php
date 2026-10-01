@@ -11,13 +11,13 @@ it('redacts CUPS, NIF, NIE and CIF by shape', function (string $identifier) {
         ->not->toContain($identifier)
         ->toContain('[redacted]');
 })->with([
-    'CUPS 20' => 'ES0031300000000001JN',
-    'CUPS 22' => 'ES0031300000000001JN0F',
-    'CUPS lower' => 'es0031300000000001jn',
-    'NIF' => '12345678Z',
-    'NIF lower' => '12345678z',
-    'NIE' => 'X1234567L',
-    'CIF' => 'A12345678',
+    'CUPS 20' => 'ES0000000000000000AA',
+    'CUPS 22' => 'ES0000000000000000AA0A',
+    'CUPS lower' => 'es0000000000000000aa',
+    'NIF' => 'A00000000',
+    'NIF lower' => 'a00000000',
+    'NIE' => 'X0000000A',
+    'CIF' => 'A00000000',
 ]);
 
 it('leaves text without identifiers untouched', function () {
@@ -26,16 +26,16 @@ it('leaves text without identifiers untouched', function () {
 });
 
 it('is idempotent', function () {
-    $once = PersonalDataRedactor::redact('a ES0031300000000001JN0F b 12345678Z');
+    $once = PersonalDataRedactor::redact('a ES0000000000000000AA0A b A00000000');
 
     expect(PersonalDataRedactor::redact($once))->toBe($once);
 });
 
 it('collapses whitespace and caps the excerpt after redacting', function () {
-    $body = "line one\n\n   ES0031300000000001JN   ".str_repeat('x', 400);
+    $body = "line one\n\n   ES0000000000000000AA   ".str_repeat('x', 400);
     $excerpt = PersonalDataRedactor::excerpt($body, 50);
 
-    expect($excerpt)->not->toContain('ES0031300000000001JN')
+    expect($excerpt)->not->toContain('ES0000000000000000AA')
         ->and(mb_strlen($excerpt))->toBeLessThanOrEqual(50)
         ->and($excerpt)->toStartWith('line one [redacted] xxx');
 });
@@ -56,12 +56,12 @@ it('redacts a JWT that an error body might echo', function () {
 it('redacts identifiers written with separators or glued to a label', function (string $text, string $identifierDigits) {
     expect(PersonalDataRedactor::redact($text))->not->toContain($identifierDigits);
 })->with([
-    ['NIF 12345678-Z rejected', '12345678'],
-    ['NIF 12345678 Z rejected', '12345678'],
-    ['NIE X-1234567-L rejected', '1234567'],
-    ['NIF12345678Z', '12345678'],
-    ['nie:Y1234567L,', '1234567'],
-    ['CUPS=ES0031300000000001JN0Fend', '0031300000000001'],
+    ['NIF 00000000-A rejected', '00000000'],
+    ['NIF 00000000 A rejected', '00000000'],
+    ['NIE X-0000000-A rejected', '0000000'],
+    ['NIF00000000A', '00000000'],
+    ['nie:Y0000000A,', '0000000'],
+    ['CUPS=ES0000000000000000AA0Aend', '0000000000000000'],
 ]);
 
 it('redacts everything when the pattern engine gives up, rather than leak', function () {
@@ -69,7 +69,7 @@ it('redacts everything when the pattern engine gives up, rather than leak', func
     $previousJit = ini_set('pcre.jit', '0');
 
     try {
-        expect(PersonalDataRedactor::redact('value ES0031300000000001JN0F and 12345678Z'))->toBe(PersonalDataRedactor::PLACEHOLDER);
+        expect(PersonalDataRedactor::redact('value ES0000000000000000AA0A and A00000000'))->toBe(PersonalDataRedactor::PLACEHOLDER);
     } finally {
         ini_set('pcre.backtrack_limit', (string) $previous);
         ini_set('pcre.jit', (string) $previousJit);
@@ -77,7 +77,7 @@ it('redacts everything when the pattern engine gives up, rather than leak', func
 });
 
 it('keeps redacting until nothing identifier-shaped is left', function () {
-    expect(PersonalDataRedactor::redact('12345678Z12345678Z'))->toBe('[redacted][redacted]');
+    expect(PersonalDataRedactor::redact('00000000A00000000A'))->toBe('[redacted][redacted]');
 });
 
 it('writes excerpts of 300 characters by default, trimmed, and nothing for a negative length', function () {
@@ -93,8 +93,8 @@ it('redacts identifiers whatever the whitespace inside them, and an excerpt stay
         ->and($excerpt)->not->toMatch('/\d{7}/')
         ->and(PersonalDataRedactor::redact($excerpt))->toBe($excerpt);
 })->with([
-    'NIF with two spaces' => ['Titular 87654321  X sin permiso'],
-    'NIF with a tab' => ["Titular 87654321\tX"],
-    'NIE with spaces' => ['NIE X  1234567  L'],
-    'CIF glued to its label' => ['Sin permiso para CIFB1234567J'],
+    'NIF with two spaces' => ['Titular 00000000  A sin permiso'],
+    'NIF with a tab' => ["Titular 00000000\tA"],
+    'NIE with spaces' => ['NIE X  0000000  A'],
+    'CIF glued to its label' => ['Sin permiso para CIFA0000000A'],
 ]);

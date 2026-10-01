@@ -28,21 +28,21 @@ it('reads a real supply row of an authorized third party', function () {
     $s = realScenario();
     $s->http->queue(Responses::text(datadisFixture('v1/supplies-authorized.json'), 200, ['Content-Type' => 'text/plain']));
 
-    $supply = $s->client->findSupply(Cups::fromString('ES0031300000000001JN'), Nif::fromString('87654321X'));
+    $supply = $s->client->findSupply(Cups::fromString('ES0000000000000000AA'), Nif::fromString('00000000T'));
 
-    expect($supply?->cups)->toBe('ES0031300000000001JN0F')
+    expect($supply?->cups)->toBe('ES0000000000000000AA0A')
         ->and($supply?->distributorCode)->toBe('2')
         ->and($supply?->pointType)->toBe(5)
         ->and($supply?->provinceCode)->toBe('28')
         ->and($supply?->isOpenEnded())->toBeTrue()
-        ->and($s->query()['authorizedNif'])->toBe('87654321X');
+        ->and($s->query()['authorizedNif'])->toBe('00000000T');
 });
 
 it('reads a real contract seen by a third party', function () {
     $s = realScenario();
     $s->http->queue(Responses::text(datadisFixture('v1/contract-detail-authorized.json'), 200, ['Content-Type' => 'text/plain']));
 
-    $contract = $s->client->getContractDetail(Cups::fromString(Scenario::CUPS), '2', Nif::fromString('87654321X'))->records[0];
+    $contract = $s->client->getContractDetail(Cups::fromString(Scenario::CUPS), '2', Nif::fromString('00000000T'))->records[0];
 
     expect($contract->tariff())->toBe(AccessTariff::T20TD)
         ->and($contract->contractedPowerkW)->toBe(['3.45', '3.45'])

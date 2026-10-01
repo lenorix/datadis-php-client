@@ -10,7 +10,7 @@ namespace Lenorix\DatadisClient\Tests\Support;
  */
 final class Payloads
 {
-    public const string CUPS = 'ES0031300000000001JN0F';
+    public const string CUPS = 'ES0000000000000000AA0A';
 
     /**
      * @param  list<string>  $times

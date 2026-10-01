@@ -34,7 +34,7 @@ function guarded(): array
     $http = new FakeHttpClient;
     $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
     $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
-    $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
 
     return [$client, $http, $clock];
 }
@@ -44,9 +44,9 @@ function login(FrozenClock $clock): ResponseInterface
     return Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 7 * 86400]));
 }
 
-$consumption = fn (DatadisClient $c) => $c->getConsumptionData(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
-$maxPower = fn (DatadisClient $c) => $c->getMaxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1));
-$reactive = fn (DatadisClient $c) => $c->getReactiveData(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1));
+$consumption = fn (DatadisClient $c) => $c->getConsumptionData(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+$maxPower = fn (DatadisClient $c) => $c->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '2', Month::of(2026, 1), Month::of(2026, 1));
+$reactive = fn (DatadisClient $c) => $c->getReactiveData(Cups::fromString('ES0000000000000000AA0A'), '2', Month::of(2026, 1), Month::of(2026, 1));
 
 it('refuses locally to repeat a guarded query within the window', function () use ($consumption) {
     [$client, $http, $clock] = guarded();
@@ -131,7 +131,7 @@ it('does not guard the endpoints the rule does not cover, which Datadis answers 
     expect($http->requests())->toHaveCount(3);
 })->with([
     'supplies' => [fn (DatadisClient $c) => $c->getSupplies(), '{"supplies":[],"distributorError":[]}'],
-    'contract detail' => [fn (DatadisClient $c) => $c->getContractDetail(Cups::fromString('ES0031300000000001JN0F'), '2'), '{"contract":[],"distributorError":[]}'],
+    'contract detail' => [fn (DatadisClient $c) => $c->getContractDetail(Cups::fromString('ES0000000000000000AA0A'), '2'), '{"contract":[],"distributorError":[]}'],
     'distributors' => [fn (DatadisClient $c) => $c->getDistributorsWithSupplies(), '{"distExistenceUser":{"distributorCodes":["2"]},"distributorError":[]}'],
 ]);
 
@@ -139,7 +139,7 @@ it('does not record queries refused before sending', function () use ($maxPower)
     [$client, $http, $clock] = guarded();
     $http->queue(login($clock), Responses::datadis('{"maxPower":[]}'));
 
-    expect(fn () => $client->getMaxPower(Cups::fromString('ES0031300000000001JN0F'), '', Month::of(2026, 1), Month::of(2026, 1)))
+    expect(fn () => $client->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '', Month::of(2026, 1), Month::of(2026, 1)))
         ->toThrow(DatadisException::class);
 
     $maxPower($client);
@@ -161,7 +161,7 @@ it('sends nothing when the ledger store cannot be read or cannot record the atte
     $http = new FakeHttpClient;
     $clock = new FrozenClock;
     $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
-    $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
 
     try {
         $consumption($client);
@@ -184,7 +184,7 @@ it('does not keep a query blocked when the token store fails before sending', fu
     $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
     $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
     $client = new DatadisClient(
-        new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'),
+        new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'),
         http: $http,
         tokenCache: new QuirkyCache(throwOnGet: true, throwOnSet: true),
         clock: $clock,
@@ -201,7 +201,7 @@ it('keeps the original failure when the ledger cannot forget an unsent query', f
     $http = new FakeHttpClient;
     $clock = new FrozenClock;
     $ledger = new RequestLedger(new QuirkyCache(throwOnDelete: true), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
-    $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
     $http->queue(Responses::text('bad credentials', 401));
 
     expect(fn () => $consumption($client))->toThrow(AuthenticationException::class);
@@ -211,9 +211,9 @@ it('treats max power queries with and without authorizedNif as the same query, a
     [$client, $http, $clock] = guarded();
     $http->queue(login($clock), Responses::datadis('{"maxPower":[]}'));
 
-    $client->getMaxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1), Nif::fromString('87654321X'));
+    $client->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '2', Month::of(2026, 1), Month::of(2026, 1), Nif::fromString('00000000T'));
 
-    expect(fn () => $client->getMaxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1)))
+    expect(fn () => $client->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '2', Month::of(2026, 1), Month::of(2026, 1)))
         ->toThrow(RepetitionWindowException::class);
 });
 
@@ -221,8 +221,8 @@ it('keeps consumption queries with and without authorizedNif apart, as the manua
     [$client, $http, $clock] = guarded();
     $http->queue(login($clock), Responses::datadis('{"timeCurve":[]}'), Responses::datadis('{"timeCurve":[]}'));
 
-    $client->getConsumptionData(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: Nif::fromString('87654321X'));
-    $client->getConsumptionData(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
+    $client->getConsumptionData(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: Nif::fromString('00000000T'));
+    $client->getConsumptionData(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
     expect($http->requests())->toHaveCount(3);
 });
@@ -244,7 +244,7 @@ it('does not keep a query blocked when its request could not even be built', fun
             return (new HttpFactory)->createRequest($method, $uri);
         }
     };
-    $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, requestFactory: $failing, ledger: $ledger);
+    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, requestFactory: $failing, ledger: $ledger);
     $http->queue(login($clock), Responses::datadis('{"timeCurve":[]}'));
 
     expect(fn () => $consumption($client))->toThrow(ConfigurationException::class);

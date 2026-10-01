@@ -42,10 +42,10 @@ use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
 
-$client = new DatadisClient(new DatadisConfig('B12345674', 'your-password'));
+$client = new DatadisClient(new DatadisConfig('A00000000', 'your-password'));
 
 // 1. Find the supply: it carries the codes every other call needs.
-$supply = $client->findSupply(Cups::fromString('ES0031300000000001JN0F'));
+$supply = $client->findSupply(Cups::fromString('ES0000000000000000AA0A'));
 
 if ($supply === null || ! $supply->isQueryable()) {
     throw new RuntimeException('This account cannot see that supply.');
@@ -69,10 +69,10 @@ The holder must have authorized your account in Datadis first. Then ask for a cl
 ```php
 use Lenorix\DatadisClient\Values\Nif;
 
-$holder = $client->forHolder(Nif::fromString('87654321X'));
+$holder = $client->forHolder(Nif::fromString('00000000T'));
 
 $supplies = $holder->getSupplies();
-$supply = $holder->findSupply(Cups::fromString('ES0031300000000001JN0F'))
+$supply = $holder->findSupply(Cups::fromString('ES0000000000000000AA0A'))
     ?? throw new RuntimeException('That holder has not authorized this supply.');
 $result = $holder->getConsumptionDataOf($supply, Month::of(2026, 7));
 ```
@@ -179,9 +179,9 @@ One month per request is the default on purpose: distributors time out on long r
 ### Authorizations, groups and partner accounts
 
 ```php
-$nif = Nif::fromString('87654321X');
+$nif = Nif::fromString('00000000T');
 $client->newAuthorization($nif);                                     // let someone read all your supplies
-$client->newAuthorization($nif, new DateTimeImmutable('2026-10-01'), new DateTimeImmutable('2027-09-30'), Cups::fromString('ES0031300000000001JN0F'));   // or some, for a period
+$client->newAuthorization($nif, new DateTimeImmutable('2026-10-01'), new DateTimeImmutable('2027-09-30'), Cups::fromString('ES0000000000000000AA0A'));   // or some, for a period
 $client->cancelAuthorization($nif);
 $client->listAuthorization();                                           // who can read what
 
@@ -310,10 +310,10 @@ $client = new DatadisClient($config, tokenCache: $psr16Cache);
 Datadis can be slow, and a request that times out may still have counted. The default timeout is 120 seconds; do not go much lower.
 
 ```php
-$config = new DatadisConfig('B12345674', 'your-password', timeout: 120.0, connectTimeout: 10.0);
+$config = new DatadisConfig('A00000000', 'your-password', timeout: 120.0, connectTimeout: 10.0);
 
 // or from the settings your application already keeps
-$config = DatadisConfig::fromArray(['username' => 'B12345674', 'password' => 'your-password', 'timeout' => '120']);
+$config = DatadisConfig::fromArray(['username' => 'A00000000', 'password' => 'your-password', 'timeout' => '120']);
 ```
 
 ### Retry transient failures safely

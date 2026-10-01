@@ -1,8 +1,8 @@
 [
     {
         "id": 1234,
-        "ownerDocument": "12345678Z",
-        "requesterDocument": "87654321X",
+        "ownerDocument": "A00000000",
+        "requesterDocument": "00000000T",
         "status": "ACTIVE",
         "validityDateStart": "2026/01/01",
         "validityDateEnd": "2027/12/31",
@@ -10,8 +10,8 @@
     },
     {
         "id": "1235",
-        "ownerDocument": "12345678Z",
-        "requesterDocument": "X1234567L",
+        "ownerDocument": "A00000000",
+        "requesterDocument": "A00000000",
         "status": "CANCELLED",
         "validityDateStart": "2024-05-01",
         "validityDateEnd": "",

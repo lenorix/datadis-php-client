@@ -114,13 +114,13 @@ it('reads an empty 500 body without failing', function () {
 });
 
 it('redacts identifiers Datadis echoes in error bodies', function () {
-    $body = 'Invalid cups ES0031300000000001JN0F for authorizedNif 12345678Z';
+    $body = 'Invalid cups ES0000000000000000AA0A for authorizedNif A00000000';
 
     try {
         ResponseClassifier::decode(Responses::text($body, 400), ENDPOINT);
     } catch (RequestRejectedException $e) {
-        expect($e->getMessage())->not->toContain('ES0031300000000001JN0F')->not->toContain('12345678Z')
-            ->and($e->detail)->not->toContain('ES0031300000000001JN0F')->not->toContain('12345678Z');
+        expect($e->getMessage())->not->toContain('ES0000000000000000AA0A')->not->toContain('A00000000')
+            ->and($e->detail)->not->toContain('ES0000000000000000AA0A')->not->toContain('A00000000');
 
         return;
     }

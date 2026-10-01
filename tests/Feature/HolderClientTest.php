@@ -26,7 +26,7 @@ it('sends the holder on every supply and data call', function () {
         Responses::datadis('{"timeCurve":[],"distributorError":[]}'),
         Responses::datadis('{"maxPower":[],"distributorError":[]}'),
     );
-    $holder = $s->client->forHolder(Nif::fromString('87654321x'));
+    $holder = $s->client->forHolder(Nif::fromString('00000000t'));
 
     $supply = $holder->findSupply(Cups::fromString(Scenario::CUPS));
     $holder->getDistributorsWithSupplies();
@@ -35,7 +35,7 @@ it('sends the holder on every supply and data call', function () {
     $holder->getMaxPowerOf($supply, Month::of(2026, 7));
 
     foreach (range(1, 5) as $request) {
-        expect($s->query($request)['authorizedNif'] ?? null)->toBe('87654321X');
+        expect($s->query($request)['authorizedNif'] ?? null)->toBe('00000000T');
     }
 });
 
@@ -43,20 +43,20 @@ it('leaves the account client reading its own supplies and shares its login', fu
     $s = Scenario::make();
     $s->http->queue(Responses::datadis('{"supplies":[],"distributorError":[]}'), Responses::datadis('{"supplies":[],"distributorError":[]}'));
 
-    $s->client->forHolder(Nif::fromString('87654321X'))->getSupplies();
+    $s->client->forHolder(Nif::fromString('00000000T'))->getSupplies();
     $s->client->getSupplies();
 
     expect($s->http->requests())->toHaveCount(3)
-        ->and($s->query(1)['authorizedNif'] ?? null)->toBe('87654321X')
+        ->and($s->query(1)['authorizedNif'] ?? null)->toBe('00000000T')
         ->and($s->query(2))->not->toHaveKey('authorizedNif');
 });
 
 it('refuses another NIF on a holder client before sending anything', function () {
     $s = Scenario::make();
-    $holder = $s->client->forHolder(Nif::fromString('87654321X'));
+    $holder = $s->client->forHolder(Nif::fromString('00000000T'));
 
     try {
-        $holder->getSupplies(Nif::fromString('X1234567L'));
+        $holder->getSupplies(Nif::fromString('X0000000T'));
     } catch (InvalidRequestException $e) {
         expect($e->requestSent)->toBeFalse()->and($s->http->requests())->toBe([]);
 
@@ -70,16 +70,16 @@ it('accepts the same holder given again, however it is written', function () {
     $s = Scenario::make();
     $s->http->queue(Responses::datadis('{"supplies":[],"distributorError":[]}'));
 
-    $s->client->forHolder(Nif::fromString('87654321X'))->getSupplies(Nif::fromString(' 87654321x '));
+    $s->client->forHolder(Nif::fromString('00000000T'))->getSupplies(Nif::fromString(' 00000000t '));
 
-    expect($s->query()['authorizedNif'])->toBe('87654321X');
+    expect($s->query()['authorizedNif'])->toBe('00000000T');
 });
 
 it('is the account itself when the holder is the account', function () {
     $s = Scenario::make();
     $s->http->queue(Responses::datadis('{"supplies":[],"distributorError":[]}'));
 
-    $s->client->forHolder(Nif::fromString('12345678Z'))->getSupplies();
+    $s->client->forHolder(Nif::fromString('A00000000'))->getSupplies();
 
     expect($s->query())->not->toHaveKey('authorizedNif');
 });
@@ -92,7 +92,7 @@ it('keeps the 24 hour guard shared with the account client', function () {
     );
     $maxPower = fn (DatadisClient $c) => $c->getMaxPower(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 7));
 
-    $maxPower($client->forHolder(Nif::fromString('87654321X')));
+    $maxPower($client->forHolder(Nif::fromString('00000000T')));
 
     // Datadis keys maximum power without authorizedNif, so the account's identical query is the same one.
     expect(fn () => $maxPower($client))->toThrow(RepetitionWindowException::class);

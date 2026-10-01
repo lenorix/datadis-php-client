@@ -16,18 +16,18 @@ use Lenorix\DatadisClient\PublicApiClient;
 
 it('turns a real Guzzle connection failure into a TransportException without leaking the url', function () {
     // Port 1 on localhost refuses connections immediately, so no external network is involved.
-    $config = new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://127.0.0.1:1', timeout: 5.0, connectTimeout: 2.0);
+    $config = new DatadisConfig('A00000000', 'secret', baseUrl: 'https://127.0.0.1:1', timeout: 5.0, connectTimeout: 2.0);
     $factory = new HttpFactory;
     $transport = new Transport(GuzzleClientFactory::create($config), $factory);
     $request = (new RequestFactory($config->connection(), $factory, $factory))
-        ->get('/api-private/api/get-supplies-v2', ['cups' => 'ES0031300000000001JN0F', 'authorizedNif' => '87654321X'], 'token');
+        ->get('/api-private/api/get-supplies-v2', ['cups' => 'ES0000000000000000AA0A', 'authorizedNif' => '00000000T'], 'token');
 
     try {
         $transport->send($request, 'get-supplies-v2');
     } catch (TransportException $e) {
         expect($e->requestSent)->toBeTrue()
             ->and($e->getPrevious())->toBeNull()
-            ->and($e->getMessage().$e->detail)->not->toContain('ES0031300000000001JN0F')->not->toContain('87654321X');
+            ->and($e->getMessage().$e->detail)->not->toContain('ES0000000000000000AA0A')->not->toContain('00000000T');
 
         return;
     }
@@ -48,7 +48,7 @@ it('builds a working Guzzle client when none is given', function (Closure $call,
     throw new LogicException('Expected a TransportException.');
 })->with([
     'private API, whose login fails before any data call' => [
-        fn () => (new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://127.0.0.1:1', timeout: 5.0, connectTimeout: 2.0)))->getSupplies(),
+        fn () => (new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://127.0.0.1:1', timeout: 5.0, connectTimeout: 2.0)))->getSupplies(),
         false,
     ],
     'public API' => [

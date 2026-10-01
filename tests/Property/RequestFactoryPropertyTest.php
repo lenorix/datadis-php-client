@@ -30,7 +30,7 @@ it('never puts the password in the login url or headers', function () {
     $this->limitTo(pbtIterations())
         ->forAll(Generators::suchThat(fn (string $s) => strlen($s) >= 6 && ! str_contains($s, "\0"), Generators::string()))
         ->then(function (string $password) use ($factory) {
-            $request = (new RequestFactory(new ConnectionSettings(baseUrl: 'https://datadis.test'), $factory, $factory))->login(new DatadisConfig('12345678Z', $password, baseUrl: 'https://datadis.test'));
+            $request = (new RequestFactory(new ConnectionSettings(baseUrl: 'https://datadis.test'), $factory, $factory))->login(new DatadisConfig('A00000000', $password, baseUrl: 'https://datadis.test'));
             parse_str((string) $request->getBody(), $form);
 
             expect($form['password'] ?? null)->toBe($password);

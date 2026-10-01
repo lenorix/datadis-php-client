@@ -37,7 +37,7 @@ function queryOf(FakeHttpClient $http, int $index = 1): array
     return $query;
 }
 
-const CUPS22 = 'ES0031300000000001JN0F';
+const CUPS22 = 'ES0000000000000000AA0A';
 
 it('sends authorizedNif only when it is a third party', function (?string $nif, ?string $expected) {
     [$client, $http] = scenario();
@@ -48,10 +48,10 @@ it('sends authorizedNif only when it is a third party', function (?string $nif, 
     expect(queryOf($http)['authorizedNif'] ?? null)->toBe($expected);
 })->with([
     'none' => [null, null],
-    'own account' => ['12345678Z', null],
-    'own account lowercase and spaces' => [' 12345678z ', null],
-    'third party' => ['87654321X', '87654321X'],
-    'third party lowercase' => ['87654321x', '87654321X'],
+    'own account' => ['A00000000', null],
+    'own account lowercase and spaces' => [' a00000000 ', null],
+    'third party' => ['00000000T', '00000000T'],
+    'third party lowercase' => ['00000000t', '00000000T'],
 ]);
 
 it('can filter supplies by distributor code', function () {
@@ -175,9 +175,9 @@ it('finds the supply of a CUPS', function () {
     [$client, $http] = scenario();
     $http->queue(Responses::datadis(datadisFixture('v2/supplies.json')));
 
-    $supply = $client->findSupply(Cups::fromString('ES0031300000000001JN'));
+    $supply = $client->findSupply(Cups::fromString('ES0000000000000000AA'));
 
-    expect($supply?->cups)->toBe('ES0031300000000001JN0F')->and($supply?->isQueryable())->toBeTrue();
+    expect($supply?->cups)->toBe('ES0000000000000000AA0A')->and($supply?->isQueryable())->toBeTrue();
 });
 
 it('gives the readings of both change days consecutive one hour intervals', function (string $date, array $times, int $month, int $year) {
@@ -288,7 +288,7 @@ it('judges the 24 month window by the Madrid calendar even when reading Canary I
     $http = new FakeHttpClient;
     // 23:30 on 30 September in the Canary Islands is already 1 October in Madrid.
     $clock = new FrozenClock(new DateTimeImmutable('2026-09-30 23:30:00', new DateTimeZone('Atlantic/Canary')));
-    $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, timeZone: new DateTimeZone('Atlantic/Canary'));
+    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, timeZone: new DateTimeZone('Atlantic/Canary'));
     $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 3600])), Responses::datadis('{"maxPower":[]}'));
 
     expect(fn () => $client->getMaxPower(Cups::fromString(CUPS22), '2', Month::of(2024, 10), Month::of(2024, 10)))->toThrow(InvalidRequestException::class)

@@ -23,7 +23,7 @@ it('does not take a distributor failure for "this supply is not yours"', functio
     $s = Scenario::make();
     $s->http->queue(Responses::datadis('{"supplies":[],"distributorError":['
         .'{"distributorCode":"2","distributorName":"EDISTRIBUCIÓN","errorCode":"50","errorDescription":"Error interno distribuidora"},'
-        .'{"distributorCode":"8","errorCode":"50","errorDescription":"Titular 87654321  X sin respuesta"}]}'));
+        .'{"distributorCode":"8","errorCode":"50","errorDescription":"Titular 00000000  A sin respuesta"}]}'));
 
     try {
         $s->client->findSupply(Cups::fromString(Scenario::CUPS));
@@ -31,7 +31,7 @@ it('does not take a distributor failure for "this supply is not yours"', functio
         expect($e->requestSent)->toBeTrue()
             ->and($e->httpStatus)->toBe(200)
             ->and($e->getMessage())->toContain('Error interno distribuidora')->toContain('sin respuesta')
-            ->and($e->getMessage().$e->detail)->not->toMatch('/87654321/');
+            ->and($e->getMessage().$e->detail)->not->toMatch('/00000000/');
 
         return;
     }
@@ -49,7 +49,7 @@ it('still finds the supply when another distributor failed', function () {
 });
 
 it('keeps the password exactly as given in the settings', function () {
-    expect(DatadisConfig::fromArray(['username' => '12345678Z', 'password' => '  secret with spaces  '])->password())->toBe('  secret with spaces  ');
+    expect(DatadisConfig::fromArray(['username' => 'A00000000', 'password' => '  secret with spaces  '])->password())->toBe('  secret with spaces  ');
 });
 
 it('iterates and counts the records of a result', function () {
@@ -91,7 +91,7 @@ it('reads a 404 on the distributors list as an empty list, like the supplies lis
 
 it('keeps big numeric ids exact', function () {
     $s = Scenario::make();
-    $s->http->queue(Responses::datadis('[{"id":12345678901234567890,"ownerDocument":"12345678Z"}]'));
+    $s->http->queue(Responses::datadis('[{"id":12345678901234567890,"ownerDocument":"A00000000"}]'));
 
     expect($s->client->listAuthorization()->records[0]->id)->toBe('12345678901234567890');
 });

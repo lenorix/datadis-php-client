@@ -31,7 +31,7 @@ it('reports a body that fails while being read as a transport failure of a sent 
     } catch (TransportException $e) {
         expect($e->requestSent)->toBeTrue()
             ->and($e->getPrevious())->toBeNull()
-            ->and($e->getMessage().$e->detail)->not->toContain('ES0031300000000001JN0F')->not->toContain('87654321X');
+            ->and($e->getMessage().$e->detail)->not->toContain('ES0000000000000000AA0A')->not->toContain('00000000T');
 
         return;
     }
@@ -43,7 +43,7 @@ it('does not block a query for 24 hours when only the login answer failed to be 
     $http = new FakeHttpClient;
     $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
     $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
-    $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
     $call = fn () => $client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
     $http->queue((new Response(200))->withBody(new ThrowingStream));
 

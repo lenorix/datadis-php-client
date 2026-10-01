@@ -13,13 +13,13 @@ it('sends each CUPS once, in order, and refuses duplicates before sending', func
     $this->limitTo(pbtIterations())
         ->forAll(Generators::seq(Generators::choose(0, 5)))
         ->then(function (array $picks) {
-            $pool = array_map(fn (int $i) => Cups::fromString(sprintf('ES00313000000000%02dJN', $i)), range(0, 5));
+            $pool = array_map(fn (int $i) => Cups::fromString(sprintf('ES%016dAA', $i)), range(0, 5));
             $cups = array_map(fn (int $i) => $pool[$i], $picks);
             $s = Scenario::make();
             $s->http->queue(Responses::empty(200));
 
             try {
-                $s->client->newAuthorization(Nif::fromString('87654321X'), null, null, ...$cups);
+                $s->client->newAuthorization(Nif::fromString('00000000T'), null, null, ...$cups);
             } catch (InvalidRequestException) {
                 expect(count(array_unique($picks)))->toBeLessThan(count($picks))
                     ->and($s->http->requests())->toBe([]);
@@ -42,4 +42,4 @@ it('never authorizes the account itself, however it is written', function (strin
     expect(fn () => $s->client->newAuthorization($nif))->toThrow(InvalidRequestException::class)
         ->and(fn () => $s->client->cancelAuthorization($nif))->toThrow(InvalidRequestException::class)
         ->and($s->http->requests())->toBe([]);
-})->with(['12345678Z', '12345678z', ' 12345678Z ', "\t12345678z\t"]);
+})->with(['A00000000', 'a00000000', ' A00000000 ', "\ta00000000\t"]);

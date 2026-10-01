@@ -15,6 +15,7 @@ use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 use Lenorix\DatadisClient\Tests\Support\Responses;
+use Lenorix\DatadisClient\Tests\Support\Scenario;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
@@ -30,7 +31,7 @@ it('sends a guarded query only when the model says the window is free', function
             $clock = new FrozenClock(new DateTimeImmutable('2026-09-01 00:00:00', new DateTimeZone('Europe/Madrid')));
             $http = new FakeHttpClient;
             $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
-            $client = new DatadisClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+            $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
             $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 365 * 86400])));
 
             $success = ['{"timeCurve":[],"distributorError":[]}', '{"maxPower":[],"distributorError":[]}', '{"reactiveEnergy":{},"distributorError":[]}', '{"maxPower":[],"distributorError":[]}'];
@@ -42,11 +43,11 @@ it('sends a guarded query only when the model says the window is free', function
                 fn () => new ConnectException('timeout', new Request('GET', 'https://datadis.test')),
             ];
             $calls = [
-                fn () => $client->getConsumptionData(Cups::fromString('ES0031300000000001JN0F'), '2', 5, Month::of(2026, 1), Month::of(2026, 1)),
-                fn () => $client->getMaxPower(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1)),
+                fn () => $client->getConsumptionData(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 1), Month::of(2026, 1)),
+                fn () => $client->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '2', Month::of(2026, 1), Month::of(2026, 1)),
                 // Same parameters as max power: the stricter reading treats it as the same query.
-                fn () => $client->getReactiveData(Cups::fromString('ES0031300000000001JN0F'), '2', Month::of(2026, 1), Month::of(2026, 1)),
-                fn () => $client->getMaxPower(Cups::fromString('ES0031300000000002JN'), '2', Month::of(2026, 2), Month::of(2026, 2)),
+                fn () => $client->getReactiveData(Cups::fromString('ES0000000000000000AA0A'), '2', Month::of(2026, 1), Month::of(2026, 1)),
+                fn () => $client->getMaxPower(Cups::fromString(Scenario::otherCups()), '2', Month::of(2026, 2), Month::of(2026, 2)),
             ];
             $modelKey = [0 => 'consumption', 1 => 'power', 2 => 'power', 3 => 'other'];
             $model = [];
@@ -108,8 +109,8 @@ it('gives a different fingerprint whenever any parameter differs, and the same o
                 'changed' => false,
             };
 
-            $fingerprintA = $fingerprinter->fingerprint('12345678Z', array_combine(RequestFingerprinter::PARAMETERS, $a));
-            $fingerprintB = $fingerprinter->fingerprint('12345678Z', array_combine(RequestFingerprinter::PARAMETERS, $b));
+            $fingerprintA = $fingerprinter->fingerprint('A00000000', array_combine(RequestFingerprinter::PARAMETERS, $a));
+            $fingerprintB = $fingerprinter->fingerprint('A00000000', array_combine(RequestFingerprinter::PARAMETERS, $b));
 
             expect($fingerprintA === $fingerprintB)->toBe($same);
         });

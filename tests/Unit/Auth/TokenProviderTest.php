@@ -98,7 +98,7 @@ it('does not share tokens between accounts', function () {
     $one->http->queue($one->loginOk(subject: 'one'));
     $one->tokens->token();
 
-    $other = new Stack(cache: $cache, config: new DatadisConfig('87654321X', 'pw', baseUrl: 'https://datadis.test'));
+    $other = new Stack(cache: $cache, config: new DatadisConfig('00000000T', 'pw', baseUrl: 'https://datadis.test'));
     $other->http->queue($other->loginOk(subject: 'other'));
     $other->tokens->token();
 
@@ -171,7 +171,7 @@ it('never puts the password or the token in an exception message', function () {
         $stack->tokens->token();
     } catch (Throwable $e) {
         expect($e->getMessage())->not->toContain(Stack::PASSWORD)
-            ->and((string) $e->detail)->not->toContain('12345678Z');
+            ->and((string) $e->detail)->not->toContain('A00000000');
 
         return;
     }
@@ -240,7 +240,7 @@ it('does not share tokens between base URLs of the same account', function () {
     $one->http->queue($one->loginOk());
     $one->tokens->token();
 
-    $other = new Stack(cache: $cache, config: new DatadisConfig('12345678Z', 'pw', baseUrl: 'https://other.test'));
+    $other = new Stack(cache: $cache, config: new DatadisConfig('A00000000', 'pw', baseUrl: 'https://other.test'));
     $other->http->queue($other->loginOk());
     $other->tokens->token();
 

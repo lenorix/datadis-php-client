@@ -225,7 +225,7 @@ it('logs in and sends the token when it is given credentials', function () {
         Responses::text(Tokens::jwt(['exp' => time() + 3600])),
         Responses::json(datadisFixture('public/search.json')),
     );
-    $api = new PublicApiClient(new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test'), $http);
+    $api = new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), $http);
 
     $result = $api->apiSearch(searchQuery());
 

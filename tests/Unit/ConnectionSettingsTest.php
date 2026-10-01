@@ -27,7 +27,7 @@ it('validates like the private configuration', function (array $arguments) {
 ])->throws(ConfigurationException::class);
 
 it('is what the private configuration exposes', function () {
-    $config = new DatadisConfig('12345678Z', 'secret', baseUrl: 'https://datadis.test/', timeout: 30.0, connectTimeout: 3.0, userAgent: 'agent');
+    $config = new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test/', timeout: 30.0, connectTimeout: 3.0, userAgent: 'agent');
     $settings = $config->connection();
 
     expect($settings->baseUrl)->toBe('https://datadis.test')

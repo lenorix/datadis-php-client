@@ -11,7 +11,7 @@ $row = fn () => json_decode((string) file_get_contents(__DIR__.'/../../Fixtures/
 it('decodes a contract detail', function () use ($zone, $row) {
     $contract = ContractDetail::fromRow($row(), $zone);
 
-    expect($contract->cups)->toBe('ES0031300000000001JN0F')
+    expect($contract->cups)->toBe('ES0000000000000000AA0A')
         ->and($contract->marketer)->toBe('COMERCIALIZADORA EJEMPLO')
         ->and($contract->tension)->toBe('Baja tensión')
         ->and($contract->accessFare)->toBe('BAJA TENSION y POTENCIA <= 15 kW')
@@ -48,7 +48,7 @@ it('accepts the alternative spellings seen in the wild', function () use ($zone,
 });
 
 it('keeps only what it can read from a sparse row', function () use ($zone) {
-    $contract = ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'contractedPowerkW' => 'n/a', 'endDate' => null, 'dateOwner' => 'x'], $zone);
+    $contract = ContractDetail::fromRow(['cups' => 'ES0000000000000000AA', 'contractedPowerkW' => 'n/a', 'endDate' => null, 'dateOwner' => 'x'], $zone);
 
     expect($contract->contractedPowerkW)->toBe([])
         ->and($contract->dateOwner)->toBe([])
@@ -58,7 +58,7 @@ it('keeps only what it can read from a sparse row', function () use ($zone) {
 });
 
 it('keeps the position of every contracted power because the position is the period', function () use ($zone) {
-    $contract = ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'contractedPowerkW' => [4.6, null, 'x', 5]], $zone);
+    $contract = ContractDetail::fromRow(['cups' => 'ES0000000000000000AA', 'contractedPowerkW' => [4.6, null, 'x', 5]], $zone);
 
     expect($contract->contractedPowerkW)->toBe(['4.60', null, null, '5.00']);
 });
@@ -68,7 +68,7 @@ it('rejects a row without a cups', function () use ($zone) {
 });
 
 it('resolves the access tariff when the description and the number of powers agree', function (string $fare, array $powers, ?AccessTariff $expected) use ($zone) {
-    $contract = ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'accessFare' => $fare, 'contractedPowerkW' => $powers], $zone);
+    $contract = ContractDetail::fromRow(['cups' => 'ES0000000000000000AA', 'accessFare' => $fare, 'contractedPowerkW' => $powers], $zone);
 
     expect($contract->tariff())->toBe($expected);
 })->with([
@@ -81,17 +81,17 @@ it('resolves the access tariff when the description and the number of powers agr
 ]);
 
 it('has no tariff without a description', function () use ($zone) {
-    expect(ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'contractedPowerkW' => [4.6, 4.6]], $zone)->tariff())->toBeNull();
+    expect(ContractDetail::fromRow(['cups' => 'ES0000000000000000AA', 'contractedPowerkW' => [4.6, 4.6]], $zone)->tariff())->toBeNull();
 });
 
 it('reads powers sent as an object, an empty power as missing', function () use ($zone) {
-    $contract = ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'contractedPowerkW' => ['1' => 4.6, '2' => '']], $zone);
+    $contract = ContractDetail::fromRow(['cups' => 'ES0000000000000000AA', 'contractedPowerkW' => ['1' => 4.6, '2' => '']], $zone);
 
     expect($contract->contractedPowerkW)->toBe(['4.60', null]);
 });
 
 it('reads ownership periods with an end, spaces, slashes or no usable date', function () use ($zone) {
-    $contract = ContractDetail::fromRow(['cups' => 'ES0031300000000001JN', 'dateOwner' => [
+    $contract = ContractDetail::fromRow(['cups' => 'ES0000000000000000AA', 'dateOwner' => [
         ['startDate' => ' 2020-01-01 ', 'endDate' => '2021/12/31'],
         ['startDate' => 5, 'endDate' => '  '],
         'not a period',
@@ -104,7 +104,7 @@ it('reads ownership periods with an end, spaces, slashes or no usable date', fun
 });
 
 it('keeps the three decimals of a standard contracted power', function () {
-    $contract = ContractDetail::fromRow(['cups' => 'ES0031300000000001JN0F', 'contractedPowerkW' => [1.725, 3.464]], new DateTimeZone('Europe/Madrid'));
+    $contract = ContractDetail::fromRow(['cups' => 'ES0000000000000000AA0A', 'contractedPowerkW' => [1.725, 3.464]], new DateTimeZone('Europe/Madrid'));
 
     expect($contract->contractedPowerkW)->toBe(['1.725', '3.464']);
 });

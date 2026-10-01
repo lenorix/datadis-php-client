@@ -10,7 +10,7 @@ $madrid = new DateTimeZone('Europe/Madrid');
 $hourly = MeasurementType::Hourly;
 
 it('decodes an hourly row with its interval and decimal values', function () use ($madrid, $hourly) {
-    $row = ['cups' => 'ES0031300000000001JN0F', 'date' => '2026/01/01', 'time' => '02:00', 'consumptionKWh' => 0.301, 'obtainMethod' => 'Real', 'surplusEnergyKWh' => 0];
+    $row = ['cups' => 'ES0000000000000000AA0A', 'date' => '2026/01/01', 'time' => '02:00', 'consumptionKWh' => 0.301, 'obtainMethod' => 'Real', 'surplusEnergyKWh' => 0];
     $reading = ConsumptionReading::fromRow($row, $madrid, $hourly);
 
     expect($reading->consumptionKWh)->toBe('0.301')
