@@ -39,7 +39,7 @@ Every fixture file lives under `tests/Fixtures/` and its provenance is recorded 
 - CUPS: `ES0000000000000000AA0A` (22 chars) and `ES0000000000000000AA` (20 chars). The `ES` country prefix is kept so the value is still a CUPS. A test that needs a second, different supply gets it from `Scenario::otherCups()`, built when the test runs.
 - Account: `A00000000`, which is also a valid CIF (control digit 0).
 - Third party: `00000000T`, the one exception to "letters are A", because a holder's NIF must pass the control letter check.
-- NIE and CIF control checks: `X0000000T`, `A0000000J`, `Q0000000J` (valid), and `00000000A`, `X0000000A`, `A0000000A` (wrong control character).
+- NIE and CIF control checks: `X0000000T`, `C0000000J`, `Q0000000J` (valid), and `00000000A`, `X0000000A`, `A0000000A`, `A0000000J`, `Q00000000` (wrong control character, or the wrong kind for the first letter).
 - Base URL in tests: `https://datadis.test`.
 
 A real capture is anonymised the same way before anything reaches the repository: identifiers become all-zero values, and names, emails, addresses, postal codes, ids, dates and consumption values are replaced by made-up ones in the same format.

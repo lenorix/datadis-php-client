@@ -80,7 +80,17 @@ it('names the setting that is wrong', function (array $settings, string $key) {
     'username not text' => [['username' => ['x'], 'password' => 'secret'], 'username'],
     'timeout not a number' => [['username' => 'A00000000', 'password' => 'secret', 'timeout' => 'soon'], 'timeout'],
     'connect timeout not a number' => [['username' => 'A00000000', 'password' => 'secret', 'connect_timeout' => [1]], 'connect_timeout'],
+    'username not a NIF' => [['username' => 'aaaa@aaaa.aa', 'password' => 'secret'], 'username'],
+    'control check not a boolean' => [['username' => 'A00000000', 'password' => 'secret', 'check_username_control' => 'maybe'], 'check_username_control'],
 ]);
+
+it('takes a username without checking its control character when the settings say so', function (mixed $flag) {
+    expect(DatadisConfig::fromArray(['username' => '00000000A', 'password' => 'secret', 'check-username-control' => $flag])->username)->toBe('00000000A');
+})->with([false, 'false', '0', 0]);
+
+it('checks the control character of the username unless told otherwise', function (mixed $flag) {
+    DatadisConfig::fromArray(['username' => '00000000A', 'password' => 'secret', 'check_username_control' => $flag]);
+})->with([true, 'true', '1', null, ''])->throws(ConfigurationException::class);
 
 it('keeps the password out of dumps also when built from an array', function () {
     $config = DatadisConfig::fromArray(['username' => 'A00000000', 'password' => 'never-dump-this']);

@@ -64,11 +64,28 @@ it('shows every setting but the password when debugged', function () {
     $config = new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test', timeout: 30.0, connectTimeout: 3.0, userAgent: 'agent');
 
     expect($config->__debugInfo())->toBe([
-        'username' => 'A00000000',
+        'username' => '[hidden]',
         'baseUrl' => 'https://datadis.test',
         'password' => '[hidden]',
         'timeout' => 30.0,
         'connectTimeout' => 3.0,
         'userAgent' => 'agent',
     ]);
+});
+
+it('refuses a username that is not a NIF, NIE or CIF before anything is sent', function (string $username) {
+    new DatadisConfig($username, 'secret');
+})->with(['an email' => 'aaaa@aaaa.aa', 'a name' => 'empresa', 'a mistyped control' => '00000000A', 'too short' => 'A0000'])->throws(ConfigurationException::class);
+
+it('takes a username with a mismatching control character when asked not to check it', function () {
+    expect((new DatadisConfig(' 00000000a ', 'secret', checkUsernameControl: false))->username)->toBe('00000000A')
+        ->and(fn () => new DatadisConfig('aaaa@aaaa.aa', 'secret', checkUsernameControl: false))->toThrow(ConfigurationException::class);
+});
+
+it('keeps the account NIF out of var_dump and print_r', function () {
+    $config = new DatadisConfig('A00000000', 'secret');
+    ob_start();
+    var_dump($config);
+
+    expect((string) ob_get_clean().print_r($config, true))->not->toContain('A00000000');
 });

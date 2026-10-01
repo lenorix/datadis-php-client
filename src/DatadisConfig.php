@@ -6,6 +6,7 @@ namespace Lenorix\DatadisClient;
 
 use Closure;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
+use Lenorix\DatadisClient\Values\Nif;
 use LogicException;
 use SensitiveParameter;
 
@@ -49,6 +50,8 @@ final readonly class DatadisConfig
 
     /**
      * @param  float  $timeout  seconds for a whole call. Datadis is slow (contract detail about 15 s, consumption tens of seconds).
+     * @param  bool  $checkUsernameControl  false takes a username with the shape of a NIF, NIE or CIF whose
+     *                                      control character does not match, as Nif::fromString() does
      */
     public function __construct(
         string $username,
@@ -57,11 +60,19 @@ final readonly class DatadisConfig
         float $timeout = self::DEFAULT_TIMEOUT,
         float $connectTimeout = self::DEFAULT_CONNECT_TIMEOUT,
         string $userAgent = self::DEFAULT_USER_AGENT,
+        bool $checkUsernameControl = true,
     ) {
         $username = strtoupper(trim($username));
 
         if ($username === '') {
             throw new ConfigurationException('The Datadis username is empty.');
+        }
+
+        // Datadis accounts are named by their NIF, NIE or CIF: anything else could only fail at the login.
+        if (! Nif::isValid($username, $checkUsernameControl)) {
+            throw new ConfigurationException($checkUsernameControl && Nif::isValid($username, false)
+                ? 'The control character of the Datadis username (a NIF, NIE or CIF) does not match; check it, or pass checkUsernameControl: false.'
+                : 'The Datadis username must be the account\'s NIF, NIE or CIF.');
         }
 
         if ($password === '') {
@@ -80,7 +91,8 @@ final readonly class DatadisConfig
     /**
      * Builds the configuration from a plain array, as an application keeps it in a configuration
      * file or reads it from the environment: `username`, `password`, and optionally `base_url`,
-     * `timeout`, `connect_timeout` (seconds, numbers or numeric text) and `user_agent`; names with
+     * `timeout`, `connect_timeout` (seconds, numbers or numeric text), `user_agent` and
+     * `check_username_control` (a boolean, or `true`/`false`/`1`/`0` as text); names with
      * dashes (`base-url`) work too. Empty values count as not given; unknown keys are ignored so the
      * array can hold other settings too.
      *
@@ -97,6 +109,7 @@ final readonly class DatadisConfig
             self::seconds($settings, 'timeout', self::DEFAULT_TIMEOUT),
             self::seconds($settings, 'connect_timeout', self::DEFAULT_CONNECT_TIMEOUT),
             self::setting($settings, 'user_agent') ?? self::DEFAULT_USER_AGENT,
+            self::flag($settings, 'check_username_control', true),
         );
     }
 
@@ -166,6 +179,19 @@ final readonly class DatadisConfig
         return (float) $value;
     }
 
+    /** @param  array<array-key, mixed>  $settings */
+    private static function flag(#[SensitiveParameter] array $settings, string $key, bool $default): bool
+    {
+        $value = self::raw($settings, $key);
+
+        if ($value === null || $value === '') {
+            return $default;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE)
+            ?? throw new ConfigurationException("The Datadis setting \"{$key}\" must be true or false.");
+    }
+
     /** @internal */
     public function connection(): ConnectionSettings
     {
@@ -186,7 +212,7 @@ final readonly class DatadisConfig
     public function __debugInfo(): array
     {
         return [
-            'username' => $this->username,
+            'username' => '[hidden]',
             'baseUrl' => $this->baseUrl,
             'password' => '[hidden]',
             'timeout' => $this->timeout,

@@ -281,9 +281,9 @@ it('removes a poisoned token from the store even if saving the new one fails', f
     expect($cache->items)->not->toHaveKey($key);
 });
 
-it('scrubs an echoed username that is not shaped like a NIF', function () {
-    $stack = new Stack(config: new DatadisConfig('partner-account', Stack::PASSWORD, baseUrl: 'https://datadis.test'));
-    $stack->http->queue(Responses::text('unknown user PARTNER-ACCOUNT', 401));
+it('scrubs an echoed username, also one whose control character was not checked', function () {
+    $stack = new Stack(config: new DatadisConfig('00000000A', Stack::PASSWORD, baseUrl: 'https://datadis.test', checkUsernameControl: false));
+    $stack->http->queue(Responses::text('unknown user 00000000A', 401));
 
     try {
         $stack->tokens->token();

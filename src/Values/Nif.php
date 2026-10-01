@@ -81,8 +81,16 @@ final readonly class Nif implements Stringable
         }
 
         $control = (10 - $sum % 10) % 10;
+        $digit = $value[8] === (string) $control;
+        $letter = $value[8] === 'JABCDEFGHI'[$control];
 
-        return $value[8] === (string) $control || $value[8] === 'JABCDEFGHI'[$control];
+        // The first letter decides the kind of control where every source agrees: always a digit
+        // for companies and communities (A, B, E, H), always a letter for public bodies (P, Q, S).
+        return match (true) {
+            str_contains('ABEH', $first) => $digit,
+            str_contains('PQS', $first) => $letter,
+            default => $digit || $letter,
+        };
     }
 
     private static function normalise(string $value): string
