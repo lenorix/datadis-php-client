@@ -40,7 +40,7 @@ final class RequestFactory
     public function login(#[SensitiveParameter] DatadisConfig $credentials): RequestInterface
     {
         $body = http_build_query([
-            'username' => $credentials->username,
+            'username' => $credentials->username(),
             'password' => $credentials->password(),
         ], '', '&', PHP_QUERY_RFC1738);
 

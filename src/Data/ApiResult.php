@@ -23,6 +23,11 @@ use Traversable;
  */
 final readonly class ApiResult implements Countable, IteratorAggregate
 {
+    use HidesPersonalData;
+
+    /** Shown as [hidden] in dumps: see HidesPersonalData. */
+    private const array PERSONAL_FIELDS = ['raw'];
+
     /**
      * @param  list<T>  $records
      * @param  list<DistributorError>  $distributorErrors  partial failures reported inside a 200 (v2 only)

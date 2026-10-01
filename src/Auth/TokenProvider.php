@@ -65,7 +65,7 @@ final class TokenProvider
         $store = $cache ?? new InMemoryCache($this->clock);
         $this->cache = static fn (): CacheInterface => $store;
         // PSR-16 keys allow only [A-Za-z0-9_.] and 64 characters.
-        $this->cacheKey = 'datadis_token_'.substr(hash('sha256', $config->baseUrl."\n".$config->username), 0, 40);
+        $this->cacheKey = 'datadis_token_'.substr(hash('sha256', $config->baseUrl."\n".$config->username()), 0, 40);
     }
 
     /**
@@ -121,7 +121,7 @@ final class TokenProvider
         // The login body is where credentials were submitted, so an error body that echoes them must not
         // reach a message. The password cannot be recognised by shape, hence the exact match.
         $detail = PersonalDataRedactor::excerpt(
-            str_replace([$this->config->password(), $this->config->username], PersonalDataRedactor::PLACEHOLDER, $text),
+            str_replace([$this->config->password(), $this->config->username()], PersonalDataRedactor::PLACEHOLDER, $text),
         );
         $message = self::ENDPOINT.": Datadis answered HTTP {$status}".($detail === '' ? '.' : " · {$detail}");
 

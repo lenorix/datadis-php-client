@@ -13,6 +13,11 @@ use SensitiveParameter;
  */
 final readonly class ReactiveEnergy
 {
+    use HidesPersonalData;
+
+    /** Shown as [hidden] in dumps: see HidesPersonalData. */
+    private const array PERSONAL_FIELDS = ['cups', 'raw'];
+
     /**
      * @param  list<ReactiveEnergyEntry>  $energy
      * @param  array<array-key, mixed>  $raw

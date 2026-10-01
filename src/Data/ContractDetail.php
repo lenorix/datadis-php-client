@@ -22,6 +22,11 @@ use SensitiveParameter;
  */
 final readonly class ContractDetail
 {
+    use HidesPersonalData;
+
+    /** Shown as [hidden] in dumps: see HidesPersonalData. */
+    private const array PERSONAL_FIELDS = ['cups', 'postalCode', 'cau', 'raw'];
+
     /**
      * @param  list<string|null>  $contractedPowerkW  exact decimal strings, at least two decimals
      * @param  string|null  $installedCapacity  exact decimal string, at least three decimals, in the unit Datadis sends: the

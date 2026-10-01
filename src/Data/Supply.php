@@ -18,6 +18,11 @@ use SensitiveParameter;
  */
 final readonly class Supply
 {
+    use HidesPersonalData;
+
+    /** Shown as [hidden] in dumps: see HidesPersonalData. */
+    private const array PERSONAL_FIELDS = ['cups', 'address', 'postalCode', 'raw'];
+
     /** @param array<array-key, mixed> $raw */
     private function __construct(
         public string $cups,

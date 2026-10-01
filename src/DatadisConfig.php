@@ -13,8 +13,9 @@ use SensitiveParameter;
 /**
  * The account (username and password) and the connection settings of the private API, immutable.
  *
- * Invalid settings raise a ConfigurationException, which means nothing was sent. The password lives
- * in a closure so that var_dump(), print_r(), var_export() and serialize() cannot expose it.
+ * Invalid settings raise a ConfigurationException, which means nothing was sent. The password and the
+ * account's NIF live in closures, which var_export() cannot show, __debugInfo leaves them out of
+ * var_dump() and print_r(), and serialize() is refused.
  */
 final readonly class DatadisConfig
 {
@@ -31,8 +32,8 @@ final readonly class DatadisConfig
      */
     public const string DEFAULT_USER_AGENT = 'Mozilla/5.0 (compatible; lenorix-datadis-client; +https://github.com/lenorix/datadis-php-client)';
 
-    /** The account's NIF, NIE or CIF, trimmed and uppercase. */
-    public string $username;
+    /** @var Closure(): string */
+    private Closure $username;
 
     /** Without a trailing slash. Always HTTPS. */
     public string $baseUrl;
@@ -80,7 +81,7 @@ final readonly class DatadisConfig
         }
 
         $this->connection = new ConnectionSettings($baseUrl, $timeout, $connectTimeout, $userAgent);
-        $this->username = $username;
+        $this->username = static fn (): string => $username;
         $this->baseUrl = $this->connection->baseUrl;
         $this->timeout = $this->connection->timeout;
         $this->connectTimeout = $this->connection->connectTimeout;
@@ -190,6 +191,12 @@ final readonly class DatadisConfig
 
         return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE)
             ?? throw new ConfigurationException("The Datadis setting \"{$key}\" must be true or false.");
+    }
+
+    /** The account's NIF, NIE or CIF, trimmed and uppercase. */
+    public function username(): string
+    {
+        return ($this->username)();
     }
 
     /** @internal */

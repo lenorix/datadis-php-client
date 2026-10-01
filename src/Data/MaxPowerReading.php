@@ -23,6 +23,11 @@ use SensitiveParameter;
  */
 final readonly class MaxPowerReading
 {
+    use HidesPersonalData;
+
+    /** Shown as [hidden] in dumps: see HidesPersonalData. */
+    private const array PERSONAL_FIELDS = ['cups', 'raw'];
+
     /** @param array<array-key, mixed> $raw */
     private function __construct(
         public ?string $cups,

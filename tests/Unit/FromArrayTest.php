@@ -17,7 +17,7 @@ use Lenorix\DatadisClient\Tests\Support\Tokens;
 it('builds the configuration from the minimum an application needs', function () {
     $config = DatadisConfig::fromArray(['username' => 'a00000000', 'password' => 'secret']);
 
-    expect($config->username)->toBe('A00000000')
+    expect($config->username())->toBe('A00000000')
         ->and($config->password())->toBe('secret')
         ->and($config->baseUrl)->toBe('https://datadis.es')
         ->and($config->timeout)->toBe(120.0)
@@ -52,7 +52,7 @@ it('treats empty values from an unset environment variable as not given', functi
 it('ignores keys it does not know, so an application can keep its own settings alongside', function () {
     $config = DatadisConfig::fromArray(['username' => 'A00000000', 'password' => 'secret', 'retry' => ['enabled' => true], 'guard_store' => 'redis', 'timeout' => '30']);
 
-    expect($config->username)->toBe('A00000000')->and($config->timeout)->toBe(30.0);
+    expect($config->username())->toBe('A00000000')->and($config->timeout)->toBe(30.0);
 });
 
 it('reads the settings also when their names are spelt with dashes', function () {
@@ -85,7 +85,7 @@ it('names the setting that is wrong', function (array $settings, string $key) {
 ]);
 
 it('takes a username without checking its control character when the settings say so', function (mixed $flag) {
-    expect(DatadisConfig::fromArray(['username' => '00000000A', 'password' => 'secret', 'check-username-control' => $flag])->username)->toBe('00000000A');
+    expect(DatadisConfig::fromArray(['username' => '00000000A', 'password' => 'secret', 'check-username-control' => $flag])->username())->toBe('00000000A');
 })->with([false, 'false', '0', 0]);
 
 it('checks the control character of the username unless told otherwise', function (mixed $flag) {

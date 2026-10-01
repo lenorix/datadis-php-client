@@ -18,7 +18,7 @@ it('normalises the base url and the username', function () {
     $config = new DatadisConfig(' a00000000 ', 'secret', baseUrl: 'https://datadis.test/');
 
     expect($config->baseUrl)->toBe('https://datadis.test')
-        ->and($config->username)->toBe('A00000000');
+        ->and($config->username())->toBe('A00000000');
 });
 
 it('refuses invalid configuration before anything is sent', function (array $arguments) {
@@ -51,9 +51,9 @@ it('never shows the password when dumped', function () {
     var_dump($config);
     $dump = (string) ob_get_clean();
 
-    expect($dump)->not->toContain('super-secret-password')
-        ->and(print_r($config, true))->not->toContain('super-secret-password')
-        ->and(var_export($config, true))->not->toContain('super-secret-password');
+    expect($dump)->not->toContain('super-secret-password')->not->toContain('A00000000')
+        ->and(print_r($config, true))->not->toContain('super-secret-password')->not->toContain('A00000000')
+        ->and(var_export($config, true))->not->toContain('super-secret-password')->not->toContain('A00000000');
 });
 
 it('cannot be serialised with the password', function () {
@@ -78,7 +78,7 @@ it('refuses a username that is not a NIF, NIE or CIF before anything is sent', f
 })->with(['an email' => 'aaaa@aaaa.aa', 'a name' => 'empresa', 'a mistyped control' => '00000000A', 'too short' => 'A0000'])->throws(ConfigurationException::class);
 
 it('takes a username with a mismatching control character when asked not to check it', function () {
-    expect((new DatadisConfig(' 00000000a ', 'secret', checkUsernameControl: false))->username)->toBe('00000000A')
+    expect((new DatadisConfig(' 00000000a ', 'secret', checkUsernameControl: false))->username())->toBe('00000000A')
         ->and(fn () => new DatadisConfig('aaaa@aaaa.aa', 'secret', checkUsernameControl: false))->toThrow(ConfigurationException::class);
 });
 

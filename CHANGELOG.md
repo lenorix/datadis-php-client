@@ -10,6 +10,7 @@ Checked against a new set of real answers (October 2026): the v2 paths, the auth
 
 ### Changed
 
+- `DatadisConfig::$username` is now the method `username()`. The account's NIF is kept like the password, so no dump of the configuration or the client shows it, `var_export` included.
 - `DatadisConfig` refuses a username that is not a NIF, NIE or CIF, or whose control character does not match, before anything is sent. Pass `checkUsernameControl: false` (or `check_username_control` in `fromArray()`) to take one with the right shape and a control character that does not match.
 - `Nif` requires the kind of control character the first letter of a CIF calls for: a digit for A, B, E and H, a letter for P, Q and S. `A0000000J` was accepted before.
 - `Nif` takes a NIF K, L or M (Spaniards under 14 or living abroad, foreigners without an NIE) with the DNI letter of its seven digits, as the AEAT sets for these NIF (RD 1065/2007). Before, it checked them as a CIF and refused them with the right letter, even with `checkControl: false`. The redaction of error texts covers them too.
@@ -34,6 +35,7 @@ Checked against a new set of real answers (October 2026): the v2 paths, the auth
 ### Fixed
 
 - Dumping a client (`var_dump`, `print_r`, `var_export`) no longer shows the login token when the token cache or the ledger store is one of yours that shows its values. `var_dump` and `print_r` of the client no longer show the account NIF either.
+- The records (`Supply`, `ContractDetail`, the readings, `ReactiveEnergy`, `Authorization`, `PartnerUser`, `Group`, `DistributorError`) and `ApiResult` show their personal fields (CUPS, address, postal code, CAU, names, documents, email, `raw`) as `[hidden]` in `var_dump`, `print_r` and the dumpers that follow `__debugInfo`, such as Laravel's `dump()`. The properties still give the values.
 - A `Nif` or a `Cups` no longer shows its value in `var_dump`, `print_r` or `var_export`, so the holder of a client from `forHolder()`, an `authorizedNif` and a supply in the arguments of a stack trace stay hidden. `value()`, string casts and `serialize()` still give it.
 - The arguments recorded in stack traces no longer carry the body of an answer that is not valid JSON, the account NIF when the ledger store fails, a refused username, NIF or CUPS, nor the query inside the closures the client passes around.
 

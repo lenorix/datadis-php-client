@@ -91,7 +91,7 @@ final class DatadisClient
         $this->timeZone = $timeZone ?? new DateTimeZone(Month::SERVICE_TIME_ZONE);
 
         $this->caller = ApiCaller::connect($config, $http, $requestFactory, $streamFactory, $tokenCache, $this->clock);
-        $this->guard = $ledger === null ? null : new RepetitionGuard($ledger, $config->username);
+        $this->guard = $ledger === null ? null : new RepetitionGuard($ledger, $config->username());
     }
 
     /**
@@ -504,12 +504,12 @@ final class DatadisClient
 
         $nif ??= $this->holder;
 
-        return $nif === null || $nif->value() === $this->config->username ? null : $nif->value();
+        return $nif === null || $nif->value() === $this->config->username() ? null : $nif->value();
     }
 
     private function assertThirdParty(Nif $nif): void
     {
-        if ($nif->value() === $this->config->username) {
+        if ($nif->value() === $this->config->username()) {
             throw new InvalidRequestException('An authorization is for a third party, not for the account itself.');
         }
     }

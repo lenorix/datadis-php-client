@@ -15,6 +15,11 @@ use SensitiveParameter;
  */
 final readonly class PartnerUser
 {
+    use HidesPersonalData;
+
+    /** Shown as [hidden] in dumps: see HidesPersonalData. */
+    private const array PERSONAL_FIELDS = ['name', 'document', 'email', 'raw'];
+
     /** @param array<array-key, mixed> $raw */
     private function __construct(
         public ?string $name,

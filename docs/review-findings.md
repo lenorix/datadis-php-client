@@ -28,7 +28,7 @@ Found by a second independent review after the fixes above. All fixed with a fai
 
 1. Reading the response body happened outside `Transport`, so a streaming client whose body failed while being read escaped the exception contract, and during login it left a never-sent query blocked by the guard for 24 hours. `Transport` now reads the whole body inside the same failure mapping and returns it in memory.
 2. Decoded answers (rows, envelopes) are marked `#[SensitiveParameter]`, so CUPS in a failing answer no longer reach stack trace arguments.
-3. Dumping the client showed the live token held by the in-memory cache. The cache keeps its items inside a closure (hidden from `var_export`) and has a `__debugInfo` (hidden from `var_dump` and `print_r`). The account username stays visible: it is a public property of `DatadisConfig`.
+3. Dumping the client showed the live token held by the in-memory cache. The cache keeps its items inside a closure (hidden from `var_export`) and has a `__debugInfo` (hidden from `var_dump` and `print_r`). The account username stayed visible as a public property of `DatadisConfig` until 0.2.0, which hides it like the password behind `username()`.
 4. `MonthPlanner` judged "now" in the zone it was given while the client judges the Madrid calendar. `Month::current()` now reads the Madrid calendar and both use it.
 5. The README described the decimal scales wrongly; the unused scale constants are gone.
 6. A top-level `{}` passed as "no data". It is now an `UninterpretableResponseException` everywhere, the public API included.
