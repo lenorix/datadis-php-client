@@ -40,6 +40,6 @@ final readonly class DistributorError
      */
     public function isNoData(): bool
     {
-        return $this->errorCode === '8';
+        return $this->errorCode !== null && ltrim(trim($this->errorCode), '0') === '8';
     }
 }

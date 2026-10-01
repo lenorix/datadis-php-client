@@ -36,7 +36,7 @@ final class PublicApiClient
     /** TOLERATED, NO SOURCE: keys under which a paged answer might carry its rows (the manual shows a bare list). */
     private const array LIST_KEYS = ['content', 'data', 'results', 'items'];
 
-    /** With a DatadisConfig the calls carry the login token; with ConnectionSettings they carry none. */
+    /** Logs in with the account and sends its token on every call: the public API requires it. */
     private readonly ApiCaller $caller;
 
     public function __construct(

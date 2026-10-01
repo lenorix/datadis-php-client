@@ -9,6 +9,8 @@ namespace Lenorix\DatadisClient\Guard;
  * with a plain PSR-16 store the ledger checks and records in two steps, and two workers sending the
  * same query at the same moment can both go through. Give the ledger this too (for example
  * Laravel's `Cache::add()`, atomic on Redis, Memcached and the database store) and only one does.
+ *
+ * The store must expire keys after the TTL: while a key is held, the query counts as attempted.
  */
 interface AtomicStore
 {

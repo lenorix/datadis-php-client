@@ -131,7 +131,7 @@ it('takes a time a little ahead as a recent attempt, but one far in the future a
     'ten days ahead' => [864000, false],
 ]);
 
-it('takes back a key an atomic store still holds with a stale or corrupt time, and claims it', function (Closure $stored) use ($query) {
+it('counts a key an atomic store holds even when its value does not, so no two workers can both take it', function (Closure $stored) use ($query) {
     $clock = new FrozenClock;
     $store = new AtomicCache;
     $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $store);
@@ -140,12 +140,10 @@ it('takes back a key an atomic store still holds with a stale or corrupt time, a
         $store->items[$key] = $stored($clock->now()->getTimestamp());
     }
 
-    expect($ledger->claim('A00000000', $query))->toBeNull()
-        ->and(array_values($store->items))->toBe([$clock->now()->getTimestamp()])
-        ->and($ledger->claim('A00000000', $query)?->getTimestamp())->toBe($clock->now()->getTimestamp());
+    expect($ledger->claim('A00000000', $query)?->getTimestamp())->toBe($clock->now()->getTimestamp());
 })->with([
-    'older than the window, in a store that ignores the TTL' => [fn (int $now) => $now - RequestLedger::WINDOW_SECONDS],
-    'far in the future' => [fn (int $now) => $now + 864000],
+    'older than the window' => [fn (int $now) => $now - RequestLedger::WINDOW_SECONDS],
+    'far in the future, as from a clock far behind' => [fn (int $now) => $now + 864000],
     'not a time' => [fn () => 'yesterday'],
 ]);
 

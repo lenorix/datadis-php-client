@@ -25,7 +25,7 @@ Checked against a new set of real answers (October 2026): the v2 paths, the auth
 
 ### Fixed
 
-- The 24 hour guard ignores a stored time more than ten minutes ahead of the clock, which could block a query for far longer than the window, and with an `AtomicStore` it takes back a key held by a stale or unreadable value instead of refusing the query until it expires.
+- The 24 hour guard ignores a stored time more than ten minutes ahead of the clock, which could block a query for far longer than the window, and with an `AtomicStore` a held key always counts until the store expires it, so two workers cannot both take it back.
 - `PublicSearchQuery` and `SelfConsumptionSearchQuery` keep a copy of their dates, so changing the `DateTime` they were given no longer makes `startDate` and `endDate` disagree with what is sent. Both properties are now `DateTimeImmutable`.
 
 - The validity dates of the authorization list carry a time of day and were read as null.

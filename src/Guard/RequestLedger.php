@@ -119,22 +119,10 @@ final class RequestLedger
             return null;
         }
 
-        $value = $this->read($account, $query);
-        $last = $this->attemptIn($value);
-
-        // The key is held by a value that does not count: a store that ignored the TTL, or a time we
-        // did not write. Take it back and claim it again, still in one step against other workers.
-        // Nothing readable means another worker's write is not visible yet: that one counts.
-        if ($last === null && $value !== null) {
-            $this->forget($account, $query);
-
-            if ($this->add($this->atomic, $account, $query, $now)) {
-                return null;
-            }
-        }
-
-        // Another worker holds the key; when its time cannot be read yet, it is now.
-        return $last ?? (new DateTimeImmutable)->setTimestamp($now);
+        // Another worker holds the key. A held key always counts, even when its value cannot be read
+        // yet or does not make sense: taking it back would be a delete and an add, two steps another
+        // worker could slip between. The store's TTL frees it within the window. Without a time, it is now.
+        return $this->lastAttempt($account, $query) ?? (new DateTimeImmutable)->setTimestamp($now);
     }
 
     /** @param  array<string, string|int|list<string>|null>  $query */
