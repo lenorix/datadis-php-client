@@ -75,3 +75,24 @@ it('sends nothing for a supply listed without usable codes', function (array $ro
     'no point type' => [['pointType' => null]],
     'not a CUPS' => [['cups' => 'ES000']],
 ]);
+
+it('refuses before sending a range that starts before the contract, which Datadis refuses and counts', function (Closure $call) {
+    $s = Scenario::make();
+    $supply = supplyAsListed(['validDateFrom' => '2026/03/15']);
+
+    expect(fn () => $call($s->client, $supply, Month::of(2026, 2)))->toThrow(InvalidRequestException::class, '2026/03')
+        ->and($s->http->requests())->toBe([]);
+})->with([
+    'consumption' => [fn (DatadisClient $c, Supply $s, Month $m) => $c->getConsumptionDataOf($s, $m, Month::of(2026, 4))],
+    'max power' => [fn (DatadisClient $c, Supply $s, Month $m) => $c->getMaxPowerOf($s, $m)],
+    'reactive' => [fn (DatadisClient $c, Supply $s, Month $m) => $c->getReactiveDataOf($s, $m)],
+]);
+
+it('sends a range that starts in the month the contract starts', function () {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+
+    $s->client->getConsumptionDataOf(supplyAsListed(['validDateFrom' => '2026/03/15']), Month::of(2026, 3));
+
+    expect($s->query()['startDate'])->toBe('2026/03');
+});

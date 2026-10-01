@@ -148,14 +148,15 @@ it('does not record queries refused before sending', function () use ($maxPower)
     expect($http->requests())->toHaveCount(2);
 });
 
-it('works without a ledger, sending whatever it is asked', function () use ($consumption) {
+it('remembers its own queries without a ledger, so one client never repeats one', function () use ($consumption) {
     $s = Scenario::make();
     $s->http->queue(Responses::datadis('{"timeCurve":[]}'), Responses::datadis('{"timeCurve":[]}'));
 
     $consumption($s->client);
-    $consumption($s->client);
 
-    expect($s->http->requests())->toHaveCount(3);
+    expect(fn () => $consumption($s->client))->toThrow(RepetitionWindowException::class)
+        ->and(fn () => $consumption($s->client->forHolder(Nif::fromString('00000000T'))))->not->toThrow(RepetitionWindowException::class)
+        ->and($s->http->requests())->toHaveCount(3);
 });
 
 it('sends nothing when the ledger store cannot be read or cannot record the attempt', function (QuirkyCache $store) use ($consumption) {

@@ -29,9 +29,11 @@ use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
 use Lenorix\DatadisClient\Guard\RepetitionGuard;
+use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Http\ApiCaller;
 use Lenorix\DatadisClient\Http\Endpoint;
+use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Support\PersonalDataRedactor;
 use Lenorix\DatadisClient\Support\SystemClock;
 use Lenorix\DatadisClient\Time\Month;
@@ -61,7 +63,7 @@ final class DatadisClient
 {
     private readonly ApiCaller $caller;
 
-    private readonly ?RepetitionGuard $guard;
+    private readonly RepetitionGuard $guard;
 
     private readonly ClockInterface $clock;
 
@@ -74,7 +76,9 @@ final class DatadisClient
      * @param  ClientInterface|null  $http  any PSR-18 client; Guzzle is used when omitted
      * @param  CacheInterface|null  $tokenCache  any PSR-16 store to share the token between processes; it holds a live credential
      * @param  DateTimeZone|null  $timeZone  zone of the civil dates and times Datadis sends: Europe/Madrid by default, Atlantic/Canary for the Canary Islands
-     * @param  RequestLedger|null  $ledger  when given, a guarded query already attempted in the last 24 hours is refused locally
+     * @param  RequestLedger|null  $ledger  where guarded queries attempted in the last 24 hours are remembered, so a repeat
+     *                                      is refused locally. Without one, this client remembers its own in memory, which
+     *                                      protects one process only: give a ledger on a shared store to cover several.
      */
     public function __construct(
         private readonly DatadisConfig $config,
@@ -91,7 +95,9 @@ final class DatadisClient
         $this->timeZone = $timeZone ?? new DateTimeZone(Month::SERVICE_TIME_ZONE);
 
         $this->caller = ApiCaller::connect($config, $http, $requestFactory, $streamFactory, $tokenCache, $this->clock);
-        $this->guard = $ledger === null ? null : new RepetitionGuard($ledger, $config->username());
+        // Datadis refuses a repeated query for 24 hours and counts the refusal: never repeat one, even by default.
+        $ledger ??= new RequestLedger(new InMemoryCache($this->clock), new RequestFingerprinter(random_bytes(32)), $this->clock);
+        $this->guard = new RepetitionGuard($ledger, $config->username());
     }
 
     /**
@@ -310,7 +316,7 @@ final class DatadisClient
         MeasurementType $measurementType = MeasurementType::Hourly,
         ?Nif $authorizedNif = null,
     ): ApiResult {
-        [$cups, $code, $pointType] = $this->queryable($supply);
+        [$cups, $code, $pointType] = $this->queryable($supply, $startDate);
 
         return $this->getConsumptionData($cups, $code, $pointType, $startDate, $endDate, $measurementType, $authorizedNif);
     }
@@ -322,7 +328,7 @@ final class DatadisClient
      */
     public function getMaxPowerOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
-        [$cups, $code] = $this->queryable($supply);
+        [$cups, $code] = $this->queryable($supply, $startDate);
 
         return $this->getMaxPower($cups, $code, $startDate, $endDate, $authorizedNif);
     }
@@ -334,7 +340,7 @@ final class DatadisClient
      */
     public function getReactiveDataOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
-        [$cups, $code] = $this->queryable($supply);
+        [$cups, $code] = $this->queryable($supply, $startDate);
 
         return $this->getReactiveData($cups, $code, $startDate, $endDate, $authorizedNif);
     }
@@ -478,9 +484,9 @@ final class DatadisClient
     private function fetch(Endpoint $endpoint, #[SensitiveParameter] array $query): array
     {
         $name = $this->name($endpoint);
-        $send = fn (): array => $this->caller->get($endpoint->path($this->version), $query, $name);
+        $send = fn (): array => $this->caller->get($endpoint->path($this->version), $query, $name, sendAgainAfter401: ! $endpoint->isGuarded());
 
-        return $this->guard === null ? $send() : $this->guard->call($endpoint, $name, $query, $send);
+        return $this->guard->call($endpoint, $name, $query, $send);
     }
 
     /** @param array<string, string|int|list<string>|null> $query */
@@ -529,11 +535,20 @@ final class DatadisClient
         return $values;
     }
 
-    /** @return array{Cups, string, int} */
-    private function queryable(#[SensitiveParameter] Supply $supply): array
+    /**
+     * Datadis refuses with a 400 a range that starts before the month the contract starts (verified),
+     * and the refusal still counts for 24 hours, so it is refused here first.
+     *
+     * @return array{Cups, string, int}
+     */
+    private function queryable(#[SensitiveParameter] Supply $supply, ?Month $startDate = null): array
     {
         if (! $supply->isQueryable()) {
             throw new InvalidRequestException('The supply was listed without a usable CUPS, distributor code or point type; list the supplies again.');
+        }
+
+        if ($startDate !== null && $supply->validDateFrom !== null && $startDate->isBefore(Month::fromDate($supply->validDateFrom))) {
+            throw new InvalidRequestException('The range starts before the contract of the supply ('.Month::fromDate($supply->validDateFrom)->format().'); Datadis refuses it, and the refusal counts for 24 hours. MonthPlanner::ranges() keeps to the contract.');
         }
 
         return [Cups::fromString($supply->cups), $supply->distributorCode, $supply->pointType];

@@ -69,35 +69,18 @@ it('keeps using the token for its 24 hours and logs in again just before it expi
     ]);
 });
 
-it('counts a query answered after a refused token and a new login against the 24 hour rule', function (ApiVersion $version) {
+it('does not send a guarded query again after a refused token, and counts it against the 24 hour rule', function (ApiVersion $version) {
     [$client, $http, $clock] = flowClient($version, ledger: true);
     $http->queue(
         Responses::text(Tokens::datadis($clock->now()->getTimestamp())),
         refusedTokenAnswer(),
-        Responses::text(Tokens::datadis($clock->now()->getTimestamp())),
-        Responses::datadis($version === ApiVersion::V1 ? '[]' : '{"timeCurve":[],"distributorError":[]}'),
-    );
-    $query = fn () => $client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 7));
-
-    $query();
-
-    expect($query)->toThrow(RepetitionWindowException::class)
-        ->and($http->requests())->toHaveCount(4);
-})->with([ApiVersion::V1, ApiVersion::V2]);
-
-it('counts a query whose new login failed after a refused token, since the query was sent', function () {
-    [$client, $http, $clock] = flowClient(ledger: true);
-    $http->queue(
-        Responses::text(Tokens::datadis($clock->now()->getTimestamp())),
-        refusedTokenAnswer(),
-        Responses::datadisError('bad credentials', 401),
     );
     $query = fn () => $client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 7));
 
     expect($query)->toThrow(AuthenticationException::class)
         ->and($query)->toThrow(RepetitionWindowException::class)
-        ->and($http->requests())->toHaveCount(3);
-});
+        ->and($http->requests())->toHaveCount(2);
+})->with([ApiVersion::V1, ApiVersion::V2]);
 
 it('retries through the client only the calls that are safe to repeat', function (Closure $call, array $answers, int $requests, ?string $failure) {
     [$client, $http, $clock] = flowClient(retries: true);

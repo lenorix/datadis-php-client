@@ -79,12 +79,12 @@ A 2.0TD supply of point type 5, read with `authorizedNif`, on an account with th
 | Status | Meaning |
 |--------|---------|
 | 200 + non-empty list | Success. |
-| 200 + empty list | Normal "no data" (month not published, out of retention, new contract's first month). **Never** treat as zero consumption. |
+| 200 + empty list | Normal "no data" (month not published, out of retention, the month a new contract starts in, which one client reports is never served). **Never** treat as zero consumption. |
 | 200 + empty list + non-empty `distributorError` | The distributor failed. Not "no data". |
 | 200 + non-JSON body | Failure (HTML maintenance page). Do not retry blindly. |
 | 200 + empty body, or 204 | No data. |
-| 400 | Rejected parameters (malformed CUPS or `distributorCode`, `startDate` before the supply's `validDateFrom`, boundary month, missing `Accept`). Permanent: never resend the identical call. Body is `text/plain`, not JSON. |
-| 401 | Token missing or expired. Re-login once. |
+| 400 | Rejected parameters (malformed CUPS or `distributorCode`, a `startDate` month before the month of the supply's `validDateFrom`, boundary month, missing `Accept`). Permanent: never resend the identical call. Body is `text/plain`, not JSON. |
+| 401 | Token missing or expired. Re-login once and repeat, except a guarded query: whether the rejected one counted is unknown, so it is not sent again. |
 | 403 | The `authorizedNif` has no authorized supplies, or a stale `distributorCode`/`pointType`. Also seen for blocked User-Agents and for unknown paths. Contract detail and consumption report a missing consent with a 400 instead. |
 | 404 | "No data": `No supplies` for an account without supplies (verified), "Data not found" reported for data calls. Map to a no-data condition, not a fatal error. |
 | 429 | Repetition window. Never retry. |
@@ -101,7 +101,7 @@ Third-party consumption can return 200 with an empty `timeCurve` even when suppl
 - Hour index (0-23) = `H - 1` for `H` in 1..24. Anything else (`00:00`, `25:00`, `1:5`) has no valid index.
 - Never parse `24:00` with a normal time parser. `24:00` of day D is the instant `D+1 00:00`. Two open-source clients map it to `00:00` of the **same** date, which is wrong by 24 hours.
 - An i-DE glitch adds an extra `00:00` row on a day that already has 24 rows (REPORTED). Drop or flag it.
-- One source reports trailing zero rows for unpublished hours in the current month. Defend against it; do not assume it.
+- One source reports trailing zero rows for unpublished hours in the current month. Not seen in the captures; the README tells callers to treat the current month's last readings with care.
 
 ## Daylight saving time (VERIFIED with real captures)
 

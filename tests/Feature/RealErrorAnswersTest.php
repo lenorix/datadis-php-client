@@ -79,7 +79,7 @@ it('reads an unknown path as a refusal without logging in again', function () us
     expectRealFailure($s, $consumption, AuthorizationException::class, 403);
 });
 
-it('logs in once more after the real 401 and gives up on a second one', function () use ($consumption) {
+it('logs in once more after the real 401 and gives up on a second one', function () {
     $s = Scenario::make(ApiVersion::V1);
     $s->http->queue(
         Responses::datadisError(datadisFixture('errors/401-spring.json'), 401),
@@ -88,7 +88,7 @@ it('logs in once more after the real 401 and gives up on a second one', function
     );
 
     try {
-        $consumption($s->client);
+        $s->client->getSupplies();
     } catch (AuthenticationException $e) {
         expect($e->httpStatus)->toBe(401)
             ->and($e->getPrevious())->toBeNull()
@@ -102,7 +102,7 @@ it('logs in once more after the real 401 and gives up on a second one', function
     throw new LogicException('Expected an AuthenticationException.');
 });
 
-it('logs in once more after the real 401 and carries on when the new token works', function () use ($consumption) {
+it('logs in once more after the real 401 and carries on when the new token works', function () {
     $s = Scenario::make(ApiVersion::V1);
     $s->http->queue(
         Responses::datadisError(datadisFixture('errors/401-spring.json'), 401),
@@ -110,7 +110,32 @@ it('logs in once more after the real 401 and carries on when the new token works
         Responses::datadis('[]'),
     );
 
-    expect($consumption($s->client)->isEmpty())->toBeTrue()->and($s->http->requests())->toHaveCount(4);
+    expect($s->client->getSupplies()->isEmpty())->toBeTrue()->and($s->http->requests())->toHaveCount(4);
+});
+
+it('does not send a guarded query again after the real 401, and the next call logs in again', function () use ($consumption) {
+    $s = Scenario::make(ApiVersion::V1);
+    $s->http->queue(
+        Responses::datadisError(datadisFixture('errors/401-spring.json'), 401),
+        Responses::text(Tokens::datadis(time())),
+        Responses::datadis('[]'),
+    );
+
+    try {
+        $consumption($s->client);
+    } catch (AuthenticationException $e) {
+        expect($e->httpStatus)->toBe(401)
+            ->and($e->requestSent)->toBeTrue()
+            ->and($e->detail)->toBe('No message available')
+            ->and($s->http->requests())->toHaveCount(2)
+            ->and($s->client->getSupplies()->isEmpty())->toBeTrue()
+            ->and(array_map(fn ($r) => $r->getUri()->getPath(), array_slice($s->http->requests(), 2)))
+            ->toBe(['/nikola-auth/tokens/login', '/api-private/api/get-supplies']);
+
+        return;
+    }
+
+    throw new LogicException('Expected an AuthenticationException.');
 });
 
 it('reads "No supplies" as an empty list and finds no supply in it', function () {

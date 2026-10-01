@@ -21,7 +21,8 @@ use SensitiveParameter;
  * Makes an authenticated GET.
  *
  * A 401 means the token was rejected: the token is dropped, one new login is made and the call is
- * repeated once. A second 401 is final. A network failure is never retried here, because it may
+ * repeated once. A second 401 is final. A query Datadis refuses to repeat for 24 hours is not sent
+ * again: whether Datadis counted the rejected one is unknown, and a repeat would cost the query. A network failure is never retried here, because it may
  * have reached Datadis and Datadis refuses an identical query for 24 hours.
  *
  * @internal
@@ -58,9 +59,9 @@ final class ApiCaller
      * @param  array<string, string|int|list<string>|null>  $query
      * @return array<array-key, mixed> the decoded JSON
      */
-    public function get(string $path, #[SensitiveParameter] array $query, string $endpoint): array
+    public function get(string $path, #[SensitiveParameter] array $query, string $endpoint, bool $sendAgainAfter401 = true): array
     {
-        return ResponseClassifier::decode($this->send($path, $query, $endpoint), $endpoint);
+        return ResponseClassifier::decode($this->send($path, $query, $endpoint, $sendAgainAfter401), $endpoint);
     }
 
     /**
@@ -74,7 +75,7 @@ final class ApiCaller
     }
 
     /** @param  array<string, string|int|list<string>|null>  $query */
-    private function send(string $path, #[SensitiveParameter] array $query, string $endpoint): ResponseInterface
+    private function send(string $path, #[SensitiveParameter] array $query, string $endpoint, bool $sendAgainAfter401 = true): ResponseInterface
     {
         $response = $this->transport->send($this->requests->get($path, $query, $this->tokens->token()), $endpoint);
 
@@ -83,6 +84,11 @@ final class ApiCaller
         }
 
         $this->tokens->invalidate();
+
+        if (! $sendAgainAfter401) {
+            // The 401 itself as an AuthenticationException, sent; the next call logs in again.
+            ResponseClassifier::assertSuccessful($response, $endpoint);
+        }
 
         try {
             $token = $this->tokens->token();

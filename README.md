@@ -31,7 +31,7 @@ You need PHP 8.4 or later with the `mbstring` and `zlib` extensions (both are in
 
 - **You log in with your own account**, whether the supplies are yours or belong to someone who authorized you. To read a third party's supplies you pass their NIF as `authorizedNif`. For your own supplies you must leave it out; the client does that for you.
 - **A supply is identified by its CUPS**, but every data call also needs its **distributor code** and **point type**, and only the supplies list has them. So the first call is always the supplies list.
-- **Data is asked for by whole months** (`2026/03`), within the last 24 months. The current month has data up to about two days ago.
+- **Data is asked for by whole months** (`2026/03`), within the last 24 months. The current month has data up to about two days ago; one report says its last hours may come as zeros until they are published, so do not read a run of zeros at the end of the current month as real.
 - **Consumption, maximum power and reactive data can be asked once a day.** Datadis refuses the identical query for 24 hours, and a request it rejects counts too. Read [the 24 hour rule](#the-24-hour-rule) before writing a sync job.
 
 ## Quick start
@@ -250,7 +250,7 @@ Every failure while talking to Datadis is a `DatadisException`. What to do depen
 | `NoDataException` | Datadis answered 404, 204 or an empty body for a data query. | Treat it like an empty result. A month not published yet usually comes back as an empty result instead. |
 | `RepetitionWindowException` | The same query was made in the last 24 hours. | Wait. Retrying does not help. |
 | `AuthorizationException` | You are not authorized for that CUPS, the holder's authorization expired, or the supply codes are stale. | Check the authorization in Datadis; reload the supply. |
-| `AuthenticationException` | Wrong username or password. | Fix the credentials. |
+| `AuthenticationException` | Wrong username or password, or Datadis rejected the token of a consumption, maximum power or reactive query. | Fix the credentials. If `requestSent` is `true`, treat that query as used for today. |
 | `RequestRejectedException` | Datadis refused the parameters. | Fix the request. Never resend it as it was: it would be refused again, and it may count against the 24 hour rule. |
 | `InvalidRequestException` | The client refused the request before sending it (a future month, a reversed range...). | Fix the request. Nothing was sent. |
 | `ServiceUnavailableException` | Datadis or a distributor failed. | Try again later. A consumption, maximum power or reactive query that reached Datadis counts against the 24 hour rule: check `requestSent` and treat it as used for today. |
@@ -283,7 +283,7 @@ Value objects such as `Cups`, `Nif` and `Month` throw a plain `InvalidArgumentEx
 
 ### The 24 hour rule
 
-Datadis refuses an identical consumption, maximum power or reactive query for 24 hours, and counts every call it receives, even the ones it rejects. The client never repeats such a query by itself and refuses locally what it knows Datadis would reject. To also stop your own code from repeating a query, give the client a ledger backed by any PSR-16 cache shared by all your workers:
+Datadis refuses an identical consumption, maximum power or reactive query for 24 hours, and counts every call it receives, even the ones it rejects. The client never repeats such a query by itself and refuses locally what it knows Datadis would reject, such as a range that starts before the contract of a supply passed to the `...Of()` calls. It also remembers the queries it sent, in memory: the same client refuses to repeat one. That protects one process only. To cover every worker and every run of your jobs, give the client a ledger backed by any PSR-16 cache they all share:
 
 ```php
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
@@ -293,7 +293,9 @@ $ledger = new RequestLedger($psr16Cache, new RequestFingerprinter($aSecretOfAtLe
 $client = new DatadisClient($config, ledger: $ledger);
 ```
 
-A repeat then fails with a `RepetitionWindowException` whose `requestSent` is `false`, before anything is sent. Only a keyed hash of each query is stored, never the CUPS.
+A repeat fails with a `RepetitionWindowException` whose `requestSent` is `false`, before anything is sent. Only a keyed hash of each query is stored, never the CUPS.
+
+If Datadis rejects the token of such a query (a 401, rare, since the token is renewed before it expires), the client does not send it again, because Datadis may already have counted it: you get an `AuthenticationException` with `requestSent = true`, and the next call logs in again.
 
 PSR-16 cannot store a key only if it is absent, so with a plain PSR-16 cache the ledger checks and records in two steps, and two workers that start the same query at the same instant can both send it. If your store can add atomically (Redis, Memcached, a database), wrap that call in an `AtomicStore` and pass it too: checking and recording become one step, and only one worker sends. With Laravel's cache it is one line, as in [the Laravel section](#using-it-in-a-laravel-application).
 

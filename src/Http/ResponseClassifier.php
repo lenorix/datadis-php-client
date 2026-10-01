@@ -111,7 +111,6 @@ final class ResponseClassifier
         };
     }
 
-    /** The body as text: inflated when it is gzip whatever its headers claim, without a byte order mark. */
     /** The body as text: inflated when it is gzip in disguise, without a byte order mark. */
     public static function text(ResponseInterface $response): string
     {
