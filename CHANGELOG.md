@@ -6,13 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-Checked against a new set of real answers (October 2026): the v2 paths, the authorization list, the partner calls and the public API.
+## [0.3.0] - 2026-10-02
+
+Checked against the reference integration in production and the other Datadis clients: two cases could still cost a query for 24 hours.
 
 ### Changed
 
 - Without a ledger, the client remembers the consumption, maximum power and reactive queries it sent, in memory, and refuses to repeat one within 24 hours (`RepetitionWindowException`). Before, it sent whatever it was asked. Give it a ledger on a shared store to cover several processes.
+
+### Fixed
+
 - A consumption, maximum power or reactive query whose token Datadis rejects (401) is not sent again: Datadis may have counted it. The token is dropped, the next call logs in again, and the query fails with an `AuthenticationException` whose `requestSent` is `true`; other calls are still repeated once.
 - `getConsumptionDataOf()`, `getMaxPowerOf()` and `getReactiveDataOf()` refuse a range that starts before the month the supply's contract starts, which Datadis refuses with a 400 that counts for 24 hours.
+
+## [0.2.0] - 2026-10-01
+
+Checked against a new set of real answers (October 2026): the v2 paths, the authorization list, the partner calls and the public API.
+
+### Changed
+
 - `DatadisConfig::$username` is now the method `username()`. The account's NIF is kept like the password, so no dump of the configuration or the client shows it, `var_export` included.
 - `DatadisConfig` refuses a username that is not a NIF, NIE or CIF, or whose control character does not match, before anything is sent. Pass `checkUsernameControl: false` (or `check_username_control` in `fromArray()`) to take one with the right shape and a control character that does not match.
 - `Nif` requires the kind of control character the first letter of a CIF calls for: a digit for A, B, E and H, a letter for P, Q and S. `A0000000J` was accepted before.
@@ -66,5 +78,7 @@ First public release.
 - Daylight saving change days placed on the right hours, in Madrid and the Canary Islands.
 - Helpers: month planning within the served window, access tariff recognition, the 2.0TD schedule, national holidays, territories, CUPS and NIF values (NIF control letter checked), personal data redaction.
 
-[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/lenorix/datadis-php-client/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/lenorix/datadis-php-client/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/lenorix/datadis-php-client/releases/tag/v0.1.0
