@@ -115,7 +115,7 @@ final class RequestLedger
 
         $now = $this->clock->now()->getTimestamp();
 
-        if ($this->add($account, $query, $now)) {
+        if ($this->add($this->atomic, $account, $query, $now)) {
             return null;
         }
 
@@ -128,7 +128,7 @@ final class RequestLedger
         if ($last === null && $value !== null) {
             $this->forget($account, $query);
 
-            if ($this->add($account, $query, $now)) {
+            if ($this->add($this->atomic, $account, $query, $now)) {
                 return null;
             }
         }
@@ -138,10 +138,10 @@ final class RequestLedger
     }
 
     /** @param  array<string, string|int|list<string>|null>  $query */
-    private function add(string $account, #[SensitiveParameter] array $query, int $now): bool
+    private function add(AtomicStore $atomic, string $account, #[SensitiveParameter] array $query, int $now): bool
     {
         try {
-            return (bool) $this->atomic?->add($this->key($account, $query), $now, self::WINDOW_SECONDS);
+            return $atomic->add($this->key($account, $query), $now, self::WINDOW_SECONDS);
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
         }

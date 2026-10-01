@@ -12,3 +12,10 @@ it('skips a row without a name or a document and reads what it can of the rest',
         ->registrationDate->toBeNull()
         ->registerApp->toBeNull();
 });
+
+it('reads a user with only a name or only a document', function (array $row) {
+    expect(PartnerUser::fromRow($row, new DateTimeZone('Europe/Madrid')))->not->toBeNull();
+})->with([
+    'only a name' => [['name' => 'EMPRESA A']],
+    'only a document' => [['document' => 'A00000000']],
+]);

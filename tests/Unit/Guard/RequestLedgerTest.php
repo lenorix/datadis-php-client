@@ -148,3 +148,15 @@ it('takes back a key an atomic store still holds with a stale or corrupt time, a
     'far in the future' => [fn (int $now) => $now + 864000],
     'not a time' => [fn () => 'yesterday'],
 ]);
+
+it('answers a lost atomic claim with the time the other worker sent the query', function () use ($query) {
+    $clock = new FrozenClock;
+    $store = new AtomicCache;
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $store);
+    $sent = $clock->now()->getTimestamp();
+    $ledger->claim('A00000000', $query);
+
+    $clock->advance(3600);
+
+    expect($ledger->claim('A00000000', $query)?->getTimestamp())->toBe($sent);
+});

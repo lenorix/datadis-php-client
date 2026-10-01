@@ -60,4 +60,5 @@ it('tells the convention of an answer from the labels only one of them has', fun
     'neither, as in a partial day' => [['10:00', '10:15', '10:30'], null],
     'both, which no answer should have' => [['00:15', '24:45'], null],
     'no labels' => [[], null],
+    'only labels that merely contain them' => [['100:15', '00:150', "00:15\n", '124:30', '24:300', "24:45\n"], null],
 ]);

@@ -55,12 +55,12 @@ it('reads the distributors answer of an account whose distributors failed as a f
         ->and(array_map(fn ($e) => $e->errorCode, $result->distributorErrors))->toBe(['15', '15']);
 });
 
-it('reads "No groups", sent as text labelled JSON, as no groups', function () {
+it('reads "No groups", sent as text labelled JSON, as no groups', function (string $body) {
     $s = Scenario::make();
-    $s->http->queue(Responses::text('No groups', 200, ['Content-Type' => 'application/json']));
+    $s->http->queue(Responses::text($body, 200, ['Content-Type' => 'application/json']));
 
     expect($s->client->getGroups()->isEmpty())->toBeTrue();
-});
+})->with(['as captured' => 'No groups', 'with a line break' => "No groups\n"]);
 
 it('still fails on any other text where groups were expected', function () {
     $s = Scenario::make();
@@ -76,6 +76,7 @@ it('reads the reactive answer of a period without data as no data, not as a dist
     $result = $s->client->getReactiveData(Cups::fromString(Scenario::CUPS), '2', Month::of(2025, 11), authorizedNif: $holder());
 
     expect($result->records)->toBe([])
+        ->and($result->skippedRows)->toBe(1)
         ->and($result->distributorErrors[0]->isNoData())->toBeTrue()
         ->and($result->isEmptyBecauseOfErrors())->toBeFalse();
 });
@@ -144,3 +145,14 @@ it('reads the partner agreement date from its JSON answer', function (string $bo
     'none yet (verified)' => ['{"partnerAgreementDate": null}', null],
     'a date (its format is not verified)' => ['{"partnerAgreementDate": "2026/01/01"}', '2026/01/01'],
 ]);
+
+it('counts the blank objects of a reactive list and reads the objects after them', function () {
+    $s = Scenario::make();
+    $blank = '{"cups":null,"energy":[],"code":null,"codeDescription":null}';
+    $full = '{"cups":"ES0000000000000000AA0A","energy":[{"date":"2025/11","energy_p1":0.5}],"code":"0","codeDescription":"OK"}';
+    $s->http->queue(Responses::datadis('{"reactiveEnergy":['.$blank.','.$blank.','.$full.',7],"distributorError":[]}'));
+
+    $result = $s->client->getReactiveData(Cups::fromString(Scenario::CUPS), '2', Month::of(2025, 11));
+
+    expect($result->records)->toHaveCount(1)->and($result->skippedRows)->toBe(3);
+});
