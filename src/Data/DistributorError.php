@@ -33,4 +33,13 @@ final readonly class DistributorError
             $row,
         );
     }
+
+    /**
+     * Error code 8, "No existen datos en el periodo solicitado": the distributor has no data for
+     * that period, which is an answer and not a failure (seen once, October 2026).
+     */
+    public function isNoData(): bool
+    {
+        return $this->errorCode === '8';
+    }
 }

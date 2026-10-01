@@ -44,8 +44,16 @@ final class ReactiveEnergyAnswer
 
         $records = [];
         $skipped = 0;
+        $blank = 0;
 
         foreach ($objects as $object) {
+            // A period without data comes as an object whose every field is null (verified).
+            if (is_array($object) && Envelope::isBlank($object)) {
+                $blank++;
+
+                continue;
+            }
+
             $record = is_array($object) ? Envelope::decodeRow(ReactiveEnergy::fromRow(...), $object, $endpoint) : null;
 
             if ($record === null) {
@@ -55,10 +63,10 @@ final class ReactiveEnergyAnswer
             }
         }
 
-        if ($objects !== [] && $records === []) {
+        if ($skipped > 0 && $records === []) {
             throw new UninterpretableResponseException("{$endpoint}: none of the {$skipped} reactive entries could be used.", endpoint: $endpoint);
         }
 
-        return new ApiResult($records, Envelope::distributorErrors($decoded), $skipped, $decoded);
+        return new ApiResult($records, Envelope::distributorErrors($decoded), $skipped + $blank, $decoded);
     }
 }

@@ -21,7 +21,7 @@ final readonly class ReactiveEnergy
         public ?string $cups,
         public array $energy,
         public ?string $code,
-        public ?string $code_desc,
+        public ?string $codeDescription,
         public array $raw,
     ) {}
 
@@ -50,7 +50,7 @@ final readonly class ReactiveEnergy
             Fields::text($row, 'cups'),
             $energy,
             Fields::text($row, 'code'),
-            Fields::text($row, 'code_desc'),
+            Fields::text($row, 'codeDescription', 'code_desc'),
             $row,
         );
     }

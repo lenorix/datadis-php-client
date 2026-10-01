@@ -26,9 +26,8 @@ use SensitiveParameter;
  * PublicRecord); the answer is still read tolerantly (a list, a list inside `content`, `data`,
  * `results` or `items`, or a single object) and every row is kept whole.
  *
- * The official manual asks for the login token on these calls too, and the clients seen in the
- * wild send it. Give a DatadisConfig to log in and send it; give only ConnectionSettings to call
- * without credentials.
+ * It needs the account like the private API: without the login token Datadis answers 401
+ * (verified, October 2026).
  */
 final class PublicApiClient
 {
@@ -41,13 +40,13 @@ final class PublicApiClient
     private readonly ApiCaller $caller;
 
     public function __construct(
-        DatadisConfig|ConnectionSettings|null $settings = null,
+        DatadisConfig $config,
         ?ClientInterface $http = null,
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         ?CacheInterface $tokenCache = null,
     ) {
-        $this->caller = ApiCaller::connect($settings ?? new ConnectionSettings, $http, $requestFactory, $streamFactory, $tokenCache);
+        $this->caller = ApiCaller::connect($config, $http, $requestFactory, $streamFactory, $tokenCache);
     }
 
     /** @return ApiResult<PublicRecord> */

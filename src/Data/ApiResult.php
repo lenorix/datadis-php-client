@@ -51,9 +51,20 @@ final readonly class ApiResult implements Countable, IteratorAggregate
         return $this->distributorErrors !== [];
     }
 
+    /** Nothing came back and a distributor failed. A distributor that only says it has no data for the period is not a failure. */
     public function isEmptyBecauseOfErrors(): bool
     {
-        return $this->isEmpty() && $this->hasDistributorErrors();
+        if (! $this->isEmpty()) {
+            return false;
+        }
+
+        foreach ($this->distributorErrors as $error) {
+            if (! $error->isNoData()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @return Traversable<int, T> */

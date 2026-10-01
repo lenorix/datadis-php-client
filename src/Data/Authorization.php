@@ -13,8 +13,9 @@ use SensitiveParameter;
 /**
  * An authorization between a supply owner and a third party (v1 `list-authorization`).
  *
- * UNVERIFIED: the field names come from the manual only; no real answer has been captured. Dates are
- * read with slashes or dashes because the format is not documented.
+ * Verified against a real answer (October 2026): a bare list whose validity dates carry a time of
+ * day (`2026-06-01 00:00:00.0` to `2028-06-01 23:59:59.0`); `status` is `VIGENTE` or `CANCELADA`.
+ * A date without a time is read too.
  */
 final readonly class Authorization
 {
@@ -23,6 +24,7 @@ final readonly class Authorization
         public ?string $id,
         public ?string $ownerDocument,
         public ?string $requesterDocument,
+        public ?string $cups,
         public ?string $status,
         public ?DateTimeImmutable $validityDateStart,
         public ?DateTimeImmutable $validityDateEnd,
@@ -48,6 +50,7 @@ final readonly class Authorization
             $id,
             $owner,
             $requester,
+            Fields::nonEmptyText($row, 'cups'),
             Fields::nonEmptyText($row, 'status'),
             self::date(Fields::nonEmptyText($row, 'validityDateStart'), $zone),
             self::date(Fields::nonEmptyText($row, 'validityDateEnd'), $zone),
@@ -58,6 +61,6 @@ final readonly class Authorization
 
     private static function date(?string $value, DateTimeZone $zone): ?DateTimeImmutable
     {
-        return $value === null ? null : DatadisDate::tryParse($value, $zone);
+        return $value === null ? null : DatadisDate::tryParseDateTime($value, $zone) ?? DatadisDate::tryParse($value, $zone);
     }
 }

@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use GuzzleHttp\Psr7\Response;
-use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\TransportException;
@@ -13,6 +12,7 @@ use Lenorix\DatadisClient\PublicApi\Community;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApiClient;
 use Lenorix\DatadisClient\Support\InMemoryCache;
+use Lenorix\DatadisClient\Tests\Support\AnswersLogin;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 use Lenorix\DatadisClient\Tests\Support\Responses;
@@ -61,7 +61,7 @@ it('does not block a query for 24 hours when only the login answer failed to be 
 
 it('reports a public API body that fails while being read as a transport failure', function () {
     $http = (new FakeHttpClient)->queue((new Response(200))->withBody(new ThrowingStream));
-    $api = new PublicApiClient(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http);
+    $api = new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), new AnswersLogin($http));
 
     $api->apiSearch(new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-02'), [Community::Madrid], ['05']));
 })->throws(TransportException::class);

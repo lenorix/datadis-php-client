@@ -51,6 +51,29 @@ Datadis refuses an identical query made within 24 hours with **HTTP 429** ("Cons
 
 Consequences in the client: JSON is read whatever the content type; the blank contract row is dropped (an empty result, not a failure); "No supplies" is an empty supplies list; the "no se encuentra autorizado" 400 is an `AuthorizationException`; a 500 is never retried because it can be a client mistake; every required parameter is always sent. Latency in this capture was about one second per call.
 
+## Real answers (VERIFIED, October 2026, v2 paths, partner and authorization calls)
+
+A 2.0TD supply of point type 5, read with `authorizedNif`, on an account with the partner role.
+
+| Case | Status | Content type | Body |
+|------|--------|--------------|------|
+| `get-supplies-v2`, `get-contract-detail-v2`, `get-consumption-data-v2`, `get-max-power-v2`, `get-reactive-data-v2` | 200 | `text/plain` | the documented envelopes (`supplies`, `contract`, `timeCurve`, `maxPower`, `reactiveEnergy`), each with `distributorError` |
+| `get-supplies-v2` without `authorizedNif`, for an account without own supplies | 404 | `application/json;charset=UTF-8` | `No supplies` |
+| `get-distributors-with-supplies-v2` | 200 | `application/json` | `{"distributorError":[...],"distExistenceUser":{"distributorCodes":[...]}}`; without `authorizedNif` both distributors failed with `errorCode` `15`, `Error interno distribuidora` |
+| `get-groups-v2` without groups | 200 | `application/json` | `No groups` (plain text): an empty result |
+| `get-reactive-data-v2` for a period without data | 200 | `text/plain` | `reactiveEnergy` with every field `null` and `energy: []`, and a distributor error `errorCode` `8`, `No existen datos en el periodo solicitado`: no data, not a failure. The description key is `codeDescription` (the manual says `code_desc`) |
+| Quarter-hourly consumption (`measurementType=1`) of a point type 5 supply | 200 | `text/plain` | `{"timeCurve":[],"distributorError":[]}` |
+| The same consumption query again | 429 | `application/json;charset=UTF-8` | `Consulta ya realizada en las últimas 24 horas. ` (trailing space), no `Retry-After` |
+| Reactive data with the parameters of a maximum power query made just before | 429 | `application/json;charset=UTF-8` | the same: maximum power and reactive data share the 24 hour key. Consumption and reactive data for the same month did not collide |
+| Consumption for 10 months in one call | 200 | `text/plain` | every hour of the range; took 16.6 s. Contract detail took 12 s |
+| `authorizedNif` in lowercase | 200 | | accepted |
+| `authorizedNif` with spaces around it | 400 | `application/json;charset=UTF-8` | `Parámetro requerido en estado vacío, con formato erróneo, o con valores fuera de rango / Parámetro de ordenación erróneo` |
+| `list-authorization` (passing `authorizedNif` changes nothing) | 200 | `application/json` | a bare list of `{id (number), ownerDocument, requesterDocument, cups, status ("VIGENTE", "CANCELADA"), validityDateStart, validityDateEnd ("YYYY-MM-DD HH:MM:SS.f": "00:00:00.0" to "23:59:59.0"), distributorCodeFather ("0021")}` |
+| `partner-user-list` | 200 | `application/json` | a bare list of `{name, document, email, registrationDate (milliseconds since the epoch), registerApp (boolean)}` |
+| `partner-agreement-date` | 200 | `application/json` | `{"partnerAgreementDate": null}` |
+| Public `api-search` with the token | 200 | `text/plain` | the documented rows, plus `municipality`, `measurePointType` and an `alerts` list (`message`, `startDateTime` as `dd/mm/yyyy HH:MM`, `endDateTime`) |
+| Public `api-search` without the token | 401 | `application/json` | the Spring JSON 401: **the public API needs the token** |
+
 ## Status codes as observed
 
 | Status | Meaning |

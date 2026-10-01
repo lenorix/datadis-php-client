@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use GuzzleHttp\Psr7\HttpFactory;
-use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
@@ -13,6 +12,7 @@ use Lenorix\DatadisClient\PublicApi\PublicRecord;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApi\SelfConsumptionSearchQuery;
 use Lenorix\DatadisClient\PublicApiClient;
+use Lenorix\DatadisClient\Tests\Support\AnswersLogin;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
@@ -21,7 +21,7 @@ use Psr\Http\Message\RequestInterface;
 
 function publicApi(FakeHttpClient $http): PublicApiClient
 {
-    return new PublicApiClient(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http);
+    return new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), new AnswersLogin($http));
 }
 
 function searchQuery(): PublicSearchQuery
@@ -34,14 +34,14 @@ function autoQuery(): SelfConsumptionSearchQuery
     return new SelfConsumptionSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid]);
 }
 
-it('calls each public endpoint without logging in and reads its answer', function (string $method, string $path, Closure $query, string $fixture, Closure $check) {
+it('calls each public endpoint with the token and reads its answer', function (string $method, string $path, Closure $query, string $fixture, Closure $check) {
     $http = (new FakeHttpClient)->queue(Responses::json(datadisFixture($fixture)));
 
     $result = publicApi($http)->{$method}($query());
 
     expect($http->requests())->toHaveCount(1)
         ->and($http->lastRequest()->getUri()->getPath())->toBe($path)
-        ->and($http->lastRequest()->hasHeader('Authorization'))->toBeFalse()
+        ->and($http->lastRequest()->getHeaderLine('Authorization'))->toStartWith('Bearer ')
         ->and($result->records)->toHaveCount(1);
 
     $check($result->records[0]);
@@ -182,7 +182,7 @@ it('builds public requests with the PSR-17 factories it is given', function () {
     };
     $http = (new FakeHttpClient)->queue(Responses::json('[]'));
 
-    (new PublicApiClient(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http, $factory))->apiSearch(searchQuery());
+    (new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), new AnswersLogin($http), $factory))->apiSearch(searchQuery());
 
     expect($http->lastRequest()->getHeaderLine('X-Built-By'))->toBe('app');
 });
@@ -190,7 +190,7 @@ it('builds public requests with the PSR-17 factories it is given', function () {
 it('uses the public Datadis host by default', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('[]'));
 
-    (new PublicApiClient(http: $http))->apiSearch(searchQuery());
+    (new PublicApiClient(new DatadisConfig('A00000000', 'secret'), new AnswersLogin($http)))->apiSearch(searchQuery());
 
     expect($http->lastRequest()->getUri()->getHost())->toBe('datadis.es');
 });
@@ -220,7 +220,7 @@ it('sends sums without paging', function () {
         ->and($sum->records[0]->sumContracts())->toBe(5977431);
 });
 
-it('logs in and sends the token when it is given credentials', function () {
+it('logs in and sends the token, which the public API requires (verified: 401 without it)', function () {
     $http = (new FakeHttpClient)->queue(
         Responses::text(Tokens::jwt(['exp' => time() + 3600])),
         Responses::json(datadisFixture('public/search.json')),

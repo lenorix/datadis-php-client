@@ -60,15 +60,11 @@ final class RequestFactory
             throw new InvalidArgumentException('The token contains characters that are not allowed in a header.');
         }
 
-        return $this->publicGet($path, $query)->withHeader('Authorization', 'Bearer '.$token);
+        return $this->plainGet($path, $query)->withHeader('Authorization', 'Bearer '.$token);
     }
 
-    /**
-     * An unauthenticated GET, for the public API.
-     *
-     * @param  array<string, string|int|list<string>|null>  $query
-     */
-    public function publicGet(string $path, #[SensitiveParameter] array $query): RequestInterface
+    /** @param  array<string, string|int|list<string>|null>  $query */
+    private function plainGet(string $path, #[SensitiveParameter] array $query): RequestInterface
     {
         $queryString = self::queryString($query);
         $uri = $this->settings->baseUrl.$path.($queryString === '' ? '' : '?'.$queryString);

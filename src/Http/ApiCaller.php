@@ -6,7 +6,6 @@ namespace Lenorix\DatadisClient\Http;
 
 use GuzzleHttp\Psr7\HttpFactory;
 use Lenorix\DatadisClient\Auth\TokenProvider;
-use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
@@ -19,7 +18,7 @@ use Psr\SimpleCache\CacheInterface;
 use SensitiveParameter;
 
 /**
- * Makes a GET, authenticated when it has a token provider (the public API may go without one).
+ * Makes an authenticated GET.
  *
  * A 401 means the token was rejected: the token is dropped, one new login is made and the call is
  * repeated once. A second 401 is final. A network failure is never retried here, because it may
@@ -32,16 +31,15 @@ final class ApiCaller
     public function __construct(
         private readonly RequestFactory $requests,
         private readonly Transport $transport,
-        private readonly ?TokenProvider $tokens,
+        private readonly TokenProvider $tokens,
     ) {}
 
     /**
-     * The wiring the private and the public API share. With a DatadisConfig the calls log in and
-     * send the token; with only ConnectionSettings they send none. Guzzle fills in whatever the
-     * application does not provide.
+     * The wiring the private and the public API share: both log in with the account and send its
+     * token. Guzzle fills in whatever the application does not provide.
      */
     public static function connect(
-        DatadisConfig|ConnectionSettings $settings,
+        DatadisConfig $config,
         ?ClientInterface $http = null,
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
@@ -50,12 +48,10 @@ final class ApiCaller
     ): self {
         $factory = new HttpFactory;
         $streamFactory ??= $factory;
-        $connection = $settings instanceof DatadisConfig ? $settings->connection() : $settings;
-        $requests = new RequestFactory($connection, $requestFactory ?? $factory, $streamFactory);
-        $transport = new Transport($http ?? GuzzleClientFactory::create($connection), $streamFactory);
-        $tokens = $settings instanceof DatadisConfig ? new TokenProvider($settings, $requests, $transport, $tokenCache, $clock) : null;
+        $requests = new RequestFactory($config->connection(), $requestFactory ?? $factory, $streamFactory);
+        $transport = new Transport($http ?? GuzzleClientFactory::create($config), $streamFactory);
 
-        return new self($requests, $transport, $tokens);
+        return new self($requests, $transport, new TokenProvider($config, $requests, $transport, $tokenCache, $clock));
     }
 
     /**
@@ -80,10 +76,6 @@ final class ApiCaller
     /** @param  array<string, string|int|list<string>|null>  $query */
     private function send(string $path, #[SensitiveParameter] array $query, string $endpoint): ResponseInterface
     {
-        if ($this->tokens === null) {
-            return $this->transport->send($this->requests->publicGet($path, $query), $endpoint);
-        }
-
         $response = $this->transport->send($this->requests->get($path, $query, $this->tokens->token()), $endpoint);
 
         if ($response->getStatusCode() !== 401) {

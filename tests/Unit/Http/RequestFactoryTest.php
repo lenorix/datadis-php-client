@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use GuzzleHttp\Psr7\HttpFactory;
-use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Http\RequestFactory;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
@@ -89,18 +88,6 @@ it('drops an empty list', function () {
 it('refuses list values that are not strings', function () {
     requests()->get('/x', ['cups' => [1, null]], 't');
 })->throws(InvalidArgumentException::class);
-
-it('builds unauthenticated requests for the public API', function () {
-    $factory = new HttpFactory;
-    $requests = new RequestFactory(new ConnectionSettings(baseUrl: 'https://datadis.test'), $factory, $factory);
-
-    $request = $requests->publicGet('/api-public/api-search', ['page' => 0, 'community' => '01,13']);
-
-    expect($request->hasHeader('Authorization'))->toBeFalse()
-        ->and($request->getHeaderLine('Accept'))->toBe('application/json')
-        ->and($request->getHeaderLine('Accept-Encoding'))->toBe('identity')
-        ->and((string) $request->getUri())->toBe('https://datadis.test/api-public/api-search?page=0&community=01%2C13');
-});
 
 it('refuses query values of other types and maps instead of lists', function (mixed $value) {
     requests()->get('/x', ['v' => $value], 't');

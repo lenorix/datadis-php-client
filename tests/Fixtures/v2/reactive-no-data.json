@@ -1,0 +1,16 @@
+{
+    "reactiveEnergy": {
+        "cups": null,
+        "energy": [],
+        "code": null,
+        "codeDescription": null
+    },
+    "distributorError": [
+        {
+            "distributorCode": "2",
+            "distributorName": "EDISTRIBUCIÓN",
+            "errorCode": "8",
+            "errorDescription": "No existen datos en el periodo solicitado"
+        }
+    ]
+}

@@ -91,7 +91,7 @@ The official documentation spells two keys `accesFare` and `installedCapacityKW`
 
 ### reactive (`reactiveEnergy`)
 
-`{cups, energy:[{date, energy_p1..energy_p6}], code, code_desc}`, `date` documented as `YYYY/MM`. Least verified response: only synthetic fixtures exist. `reactiveEnergy` may be missing or `{}`. Usually empty for domestic 2.0TD supplies.
+`{cups, energy:[{date, energy_p1..energy_p6}], code, codeDescription}` (VERIFIED key; the manual says `code_desc`, which is read too), `date` documented as `YYYY/MM`. A period without data comes as an object whose every field is null plus a distributor error with code `8` (VERIFIED). An answer with data has not been captured yet (it needs a 3.0TD or larger supply).
 
 ### distributors
 
@@ -115,15 +115,15 @@ Implemented because v2 has no equivalent. The authorization and partner endpoint
 |----------|------------|--------|
 | `/api-private/api/new-authorization` | `authorizedNif` (required), `startDate`, `endDate`, `cups` (list, empty = every supply) | undocumented; returned as raw text |
 | `/api-private/api/cancel-authorization` | `authorizedNif` (required), `cups` (list) | undocumented; returned as raw text |
-| `/api-private/api/list-authorization` | `ownerNif` (optional) | `[{id, ownerDocument, requesterDocument, status, validityDateStart, validityDateEnd, distributorCodeFather}]` |
+| `/api-private/api/list-authorization` | `ownerNif` (optional) | `[{id, ownerDocument, requesterDocument, cups, status, validityDateStart, validityDateEnd, distributorCodeFather}]`, dates as `YYYY-MM-DD HH:MM:SS.f` (VERIFIED) |
 
-Assumptions: dates are sent as `YYYY/MM/DD`; a list is sent by repeating the key (`cups=A&cups=B`, the usual binding of array parameters). Both are isolated in one place each so they can be changed once verified. Authorizing the account itself is refused locally.
+Assumptions for the calls that change data (not captured): dates are sent as `YYYY/MM/DD`; a list is sent by repeating the key (`cups=A&cups=B`, the usual binding of array parameters). Both are isolated in one place each so they can be changed once verified. Authorizing the account itself is refused locally.
 
 ### Public API (GET)
 
 `/api-public/api-search`, `api-sum-search`, `api-search-auto`, `api-sum-search-auto`.
 
-- Authentication: the official manual tells to send the login token on these calls too, and the implementations seen in the wild do. `PublicApiClient` sends it when given a `DatadisConfig` and calls without it when given only `ConnectionSettings`.
+- Authentication: the login token is required; without it Datadis answers the Spring JSON 401 (VERIFIED). `PublicApiClient` takes the account like `DatadisClient`.
 - Required: `startDate`, `endDate` (`YYYY/MM/DD`), `community` (one or two of `01`..`19`); searches (not sums) also require `page` (from 0) and `pageSize` (1-2000). The sums take no paging.
 - `api-search` / `api-sum-search`: optional `measurementType` (`01`..`05`; the 2023 manual calls it `measurementPointType`, the current documentation `measurementType`), `distributor` (CNMC 4 digit codes), `fare`, `provinceMunicipality` (2 or 5 digits), `groupByPostalCode` (integer), `postalCode`, `economicSector` (`1`..`4`), `tension` (`E0`..`E6`), `timeDiscrimination` (`G0`, `E1`, `E2`, `E3`), `sort`.
 - `api-search-auto` / `api-sum-search-auto`: `distributor`, `selfConsumption` (modality codes), `province` (2 digits); `sort` only on the search.
@@ -132,7 +132,7 @@ Assumptions: dates are sent as `YYYY/MM/DD`; a list is sent by repeating the key
 
 ### Partner programme (GET, authenticated)
 
-From the current official documentation; answers are not described, so the client returns them raw (UNVERIFIED).
+`partner-user-list` and `partner-agreement-date` are VERIFIED (see [quirks-and-rules.md](quirks-and-rules.md)): the client returns `PartnerUser` results and the agreement date as text or null. `partner-delete-user` changes data and has not been captured; its answer is returned raw.
 
 | Endpoint | Parameters | Meaning |
 |----------|------------|---------|

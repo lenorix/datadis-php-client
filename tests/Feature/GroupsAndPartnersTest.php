@@ -8,7 +8,7 @@ use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
 use Lenorix\DatadisClient\Values\Nif;
 
-it('lists the groups of the account', function (string $body) {
+it('lists the groups of the account (the shape of a group is documented, not yet seen)', function (string $body) {
     $s = Scenario::make();
     $s->http->queue(Responses::datadis($body));
 
@@ -30,16 +30,6 @@ it('refuses groups in v1, where they do not exist', function () {
         ->and($s->http->requests())->toBe([]);
 });
 
-it('lists the users of a partner', function () {
-    $s = Scenario::make();
-    $s->http->queue(Responses::datadis('[{"nif":"00000000T"}]'));
-
-    $users = $s->client->partnerUserList();
-
-    expect($s->http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/partner-user-list')
-        ->and($users)->toBe([['nif' => '00000000T']]);
-});
-
 it('unlinks a user from the partner', function () {
     $s = Scenario::make();
     $s->http->queue(Responses::text('OK'));
@@ -49,11 +39,11 @@ it('unlinks a user from the partner', function () {
         ->and($s->http->requests()[1]->getUri()->getQuery())->toBe('nif=00000000T');
 });
 
-it('reads the agreement date of the partner, optionally for a given NIF', function (?string $nif, string $query) {
+it('asks for the agreement date of the partner, optionally for a given NIF', function (?string $nif, string $query) {
     $s = Scenario::make();
-    $s->http->queue(Responses::text('2026/01/01'));
+    $s->http->queue(Responses::json('{"partnerAgreementDate": null}'));
 
-    expect($s->client->partnerAgreementDate($nif === null ? null : Nif::fromString($nif)))->toBe('2026/01/01')
+    expect($s->client->partnerAgreementDate($nif === null ? null : Nif::fromString($nif)))->toBeNull()
         ->and($s->http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/partner-agreement-date')
         ->and($s->http->requests()[1]->getUri()->getQuery())->toBe($query);
 })->with([[null, ''], ['00000000T', 'nif=00000000T']]);

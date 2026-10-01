@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Lenorix\DatadisClient\ApiVersion;
-use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\Data\ApiResult;
 use Lenorix\DatadisClient\Data\Supply;
 use Lenorix\DatadisClient\DatadisConfig;
@@ -14,6 +13,7 @@ use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\PublicApi\Community;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApiClient;
+use Lenorix\DatadisClient\Tests\Support\AnswersLogin;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
@@ -76,7 +76,7 @@ it('fails instead of answering "no distributors" when not one code can be read',
 
 it('fails instead of answering "no data" when not one public record can be read', function (string $body) {
     $http = (new FakeHttpClient)->queue(Responses::json($body));
-    $api = new PublicApiClient(new ConnectionSettings(baseUrl: 'https://datadis.test'), $http);
+    $api = new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), new AnswersLogin($http));
 
     expect(fn () => $api->apiSearch(new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid])))
         ->toThrow(UninterpretableResponseException::class);

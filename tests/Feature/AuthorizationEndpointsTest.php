@@ -75,14 +75,14 @@ it('reports a refused authorization as a typed failure', function () {
 
 it('lists the authorizations of the account', function () {
     $s = Scenario::make();
-    $s->http->queue(Responses::datadis(datadisFixture('v1/list-authorization.json')));
+    $s->http->queue(Responses::json(datadisFixture('v1/list-authorization.json')));
 
     $result = $s->client->listAuthorization();
 
     expect($s->http->requests()[1]->getUri()->getPath())->toBe('/api-private/api/list-authorization')
         ->and($s->http->requests()[1]->getUri()->getQuery())->toBe('')
         ->and($result->records)->toHaveCount(2)
-        ->and($result->records[0]->requesterDocument)->toBe('00000000T');
+        ->and($result->records[0]->requesterDocument)->toBe('A00000000');
 });
 
 it('lists the authorizations of another owner', function () {

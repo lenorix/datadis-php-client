@@ -1,0 +1,16 @@
+[
+    {
+        "name": "EMPRESA A",
+        "document": "A00000000",
+        "email": "aaaa@aaaa.aa",
+        "registrationDate": 1767225600000,
+        "registerApp": false
+    },
+    {
+        "name": "PERSONA A",
+        "document": "00000000T",
+        "email": "aaaa@aaaa.aa",
+        "registrationDate": 1767312000000,
+        "registerApp": true
+    }
+]

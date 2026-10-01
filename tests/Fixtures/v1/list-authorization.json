@@ -1,20 +1,22 @@
 [
     {
-        "id": 1234,
-        "ownerDocument": "A00000000",
-        "requesterDocument": "00000000T",
-        "status": "ACTIVE",
-        "validityDateStart": "2026/01/01",
-        "validityDateEnd": "2027/12/31",
-        "distributorCodeFather": "2"
+        "id": 1,
+        "ownerDocument": "00000000T",
+        "requesterDocument": "A00000000",
+        "cups": "ES0000000000000000AA",
+        "status": "CANCELADA",
+        "validityDateStart": "2026-01-01 00:00:00.0",
+        "validityDateEnd": "2028-01-01 23:59:59.0",
+        "distributorCodeFather": "0021"
     },
     {
-        "id": "1235",
-        "ownerDocument": "A00000000",
+        "id": 2,
+        "ownerDocument": "00000000T",
         "requesterDocument": "A00000000",
-        "status": "CANCELLED",
-        "validityDateStart": "2024-05-01",
-        "validityDateEnd": "",
-        "distributorCodeFather": null
+        "cups": "ES0000000000000000AA0A",
+        "status": "VIGENTE",
+        "validityDateStart": "2026-02-01 00:00:00.0",
+        "validityDateEnd": "2027-02-01 23:59:59.0",
+        "distributorCodeFather": "0022"
     }
 ]

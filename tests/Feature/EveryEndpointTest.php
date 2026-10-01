@@ -130,7 +130,7 @@ it('calls the authorization and partner endpoints on the same paths whatever the
         Responses::datadis(datadisFixture('v1/list-authorization.json')),
         Responses::datadis('[]'),
         Responses::text('OK'),
-        Responses::text('2026/01/01'),
+        Responses::json('{"partnerAgreementDate": null}'),
     );
 
     $s->client->newAuthorization(Nif::fromString('00000000T'));

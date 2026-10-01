@@ -187,9 +187,9 @@ $client->listAuthorization();                                           // who c
 
 $client->getGroups();                                                   // supply groups (API v2)
 
-$client->partnerUserList();                                             // partner programme accounts only
+$client->partnerUserList();                                             // partner accounts only: PartnerUser results
 $client->partnerDeleteUser($nif);
-$client->partnerAgreementDate();
+$client->partnerAgreementDate();                                        // the date as Datadis writes it, or null
 ```
 
 ### Public open data
@@ -201,7 +201,7 @@ use Lenorix\DatadisClient\PublicApi\Community;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApiClient;
 
-$api = new PublicApiClient($config);   // the official manual asks for your login token here too
+$api = new PublicApiClient($config);   // it needs your account too: without the token Datadis answers 401
 $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid]);
 
 foreach ($api->apiSearchAll($query) as $record) {
@@ -209,7 +209,7 @@ foreach ($api->apiSearchAll($query) as $record) {
 }
 ```
 
-There are also `apiSumSearch()`, `apiSearchAuto()` and `apiSumSearchAuto()`. `new PublicApiClient()` calls without credentials.
+There are also `apiSumSearch()`, `apiSearchAuto()` and `apiSumSearchAuto()`.
 
 ## Working with the results
 
@@ -419,12 +419,13 @@ The same works in any framework: read the settings however it does, pass them to
 
 ## What is not verified yet
 
-Most behaviour here was checked against real Datadis answers. These parts come from the official documentation only, and the client reads them tolerantly:
+Most behaviour here was checked against real Datadis answers, on both API versions. These parts have not been seen yet, and the client reads them tolerantly:
 
-- The exact answers of the authorization, group and partner calls, and of API v2 in general (real answers were checked on the v1 paths, which carry the same fields).
-- Reactive energy.
-- The format of quarter-hourly labels.
-- Whether a repeated query always gets HTTP 429.
+- Quarter-hourly labels of a point type 1, 2 or 3 supply. Two conventions are possible, and the client recognises either in each answer (see [Things that catch people out](#things-that-catch-people-out)).
+- Reactive energy with data (only the answer for a period without data has been seen).
+- A group, and a partner agreement date that is set.
+- The answers of the calls that change data: `newAuthorization()`, `cancelAuthorization()` and `partnerDeleteUser()`.
+- Hour labels of Canary Islands supplies around a daylight saving change.
 
 [`docs/`](https://github.com/lenorix/datadis-php-client/tree/main/docs) in the repository records everything known about the API, with the evidence behind each point.
 

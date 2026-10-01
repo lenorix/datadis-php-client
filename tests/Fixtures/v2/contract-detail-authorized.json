@@ -1,0 +1,39 @@
+{
+    "contract": [
+        {
+            "cups": "ES0000000000000000AA0A",
+            "distributor": "EDISTRIBUCIÓN",
+            "marketer": "-",
+            "tension": "Baja tensión",
+            "accessFare": "BAJA TENSION y POTENCIA <= 15 kW",
+            "province": "Aaaa",
+            "municipality": "AAAA",
+            "postalCode": "00000",
+            "contractedPowerkW": [
+                3.45,
+                3.45
+            ],
+            "timeDiscrimination": "TARIFA DE TRES PERIODOS",
+            "modePowerControl": "ICP",
+            "startDate": "2024/01/01",
+            "endDate": "",
+            "codeFare": "2T",
+            "selfConsumptionTypeCode": null,
+            "selfConsumptionTypeDesc": null,
+            "section": null,
+            "subsection": null,
+            "partitionCoefficient": null,
+            "cau": null,
+            "installedCapacity": null,
+            "dateOwner": [
+                {
+                    "startDate": "2024-01-01",
+                    "endDate": ""
+                }
+            ],
+            "lastMarketerDate": "",
+            "maxPowerInstall": "5.5"
+        }
+    ],
+    "distributorError": []
+}

@@ -1,0 +1,19 @@
+{
+    "supplies": [
+        {
+            "address": "CALLE A 0",
+            "cups": "ES0000000000000000AA0A",
+            "postalCode": "00000",
+            "province": "Aaaa",
+            "provinceCode": "00",
+            "municipality": "AAAA",
+            "municipioCode": "000",
+            "distributor": "EDISTRIBUCIÓN",
+            "validDateFrom": "2024/01/01",
+            "validDateTo": "",
+            "pointType": 5,
+            "distributorCode": "2"
+        }
+    ],
+    "distributorError": []
+}

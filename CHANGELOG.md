@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+Checked against a new set of real answers (October 2026): the v2 paths, the authorization list, the partner calls and the public API.
+
+### Changed
+
+- `PublicApiClient` needs a `DatadisConfig`: the public API answers 401 without the login token.
+- `partnerUserList()` returns `PartnerUser` results and `partnerAgreementDate()` returns the date, or null, instead of the raw answer.
+- The code description of reactive data is `codeDescription`, the key Datadis really sends.
+- `isEmptyBecauseOfErrors()` no longer counts a distributor that says it has no data for the period (error code 8) as a failure; `DistributorError::isNoData()` tells it.
+
+### Added
+
+- `Authorization::$cups`.
+
+### Fixed
+
+- The validity dates of the authorization list carry a time of day and were read as null.
+- An account without groups got an exception: Datadis answers the text `No groups`.
+- Reactive data for a period without data gave one empty record instead of an empty result.
+
 ## [0.1.0] - 2026-09-30
 
 First public release.

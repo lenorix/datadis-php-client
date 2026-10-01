@@ -14,16 +14,19 @@ use Lenorix\DatadisClient\Data\ConsumptionReading;
 use Lenorix\DatadisClient\Data\ContractDetail;
 use Lenorix\DatadisClient\Data\Group;
 use Lenorix\DatadisClient\Data\MaxPowerReading;
+use Lenorix\DatadisClient\Data\PartnerUser;
 use Lenorix\DatadisClient\Data\ReactiveEnergy;
 use Lenorix\DatadisClient\Data\Supply;
 use Lenorix\DatadisClient\Data\SupplyMatcher;
 use Lenorix\DatadisClient\Decoding\DistributorCodes;
 use Lenorix\DatadisClient\Decoding\Envelope;
+use Lenorix\DatadisClient\Decoding\Fields;
 use Lenorix\DatadisClient\Decoding\ReactiveEnergyAnswer;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
+use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
 use Lenorix\DatadisClient\Guard\RepetitionGuard;
 use Lenorix\DatadisClient\Guard\RequestLedger;
@@ -386,7 +389,8 @@ final class DatadisClient
     }
 
     /**
-     * The supply groups defined in the account (v2 only).
+     * The supply groups defined in the account (v2 only). An account without groups gets the text
+     * `No groups`, labelled JSON (verified), which is an empty result.
      *
      * @return ApiResult<Group>
      */
@@ -396,20 +400,30 @@ final class DatadisClient
             throw new UnsupportedOperationException('Groups exist only in API v2.');
         }
 
-        $decoded = $this->fetch(Endpoint::Groups, []);
+        try {
+            $decoded = $this->fetch(Endpoint::Groups, []);
+        } catch (UninterpretableResponseException $e) {
+            if (trim((string) $e->detail) === 'No groups') {
+                return new ApiResult([]);
+            }
+
+            throw $e;
+        }
 
         return Envelope::build($decoded, 'groups', $this->name(Endpoint::Groups), static fn (array $row) => Group::fromRow($row));
     }
 
     /**
-     * The users linked to the partner account (Datadis partner programme). UNVERIFIED: the official
-     * documentation does not describe the answer, so the decoded JSON is returned as is.
+     * The users linked to the partner account (Datadis partner programme), verified against a real
+     * answer.
      *
-     * @return array<array-key, mixed>
+     * @return ApiResult<PartnerUser>
      */
-    public function partnerUserList(): array
+    public function partnerUserList(): ApiResult
     {
-        return $this->fetch(Endpoint::PartnerUsers, []);
+        $decoded = $this->fetch(Endpoint::PartnerUsers, []);
+
+        return Envelope::build($decoded, 'users', $this->name(Endpoint::PartnerUsers), fn (array $row) => PartnerUser::fromRow($row, $this->timeZone));
     }
 
     /**
@@ -422,12 +436,15 @@ final class DatadisClient
     }
 
     /**
-     * The date the partner agreement started. `$nif` is only for callers allowed to consult another
-     * partner. UNVERIFIED: returns the raw answer text.
+     * The date the partner agreement started, as Datadis writes it, or null when there is none
+     * (`{"partnerAgreementDate": null}`, verified). The format of a date that is set has not been
+     * seen. `$nif` is only for callers allowed to consult another partner.
      */
-    public function partnerAgreementDate(?Nif $nif = null): string
+    public function partnerAgreementDate(?Nif $nif = null): ?string
     {
-        return $this->fetchText(Endpoint::PartnerAgreementDate, ['nif' => $nif?->value()]);
+        $decoded = $this->fetch(Endpoint::PartnerAgreementDate, ['nif' => $nif?->value()]);
+
+        return Fields::nonEmptyText($decoded, 'partnerAgreementDate');
     }
 
     /**

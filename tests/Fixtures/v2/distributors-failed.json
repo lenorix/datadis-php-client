@@ -1,0 +1,19 @@
+{
+    "distributorError": [
+        {
+            "distributorCode": "2",
+            "distributorName": "EDISTRIBUCIÓN",
+            "errorCode": "15",
+            "errorDescription": "Error interno distribuidora"
+        },
+        {
+            "distributorCode": "4",
+            "distributorName": "ASEME",
+            "errorCode": "15",
+            "errorDescription": "Error interno distribuidora"
+        }
+    ],
+    "distExistenceUser": {
+        "distributorCodes": []
+    }
+}

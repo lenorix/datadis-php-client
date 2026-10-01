@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use GuzzleHttp\Psr7\HttpFactory;
-use Lenorix\DatadisClient\ConnectionSettings;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\TransportException;
@@ -51,9 +50,9 @@ it('builds a working Guzzle client when none is given', function (Closure $call,
         fn () => (new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://127.0.0.1:1', timeout: 5.0, connectTimeout: 2.0)))->getSupplies(),
         false,
     ],
-    'public API' => [
-        fn () => (new PublicApiClient(new ConnectionSettings(baseUrl: 'https://127.0.0.1:1', timeout: 5.0, connectTimeout: 2.0)))
+    'public API, whose login fails first too' => [
+        fn () => (new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://127.0.0.1:1', timeout: 5.0, connectTimeout: 2.0)))
             ->apiSearch(new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid])),
-        true,
+        false,
     ],
 ]);

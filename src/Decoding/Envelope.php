@@ -141,7 +141,13 @@ final class Envelope
      *
      * @param  array<array-key, mixed>  $row
      */
-    private static function isBlank(#[SensitiveParameter] array $row): bool
+    /**
+     * Every field empty, null or an empty list: Datadis's way of sending nothing (verified for
+     * contract detail and reactive data).
+     *
+     * @param  array<array-key, mixed>  $row
+     */
+    public static function isBlank(#[SensitiveParameter] array $row): bool
     {
         foreach ($row as $value) {
             if (! ($value === null || $value === [] || (is_string($value) && trim($value) === ''))) {
