@@ -179,3 +179,73 @@ it('takes a window of its own, never shorter than the 24 hours of Datadis', func
     expect(fn () => new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), windowSeconds: 86399))
         ->toThrow(ConfigurationException::class, 'at least 86400');
 });
+
+it('remembers an earlier attempt for what is left of its window, in a plain or an atomic store', function (bool $atomic) use ($query) {
+    $clock = new FrozenClock;
+    $store = $atomic ? new AtomicCache : new InMemoryCache($clock);
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $atomic ? $store : null);
+    $sentAt = $clock->now()->modify('-23 hours');
+
+    expect($ledger->rememberAt('A00000000', $query, $sentAt))->toBeTrue()
+        ->and($ledger->lastAttempt('A00000000', $query)?->getTimestamp())->toBe($sentAt->getTimestamp());
+
+    if ($atomic) {
+        expect($store->ttls)->toBe([RequestLedger::WINDOW_SECONDS - 23 * 3600]);
+
+        return;
+    }
+
+    $clock->advance(RequestLedger::WINDOW_SECONDS - 23 * 3600);
+    expect($ledger->lastAttempt('A00000000', $query))->toBeNull();
+})->with(['plain' => [false], 'atomic' => [true]]);
+
+it('replaces only an older attempt, also one held in an atomic store', function () use ($query) {
+    $clock = new FrozenClock;
+    $store = new AtomicCache;
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $store);
+
+    $ledger->claim('A00000000', $query);
+    $clock->advance(3600);
+
+    expect($ledger->rememberAt('A00000000', $query, $clock->now()->modify('-2 hours')))->toBeFalse()
+        ->and($ledger->rememberAt('A00000000', $query, $clock->now()->modify('-10 minutes')))->toBeTrue()
+        ->and($ledger->lastAttempt('A00000000', $query)?->getTimestamp())->toBe($clock->now()->getTimestamp() - 600);
+});
+
+it('replaces a held key whose time cannot be read, since nothing newer is known', function () use ($query) {
+    $clock = new FrozenClock;
+    $store = new AtomicCache(staleReads: true);
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $store);
+    $ledger->claim('A00000000', $query);
+
+    expect($ledger->rememberAt('A00000000', $query, $clock->now()->modify('-1 hour')))->toBeTrue();
+});
+
+it('refuses an attempt further in the future than the clock tolerance, and takes one within it', function () use ($query) {
+    $clock = new FrozenClock;
+    $ledger = ledger($clock);
+
+    expect(fn () => $ledger->rememberAt('A00000000', $query, $clock->now()->modify('+'.(RequestLedger::CLOCK_TOLERANCE_SECONDS + 1).' seconds')))->toThrow(InvalidArgumentException::class)
+        ->and($ledger->rememberAt('A00000000', $query, $clock->now()->modify('+'.RequestLedger::CLOCK_TOLERANCE_SECONDS.' seconds')))->toBeTrue();
+});
+
+it('reports a store that refuses to keep a remembered attempt', function () use ($query) {
+    $clock = new FrozenClock;
+    $ledger = new RequestLedger(new QuirkyCache(failSet: true), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+
+    $ledger->rememberAt('A00000000', $query, $clock->now()->modify('-1 hour'));
+})->throws(LedgerUnavailableException::class);
+
+it('leaves alone a query a worker sent while the earlier attempt was being remembered', function () use ($query) {
+    $clock = new FrozenClock;
+    $store = new AtomicCache;
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $store);
+    // Between the import's read and its add, a worker sends the query now.
+    $store->beforeAdd = function (AtomicCache $cache) use ($ledger, $query): void {
+        $cache->beforeAdd = null;
+        $ledger->claim('A00000000', $query);
+    };
+
+    expect($ledger->rememberAt('A00000000', $query, $clock->now()->modify('-1 hour')))->toBeFalse()
+        ->and($ledger->lastAttempt('A00000000', $query)?->getTimestamp())->toBe($clock->now()->getTimestamp());
+});

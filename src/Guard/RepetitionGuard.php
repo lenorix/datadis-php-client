@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Guard;
 
 use Closure;
+use DateTimeInterface;
+use InvalidArgumentException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
@@ -79,6 +81,19 @@ final readonly class RepetitionGuard
 
             throw $e;
         }
+    }
+
+    /**
+     * Records a guarded query sent earlier, under the key call() claims for it.
+     *
+     * @param  array<string, string|int|list<string>|null>  $query  the query as the client sends it
+     *
+     * @throws InvalidArgumentException when the attempt is in the future
+     * @throws LedgerUnavailableException when the store cannot be read or written
+     */
+    public function remember(Endpoint $endpoint, #[SensitiveParameter] array $query, DateTimeInterface $sentAt): bool
+    {
+        return $this->ledger->rememberAt(($this->account)(), self::repetitionKey($endpoint, $query), $sentAt);
     }
 
     /**

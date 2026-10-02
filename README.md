@@ -348,7 +348,16 @@ A command that must not send anything when the query is still blocked does the s
 
 Three things to plan when you switch:
 
-- **The queries of the last day.** The ledger starts empty, and the keys of your record cannot be turned into its keys (they are hashes of other parameters). Keep your old check, read only, beside the ledger for one window, 24 hours and 10 minutes after the switch, then remove it: together they refuse everything either of them would.
+- **The queries of the last day.** The ledger starts empty. Tell it what you sent, with the same arguments you would give to the call and when it was sent; it builds each query exactly as the call does (the holder, the account's own NIF, one month as a range of one), so it refuses those very queries until their windows end:
+
+  ```php
+  foreach ($sentInTheLastDay as $sent) {   // rebuilt from your own data: the supply, the month, the endpoint
+      $client->rememberConsumptionData($sent->at, $sent->cups, $sent->distributorCode, $sent->pointType, $sent->month);
+  }
+  // also rememberMaxPower() and rememberReactiveData()
+  ```
+
+  An attempt older than the window is skipped and the newest attempt of a query wins. Import before any worker sends with the ledger, with the workers paused. If you cannot tell what you sent (your record keeps only hashes), keep your old check, read only, beside the ledger for one window, 24 hours and 10 minutes, then remove it: together they refuse everything either of them would.
 - **A store that survives deploys.** A ledger in a cache that a deploy clears (`cache:clear`, `optimize:clear` in Laravel) starts empty and can repeat a query sent minutes before. Use a store of its own that nothing clears, such as a separate Laravel cache store on Redis or on a database table, or a small `CacheInterface` and `AtomicStore` over a table of your own with a unique key.
 - **Every worker on the same store**, with an `AtomicStore`, so two workers never send the same query at once.
 

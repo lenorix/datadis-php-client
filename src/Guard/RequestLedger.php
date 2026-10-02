@@ -6,6 +6,8 @@ namespace Lenorix\DatadisClient\Guard;
 
 use Closure;
 use DateTimeImmutable;
+use DateTimeInterface;
+use InvalidArgumentException;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Support\SystemClock;
@@ -153,7 +155,7 @@ final class RequestLedger
 
         $now = $this->clock->now()->getTimestamp();
 
-        if ($this->add(($this->atomic)(), $account, $query, $now)) {
+        if ($this->add(($this->atomic)(), $account, $query, $now, $this->windowSeconds)) {
             return null;
         }
 
@@ -164,10 +166,10 @@ final class RequestLedger
     }
 
     /** @param  array<string, string|int|list<string>|null>  $query */
-    private function add(AtomicStore $atomic, #[SensitiveParameter] string $account, #[SensitiveParameter] array $query, int $now): bool
+    private function add(AtomicStore $atomic, #[SensitiveParameter] string $account, #[SensitiveParameter] array $query, int $at, int $ttl): bool
     {
         try {
-            return $atomic->add($this->key($account, $query), $now, $this->windowSeconds);
+            return $atomic->add($this->key($account, $query), $at, $ttl);
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
         }
@@ -180,8 +182,14 @@ final class RequestLedger
      */
     public function record(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): void
     {
+        $this->store($account, $query, $this->clock->now()->getTimestamp(), $this->windowSeconds);
+    }
+
+    /** @param  array<string, string|int|list<string>|null>  $query */
+    private function store(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, int $at, int $ttl): void
+    {
         try {
-            $stored = ($this->cache)()->set($this->key($account, $query), $this->clock->now()->getTimestamp(), $this->windowSeconds);
+            $stored = ($this->cache)()->set($this->key($account, $query), $at, $ttl);
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
         }
@@ -189,6 +197,56 @@ final class RequestLedger
         if ($stored !== true) {
             throw new LedgerUnavailableException('The repetition ledger store refused to keep the attempt.');
         }
+    }
+
+    /**
+     * Records an attempt made earlier, when this ledger did not keep the record yet. It is kept for
+     * what is left of its window, so a query sent 23 hours ago blocks a repeat for little more than
+     * an hour, and an attempt older than the window is not recorded. The newest attempt of a query
+     * wins, whatever order a history is given in. Import with the workers paused: an import that
+     * overwrites an older attempt is not a single step.
+     *
+     * @param  array<string, string|int|list<string>|null>  $query
+     * @return bool whether it was recorded
+     *
+     * @throws InvalidArgumentException when the attempt is further in the future than the clock tolerance
+     * @throws LedgerUnavailableException when the store cannot be read or written
+     */
+    public function rememberAt(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, DateTimeInterface $sentAt): bool
+    {
+        $at = $sentAt->getTimestamp();
+        $age = $this->clock->now()->getTimestamp() - $at;
+
+        if ($age < -self::CLOCK_TOLERANCE_SECONDS) {
+            throw new InvalidArgumentException('An attempt cannot have been made in the future.');
+        }
+
+        if ($age >= $this->windowSeconds) {
+            return false;
+        }
+
+        // Its own window, not a whole one from now: a longer life would block the query after Datadis takes it.
+        $ttl = $this->windowSeconds - $age;
+        $last = $this->lastAttempt($account, $query);
+
+        if ($last !== null && $last->getTimestamp() >= $at) {
+            return false;
+        }
+
+        if ($last === null && $this->atomic !== null && $this->add(($this->atomic)(), $account, $query, $at, $ttl)) {
+            return true;
+        }
+
+        // Held by an older attempt, or taken just now by a worker that sent: only an older one is replaced.
+        $last = $this->lastAttempt($account, $query);
+
+        if ($last !== null && $last->getTimestamp() >= $at) {
+            return false;
+        }
+
+        $this->store($account, $query, $at, $ttl);
+
+        return true;
     }
 
     /**

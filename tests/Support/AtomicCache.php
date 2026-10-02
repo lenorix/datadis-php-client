@@ -21,7 +21,8 @@ final class AtomicCache implements AtomicStore, CacheInterface
     /** @var list<int> the TTL of every add() */
     public array $ttls = [];
 
-    public function __construct(public bool $staleReads = false, public bool $failAdd = false) {}
+    /** @param  (\Closure(self): void)|null  $beforeAdd  runs before each add(), as another worker would */
+    public function __construct(public bool $staleReads = false, public bool $failAdd = false, public ?\Closure $beforeAdd = null) {}
 
     public function add(string $key, mixed $value, int $ttlSeconds): bool
     {
@@ -30,6 +31,10 @@ final class AtomicCache implements AtomicStore, CacheInterface
         }
 
         $this->ttls[] = $ttlSeconds;
+
+        if ($this->beforeAdd !== null) {
+            ($this->beforeAdd)($this);
+        }
 
         if (array_key_exists($key, $this->items)) {
             return false;
