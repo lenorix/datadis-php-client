@@ -6,9 +6,11 @@ use GuzzleHttp\Psr7\HttpFactory;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
+use Lenorix\DatadisClient\Exceptions\PageLimitReachedException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\PublicApi\Community;
+use Lenorix\DatadisClient\PublicApi\PageWalk;
 use Lenorix\DatadisClient\PublicApi\PublicRecord;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApi\SelfConsumptionSearchQuery;
@@ -130,13 +132,35 @@ it('walks every page until an empty or short page', function () {
         ->and($http->requests())->toHaveCount(3)->and($third['page'])->toBe('2');
 });
 
-it('stops walking at the page limit', function () {
+it('stops at the page limit after yielding every record read, and says where more may remain', function () {
     $http = (new FakeHttpClient)->queue(...array_fill(0, 3, Responses::json(json_encode([['a' => 1]]))));
-    $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], pageSize: 1);
+    $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], page: 2, pageSize: 1);
+    $records = [];
 
-    $records = iterator_to_array(publicApi($http)->apiSearchAll($query, maxPages: 3), false);
+    try {
+        foreach (publicApi($http)->apiSearchAll($query, maxPages: 3) as $record) {
+            $records[] = $record;
+        }
+    } catch (PageLimitReachedException $e) {
+        expect($records)->toHaveCount(3)
+            ->and($http->requests())->toHaveCount(3)
+            ->and($e->nextPage)->toBe(5)
+            ->and($e->requestSent)->toBeTrue()
+            ->and($e->getMessage())->toContain('page 5');
 
-    expect($records)->toHaveCount(3)->and($http->requests())->toHaveCount(3);
+        return;
+    }
+
+    throw new LogicException('Expected a PageLimitReachedException.');
+});
+
+it('returns what the walk read, the rows it left out included', function () {
+    $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},[],{"a":2}]'), Responses::json('[{"a":3},[]]'));
+    $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], pageSize: 3);
+    $walk = publicApi($http)->apiSearchAll($query);
+
+    expect(iterator_to_array($walk, false))->toHaveCount(3)
+        ->and($walk->getReturn())->toEqual(new PageWalk(2, 2));
 });
 
 it('refuses a page limit below 1 at the call, before reading anything', function (string $method, int $maxPages) {

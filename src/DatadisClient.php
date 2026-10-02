@@ -531,7 +531,7 @@ final class DatadisClient
     private function fetch(Endpoint $endpoint, #[SensitiveParameter] array $query): array
     {
         $name = $this->name($endpoint);
-        $send = fn (): array => $this->caller->get($endpoint->path($this->version), $query, $name, sendAgainAfter401: ! $endpoint->isGuarded());
+        $send = fn (): array => $this->caller->get($endpoint->path($this->version), $query, $name, sendAgainAfter401: $endpoint->isSafeToRepeat());
 
         return $this->guard->call($endpoint, $name, $query, $send);
     }
@@ -539,7 +539,8 @@ final class DatadisClient
     /** @param array<string, string|int|list<string>|null> $query */
     private function fetchText(Endpoint $endpoint, #[SensitiveParameter] array $query): string
     {
-        return $this->caller->getText($endpoint->path($this->version), $query, $this->name($endpoint));
+        // A call that changes data is never sent twice, not even after a rejected token.
+        return $this->caller->getText($endpoint->path($this->version), $query, $this->name($endpoint), sendAgainAfter401: $endpoint->isSafeToRepeat());
     }
 
     /** The endpoint as it appears in the path and in exceptions. */

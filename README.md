@@ -223,12 +223,16 @@ use Lenorix\DatadisClient\PublicApiClient;
 $api = new PublicApiClient($config);   // it needs your account too: without the token Datadis answers 401
 $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid]);
 
-foreach ($api->apiSearchAll($query) as $record) {
+$walk = $api->apiSearchAll($query);
+
+foreach ($walk as $record) {
     echo $record->date()?->format('Y-m-d'), '  ', $record->sumEnergy(), " kWh\n";
 }
+
+$walk->getReturn()->skippedRows;   // rows of any page that could not be read and were left out
 ```
 
-`apiSearchAll()` reads at most 1000 pages unless you pass another `maxPages` (at least 1). There are also `apiSumSearch()`, `apiSearchAuto()` and `apiSumSearchAuto()`.
+`apiSearchAll()` reads page after page until one comes back short, at most 1000 pages unless you pass another `maxPages` (at least 1). If it reaches the limit and the last page was full, more records may remain: after yielding every record it read, it throws a `PageLimitReachedException` whose `nextPage` is where to go on (a query starting at that page) and whose `skippedRows` counts the rows left out so far. When it ends on its own, `getReturn()` gives a `PageWalk` with the pages read and the rows left out. There are also `apiSumSearch()`, `apiSearchAuto()` and `apiSumSearchAuto()`.
 
 ## Working with the results
 
@@ -271,12 +275,13 @@ Every failure while talking to Datadis is a `DatadisException`. What to do depen
 | `NoDataException` | Datadis answered 404, 204 or an empty body for a data query. | Treat it like an empty result. A month not published yet usually comes back as an empty result instead. |
 | `RepetitionWindowException` | The same query was made in the last 24 hours. | Wait. Retrying does not help. |
 | `AuthorizationException` | You are not authorized for that CUPS, the holder's authorization expired, or the supply codes are stale. | Check the authorization in Datadis; reload the supply. |
-| `AuthenticationException` | Wrong username or password, or Datadis rejected the token of a consumption, maximum power or reactive query. | Fix the credentials. If `requestSent` is `true`, treat that query as used for today. |
+| `AuthenticationException` | Wrong username or password, or Datadis rejected the token of a call that is not safe to repeat: a consumption, maximum power or reactive query, or a change (an authorization, unlinking a user). Those are never sent twice. | Fix the credentials. If `requestSent` is `true`, treat a data query as used for today, and check in Datadis whether a change was applied before making it again. |
 | `RequestRejectedException` | Datadis refused the parameters. | Fix the request. Never resend it as it was: it would be refused again, and it may count against the 24 hour rule. |
 | `InvalidRequestException` | The client refused the request before sending it (a future month, a reversed range...). | Fix the request. Nothing was sent. |
 | `ServiceUnavailableException` | Datadis or a distributor failed. | Try again later. A consumption, maximum power or reactive query that reached Datadis counts against the 24 hour rule: check `requestSent` and treat it as used for today. |
 | `TransportException` | The network failed or timed out. | The request may have reached Datadis: treat a data query as used for today. |
 | `UninterpretableResponseException` | Datadis answered something unreadable (a maintenance page, an unknown shape). | Try again later; if it persists, report it. |
+| `PageLimitReachedException` | `apiSearchAll()` or `apiSearchAutoAll()` read as many pages as allowed and the last one was full: more records may remain. Every record read was yielded first. | Go on from `nextPage`, or raise `maxPages`. |
 | `ConfigurationException`, `UnsupportedOperationException`, `LedgerUnavailableException` | A setup problem. Nothing was sent. | Fix the setup. |
 
 Each exception also tells you:

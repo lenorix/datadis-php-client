@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use Lenorix\DatadisClient\ApiVersion;
+use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
+use Lenorix\DatadisClient\Tests\Support\Tokens;
 use Lenorix\DatadisClient\Values\Cups;
 use Lenorix\DatadisClient\Values\Nif;
 
@@ -91,4 +93,42 @@ it('lists the authorizations of another owner', function () {
 
     expect($s->client->listAuthorization(Nif::fromString('00000000T'))->isEmpty())->toBeTrue()
         ->and($s->http->requests()[1]->getUri()->getQuery())->toBe('ownerNif=00000000T');
+});
+
+it('never sends a call that changes data again after a rejected token, and the next call logs in again', function (Closure $call, string $path) {
+    $s = Scenario::make();
+    $s->http->queue(
+        Responses::datadisError(datadisFixture('errors/401-spring.json'), 401),
+        Responses::text(Tokens::datadis(time())),
+        Responses::datadis('{"supplies":[],"distributorError":[]}'),
+    );
+
+    try {
+        $call($s->client);
+    } catch (AuthenticationException $e) {
+        $s->client->getSupplies();
+
+        expect($e->requestSent)->toBeTrue()
+            ->and(array_map(fn ($r) => $r->getUri()->getPath(), $s->http->requests()))
+            ->toBe(['/nikola-auth/tokens/login', "/api-private/api/{$path}", '/nikola-auth/tokens/login', '/api-private/api/get-supplies-v2']);
+
+        return;
+    }
+
+    throw new LogicException('Expected an AuthenticationException.');
+})->with([
+    'new authorization' => [fn ($c) => $c->newAuthorization(Nif::fromString('00000000T')), 'new-authorization'],
+    'cancel authorization' => [fn ($c) => $c->cancelAuthorization(Nif::fromString('00000000T'), Cups::fromString(Scenario::CUPS)), 'cancel-authorization'],
+    'unlink a partner user' => [fn ($c) => $c->partnerDeleteUser(Nif::fromString('00000000T')), 'partner-delete-user'],
+]);
+
+it('still logs in again and repeats a read that is safe to repeat after a rejected token', function () {
+    $s = Scenario::make();
+    $s->http->queue(
+        Responses::datadisError(datadisFixture('errors/401-spring.json'), 401),
+        Responses::text(Tokens::datadis(time())),
+        Responses::datadis('{"authorizations":[]}'),
+    );
+
+    expect($s->client->listAuthorization()->isEmpty())->toBeTrue()->and($s->http->requests())->toHaveCount(4);
 });

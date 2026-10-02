@@ -59,7 +59,7 @@ Base `DatadisException` (extends `RuntimeException`) carrying: HTTP status (null
 | Exception | When | Retry |
 |-----------|------|-------|
 | `ConfigurationException` | missing credentials or base URL | no, thrown before any HTTP call |
-| `AuthenticationException` | login 401/403, a 401 after the one re-login, or a 401 on a guarded query (never sent again) | no |
+| `AuthenticationException` | login 401/403, a 401 after the one re-login, or a 401 on a call that is not safe to repeat: a guarded query or a change (never sent again) | no |
 | `AuthorizationException` | 403, or the 400 "no se encuentra autorizado" of contract detail and consumption | no, the caller's consent or stale codes |
 | `RequestRejectedException` | 400 and other 4xx | never the identical call |
 | `NoDataException` | 404, 204, empty body | caller decides |
@@ -67,6 +67,7 @@ Base `DatadisException` (extends `RuntimeException`) carrying: HTTP status (null
 | `ServiceUnavailableException` | 5xx | only unguarded endpoints |
 | `TransportException` | anything the HTTP client throws, or a body that fails while being read: outcome unknown, `requestSent = true` | unguarded endpoints only; never automatically on guarded ones |
 | `UninterpretableResponseException` | 200 with unusable body, missing keys, bad dates or numbers | not blindly |
+| `PageLimitReachedException` | a walk through every page of a public search stopped at its limit with a full last page; thrown after every record read was yielded | go on from `nextPage` |
 
 Anything other than a Datadis exception thrown while decoding a 200 body (date parse, decimal parse, type errors) is wrapped in `UninterpretableResponseException` at one boundary, so nothing escapes as a raw `TypeError`.
 
@@ -74,7 +75,7 @@ Redaction happens in the base class (shape-based), so a subclass that interpolat
 
 ## Retries
 
-The client does **not** embed job-level retry policy. It offers an opt-in decorator that, for the calls known to be safe to repeat only (login, supplies, distributors, contract detail, groups, the authorization list, the partner reads and the public API; an allowlist, so a call added later is not retried until it is classified), retries network exceptions and 502/503/504 with exponential backoff and equal jitter, honouring `Retry-After` (seconds or HTTP date) unless it asks for more than the maximum wait, in which case the answer is returned as is. It never retries 4xx nor a plain 500 (Datadis answers an empty 500 consistently for some supplies). The authorization changes and unlinking a partner user are never retried either. On guarded endpoints (consumption, max power, reactive) it never retries automatically once the request may have been sent, including network exceptions. Sleep goes through an injectable callable so tests do not wait.
+The client does **not** embed job-level retry policy. It offers an opt-in decorator that, for the calls known to be safe to repeat only (login, supplies, distributors, contract detail, groups, the authorization list, the partner reads and the public API; an allowlist, so a call added later is not retried until it is classified), retries network exceptions and 502/503/504 with exponential backoff and equal jitter, honouring `Retry-After` (seconds or HTTP date) unless it asks for more than the maximum wait, in which case the answer is returned as is. It never retries 4xx nor a plain 500 (Datadis answers an empty 500 consistently for some supplies). The authorization changes and unlinking a partner user are never retried either, and after a 401 only the calls safe to repeat are sent again with a new token: a change could be applied twice, and a guarded query could cost it for 24 hours. On guarded endpoints (consumption, max power, reactive) it never retries automatically once the request may have been sent, including network exceptions. Sleep goes through an injectable callable so tests do not wait.
 
 ## The 24 h guard
 

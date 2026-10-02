@@ -6,7 +6,9 @@ use Eris\Generators;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
+use Lenorix\DatadisClient\Exceptions\PageLimitReachedException;
 use Lenorix\DatadisClient\PublicApi\Community;
+use Lenorix\DatadisClient\PublicApi\PageWalk;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApiClient;
 use Lenorix\DatadisClient\Tests\Support\AnswersLogin;
@@ -88,34 +90,54 @@ it('reads any JSON answer as records or a DatadisException', function () {
         });
 });
 
-it('walks pages until a short one and never asks for more than the limit', function () {
+it('walks pages until a short one, reports what it left out, and says so when the limit cut it short', function () {
     $this->limitTo(pbtIterations())
-        ->forAll(Generators::seq(Generators::choose(0, 3)), Generators::choose(1, 3), Generators::choose(1, 6))
-        ->then(function (array $pageLengths, int $pageSize, int $maxPages) {
+        ->forAll(
+            // For each page: readable rows, and unreadable rows that come with at least one readable one.
+            Generators::seq(Generators::tuple(Generators::choose(0, 3), Generators::choose(0, 2))),
+            Generators::choose(1, 3),
+            Generators::choose(1, 6),
+        )
+        ->then(function (array $pages, int $pageSize, int $maxPages) {
+            $page = fn (int $i) => array_slice([...array_fill(0, $pages[$i][0] ?? 0, ['a' => 1]), ...array_fill(0, ($pages[$i][0] ?? 0) > 0 ? $pages[$i][1] : 0, [])], 0, $pageSize);
             $http = new FakeHttpClient;
             $served = 0;
-            $http->queue(...array_fill(0, 10, function () use (&$served, $pageLengths, $pageSize) {
-                $length = $pageLengths[$served] ?? 0;
-                $served++;
-
-                return Responses::json((string) json_encode(array_fill(0, min($length, $pageSize), ['a' => 1])));
+            $http->queue(...array_fill(0, 10, function () use (&$served, $page) {
+                return Responses::json((string) json_encode($page($served++)));
             }));
             $query = new PublicSearchQuery(new DateTimeImmutable('2025-01-01'), new DateTimeImmutable('2025-01-02'), [Community::Madrid], ['05'], pageSize: $pageSize);
+            $walk = (new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), new AnswersLogin($http)))->apiSearchAll($query, $maxPages);
 
-            $records = iterator_to_array((new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), new AnswersLogin($http)))->apiSearchAll($query, $maxPages), false);
+            $records = 0;
+            $stopped = null;
+
+            try {
+                foreach ($walk as $record) {
+                    $records++;
+                }
+            } catch (PageLimitReachedException $e) {
+                $stopped = $e;
+            }
 
             // Expected: read pages while they are full, stop after the first short one or at the limit.
-            $expectedPages = 0;
-            $expectedRecords = 0;
+            [$expectedPages, $expectedRecords, $expectedSkipped, $full] = [0, 0, 0, false];
             while ($expectedPages < $maxPages) {
-                $length = min($pageLengths[$expectedPages] ?? 0, $pageSize);
-                $expectedPages++;
-                $expectedRecords += $length;
-                if ($length < $pageSize) {
+                $rows = $page($expectedPages++);
+                $readable = count(array_filter($rows, fn ($r) => $r !== []));
+                $expectedRecords += $readable;
+                $expectedSkipped += count($rows) - $readable;
+                $full = count($rows) === $pageSize;
+                if (! $full) {
                     break;
                 }
             }
 
-            expect($http->requests())->toHaveCount($expectedPages)->and($records)->toHaveCount($expectedRecords);
+            expect($http->requests())->toHaveCount($expectedPages)->and($records)->toBe($expectedRecords);
+
+            if ($full) {
+                expect($stopped?->nextPage)->toBe($expectedPages)->and($stopped?->skippedRows)->toBe($expectedSkipped);
+            } else {
+                expect($stopped)->toBeNull()->and($walk->getReturn())->toEqual(new PageWalk($expectedPages, $expectedSkipped));
+            }
         });
 });

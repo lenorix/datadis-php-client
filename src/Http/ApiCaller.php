@@ -21,8 +21,9 @@ use SensitiveParameter;
  * Makes an authenticated GET.
  *
  * A 401 means the token was rejected: the token is dropped, one new login is made and the call is
- * repeated once. A second 401 is final. A query Datadis refuses to repeat for 24 hours is not sent
- * again: whether Datadis counted the rejected one is unknown, and a repeat would cost the query. A network failure is never retried here, because it may
+ * repeated once. A second 401 is final. Only a call that is safe to repeat is sent again: whether
+ * Datadis acted on the rejected one is unknown, so a guarded query could cost the query for 24
+ * hours, and a call that changes data (an authorization, unlinking a user) could be applied twice. A network failure is never retried here, because it may
  * have reached Datadis and Datadis refuses an identical query for 24 hours.
  *
  * @internal
@@ -69,9 +70,9 @@ final class ApiCaller
      *
      * @param  array<string, string|int|list<string>|null>  $query
      */
-    public function getText(string $path, #[SensitiveParameter] array $query, string $endpoint): string
+    public function getText(string $path, #[SensitiveParameter] array $query, string $endpoint, bool $sendAgainAfter401 = true): string
     {
-        return ResponseClassifier::assertSuccessful($this->send($path, $query, $endpoint), $endpoint);
+        return ResponseClassifier::assertSuccessful($this->send($path, $query, $endpoint, $sendAgainAfter401), $endpoint);
     }
 
     /** @param  array<string, string|int|list<string>|null>  $query */

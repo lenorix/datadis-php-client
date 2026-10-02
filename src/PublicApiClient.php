@@ -9,8 +9,10 @@ use Lenorix\DatadisClient\Data\ApiResult;
 use Lenorix\DatadisClient\Decoding\Envelope;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
+use Lenorix\DatadisClient\Exceptions\PageLimitReachedException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Http\ApiCaller;
+use Lenorix\DatadisClient\PublicApi\PageWalk;
 use Lenorix\DatadisClient\PublicApi\PublicRecord;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApi\SelfConsumptionSearchQuery;
@@ -76,11 +78,14 @@ final class PublicApiClient
 
     /**
      * Every record of api-search, page after page from the query's page, until a page comes back
-     * shorter than the page size or $maxPages pages were read.
+     * shorter than the page size. Once done, the generator returns a PageWalk (`getReturn()`) with
+     * the pages read and the rows left out because they could not be read.
      *
-     * @return Generator<int, PublicRecord>
+     * @return Generator<int, PublicRecord, mixed, PageWalk>
      *
      * @throws InvalidRequestException when $maxPages is below 1
+     * @throws PageLimitReachedException after the last record, when $maxPages pages were read and the
+     *                                   last one was full, so more may remain
      */
     public function apiSearchAll(PublicSearchQuery $query, int $maxPages = 1000): Generator
     {
@@ -90,9 +95,10 @@ final class PublicApiClient
     /**
      * Every record of api-search-auto, page after page. See apiSearchAll().
      *
-     * @return Generator<int, PublicRecord>
+     * @return Generator<int, PublicRecord, mixed, PageWalk>
      *
      * @throws InvalidRequestException when $maxPages is below 1
+     * @throws PageLimitReachedException after the last record, when the limit cut the walk short
      */
     public function apiSearchAutoAll(SelfConsumptionSearchQuery $query, int $maxPages = 1000): Generator
     {
@@ -103,7 +109,7 @@ final class PublicApiClient
      * Reads page after page of a search, from the query's page on, until a short page or the limit.
      *
      * @param  array<string, string|int>  $query
-     * @return Generator<int, PublicRecord>
+     * @return Generator<int, PublicRecord, mixed, PageWalk>
      */
     private function walk(string $endpoint, array $query, int $maxPages): Generator
     {
@@ -117,12 +123,15 @@ final class PublicApiClient
 
     /**
      * @param  array<string, string|int>  $query
-     * @return Generator<int, PublicRecord>
+     * @return Generator<int, PublicRecord, mixed, PageWalk>
      */
     private function pages(string $endpoint, array $query, int $maxPages): Generator
     {
-        for ($read = 0, $page = (int) $query['page']; $read < $maxPages; $read++, $page++) {
+        $skipped = 0;
+
+        for ($read = 1, $page = (int) $query['page']; ; $read++, $page++) {
             $result = $this->call($endpoint, ['page' => $page] + $query);
+            $skipped += $result->skippedRows;
 
             // A generator numbers plain yields on its own, so keys run on across pages.
             foreach ($result->records as $record) {
@@ -130,7 +139,17 @@ final class PublicApiClient
             }
 
             if ($result->count() + $result->skippedRows < (int) $query['pageSize']) {
-                return;
+                return new PageWalk($read, $skipped);
+            }
+
+            // A full last page says nothing about the next one: stopping quietly would look complete.
+            if ($read >= $maxPages) {
+                throw new PageLimitReachedException(
+                    "{$endpoint}: stopped after {$read} pages, the limit, and the last one was full; more records may remain from page ".($page + 1).'.',
+                    $endpoint,
+                    $page + 1,
+                    $skipped,
+                );
             }
         }
     }

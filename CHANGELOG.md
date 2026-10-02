@@ -10,8 +10,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Decimal JSON numbers are read as their exact text, never through a float, so every digit Datadis sends is kept (`0.123456789012345678901` was read as `0.12345678901234568`). `raw` holds them as text (`"0.301"` instead of `0.301`); integers are unchanged.
 
+### Added
+
+- `PageLimitReachedException`, thrown by `apiSearchAll()` and `apiSearchAutoAll()` after the last record when they stop at `maxPages` with a full last page, so more records may remain; it carries `nextPage` and `skippedRows`. When a walk ends on its own, the generator returns a `PageWalk` with the pages read and the rows left out across them.
+
 ### Fixed
 
+- `newAuthorization()`, `cancelAuthorization()` and `partnerDeleteUser()` were sent again after a 401 and a new login, so a change could be applied twice. After a 401 only the calls safe to repeat are sent again; the others fail with an `AuthenticationException` whose `requestSent` is `true`.
+- `apiSearchAll()` and `apiSearchAutoAll()` stopped quietly at `maxPages` even when the last page was full, and dropped the count of unreadable rows of each page.
 - The public API took any object answered with a 200 as one record, so `{"message":"maintenance"}` became a record without data. A single object must now carry a field of a search or sum row, or the answer is an `UninterpretableResponseException`.
 - `getContractDetailOf()`, `getMaxPowerOf()` and `getReactiveDataOf()` refused a supply listed without a point type, which only consumption needs. Only `getConsumptionDataOf()` asks for it now.
 - A token store that ignores TTLs could hand back an expired token, and every call failed with a 401 until it went. A cached token is now checked against its `exp`.
