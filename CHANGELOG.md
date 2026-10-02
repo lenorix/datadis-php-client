@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- A `timezone` setting that is not a time zone no longer shows its value, neither in the message nor in a chained exception: a misplaced setting may hold a NIF.
+
+### Documentation
+
+- Schedule a daily sync in Madrid time, between about 04:00 and 22:00: the daily calls follow the Madrid calendar day, and a job fixed in UTC can run twice on one day, or skip one, when the clocks change. Split the answer of the daily calls by month before adding readings up, since every other day it holds two months.
+
 ## [0.4.0] - 2026-10-02
 
 ### Added

@@ -66,7 +66,9 @@ final class MonthPlanner
      * on odd days, so consecutive days never send the same query and each range comes back about
      * every 48 hours. The previous month is refreshed every other day too, which also brings its
      * last days, published after it ended. A second run on the same day gets the same range, which
-     * the ledger refuses: taking the other one would block tomorrow's.
+     * the ledger refuses: taking the other one would block tomorrow's. Schedule the job at a fixed
+     * hour in Madrid time, well clear of midnight: one fixed in UTC can run twice on the same Madrid
+     * day, or skip one, when the clocks change, and that run is refused.
      *
      * Given a supply, the range keeps to its contract: a contract that starts this month only has
      * the current month (refreshed every other day), and one that ended before this month, or

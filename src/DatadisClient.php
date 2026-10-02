@@ -123,8 +123,9 @@ final class DatadisClient
 
         try {
             $timeZone = $zone === null ? null : new DateTimeZone($zone);
-        } catch (Exception $e) {
-            throw new ConfigurationException("The Datadis setting \"timezone\" is not a time zone: {$zone}.", $e);
+        } catch (Exception) {
+            // Neither the value nor PHP's exception, which repeats it: a misplaced setting may hold a NIF.
+            throw new ConfigurationException('The Datadis setting "timezone" is not a time zone.');
         }
 
         return new self(
@@ -350,6 +351,8 @@ final class DatadisClient
      * The consumption of the current month for a sync that runs every day: the range comes from
      * MonthPlanner::latest(), so today's query is never yesterday's, and on odd days it also
      * brings the previous month. A second run on the same day is refused like any repeat.
+     * Schedule the job at a fixed hour in Madrid time (the range follows the Madrid calendar day),
+     * well clear of midnight and of 02:00-03:00; split the records by month before adding them up.
      *
      * @return ApiResult<ConsumptionReading>
      *

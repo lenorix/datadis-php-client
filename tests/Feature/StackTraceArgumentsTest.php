@@ -271,3 +271,24 @@ it('keeps a CUPS out of every dump of the traces of a failed call', function () 
     expect(tracesOf(fn () => $s->client->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '2', Month::of(2026, 1))))
         ->not->toContain('ES0000000000000000AA0A');
 });
+
+it('keeps a NIF given as the time zone out of the message, the chained exceptions and the traces', function () {
+    $settings = ['username' => 'A00000000', 'password' => 'secret', 'timezone' => '00000000T'];
+
+    try {
+        DatadisClient::fromArray($settings);
+    } catch (ConfigurationException $e) {
+        $all = '';
+
+        for ($x = $e; $x !== null; $x = $x->getPrevious()) {
+            $all .= $x->getMessage()."\n";
+        }
+
+        expect($all)->not->toContain('00000000T')->toContain('timezone')
+            ->and(tracesOf(fn () => DatadisClient::fromArray($settings)))->not->toContain('00000000T');
+
+        return;
+    }
+
+    throw new LogicException('Expected a ConfigurationException.');
+});

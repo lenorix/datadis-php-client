@@ -183,7 +183,17 @@ $readings = $client->getLatestConsumptionDataOf($supply);   // ApiResult, as get
 $peaks = $client->getLatestMaxPowerOf($supply);
 ```
 
-Store the records by their time: a two-month answer repeats the days you already have. The day is the calendar day in Madrid, so run the job at a fixed time well clear of midnight there: a run that slips past midnight lands on the next day's range. A second run on the same day asks the same range again: with a shared ledger it is refused before sending, and without one Datadis refuses it; either way the next day is not affected. A contract that started this month has only one range, so it is updated every other day. Reactive data shares its 24 hour key with maximum power, so ask it for closed months only. `MonthPlanner::latest()` gives the same plan if you prefer to make the calls yourself.
+Every other day the answer holds two months. Store the records by their time, since it repeats days you already have, and split them by month before adding anything up, so the previous month's readings do not end up in this month's totals:
+
+```php
+$byMonth = [];
+
+foreach ($readings->records as $reading) {
+    $byMonth[Month::fromDate($reading->day)->format()][] = $reading;   // '2026/09' => [...]
+}
+```
+
+**Schedule the job in Madrid time**, at a fixed hour between about 04:00 and 22:00 (in Laravel, `->dailyAt('06:00')->timezone('Europe/Madrid')`). The range follows the calendar day in Madrid, so a job fixed in UTC can run twice on the same Madrid day, or skip one, when the clocks change, and a run near midnight can land on the next day's range; either way that run is refused and the day's data waits for the next one. Kept in that band, two runs that ask the same range are always at least 29 hours apart (30, or 29 across a clock change), well outside the 24 hours. A second run on the same day asks the same range again: with a shared ledger it is refused before sending, and without one Datadis refuses it; either way the next day is not affected. A contract that started this month has only one range, so it is updated every other day. Reactive data shares its 24 hour key with maximum power, so ask it for closed months only. `MonthPlanner::latest()` gives the same plan if you prefer to make the calls yourself.
 
 ### Authorizations, groups and partner accounts
 
