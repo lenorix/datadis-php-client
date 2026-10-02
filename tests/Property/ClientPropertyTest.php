@@ -7,6 +7,7 @@ use Eris\Generators;
 use Lenorix\DatadisClient\ApiVersion;
 use Lenorix\DatadisClient\Data\ReactiveEnergy;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
+use Lenorix\DatadisClient\Support\Decimal;
 use Lenorix\DatadisClient\Tests\Support\Gen;
 use Lenorix\DatadisClient\Tests\Support\Payloads;
 use Lenorix\DatadisClient\Tests\Support\Responses;
@@ -333,10 +334,13 @@ it('decodes valid supply, contract, consumption and maximum power rows exactly, 
             $readReadings = $s->client->getConsumptionData($cups, '2', 5, Month::of(2025, 11), Month::of(2025, 11))->records;
             $readPeaks = $s->client->getMaxPower($cups, '2', Month::of(2025, 11), Month::of(2025, 11))->records;
 
-            expect(array_map(fn ($r) => $r->raw, $readSupplies))->toBe($supplies)
-                ->and(array_map(fn ($r) => $r->raw, $readContracts))->toBe($contracts)
-                ->and(array_map(fn ($r) => $r->raw, $readReadings))->toBe($readings)
-                ->and(array_map(fn ($r) => $r->raw, $readPeaks))->toBe($peaks);
+            // raw is the answer as received: a decimal JSON number arrives as its own text.
+            $received = fn (array $rows) => array_map(fn (array $row) => array_map(fn ($v) => is_array($v) ? array_map(fn ($x) => is_float($x) ? Decimal::shortest($x) : $x, $v) : (is_float($v) ? Decimal::shortest($v) : $v), $row), $rows);
+
+            expect(array_map(fn ($r) => $r->raw, $readSupplies))->toBe($received($supplies))
+                ->and(array_map(fn ($r) => $r->raw, $readContracts))->toBe($received($contracts))
+                ->and(array_map(fn ($r) => $r->raw, $readReadings))->toBe($received($readings))
+                ->and(array_map(fn ($r) => $r->raw, $readPeaks))->toBe($received($peaks));
 
             $seen = [];
 

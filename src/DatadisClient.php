@@ -318,7 +318,8 @@ final class DatadisClient
         MeasurementType $measurementType = MeasurementType::Hourly,
         ?Nif $authorizedNif = null,
     ): ApiResult {
-        [$cups, $code, $pointType] = $this->queryable($supply, $startDate);
+        [$cups, $code] = $this->queryable($supply, $startDate);
+        $pointType = $this->pointTypeOf($supply);
 
         return $this->getConsumptionData($cups, $code, $pointType, $startDate, $endDate, $measurementType, $authorizedNif);
     }
@@ -582,22 +583,33 @@ final class DatadisClient
     }
 
     /**
-     * Datadis refuses with a 400 a range that starts before the month the contract starts (verified),
-     * and the refusal still counts for 24 hours, so it is refused here first.
+     * The CUPS and distributor code every call of a supply needs. Datadis refuses with a 400 a range
+     * that starts before the month the contract starts (verified), and the refusal still counts for
+     * 24 hours, so it is refused here first.
      *
-     * @return array{Cups, string, int}
+     * @return array{Cups, string}
      */
     private function queryable(#[SensitiveParameter] Supply $supply, ?Month $startDate = null): array
     {
-        if (! $supply->isQueryable()) {
-            throw new InvalidRequestException('The supply was listed without a usable CUPS, distributor code or point type; list the supplies again.');
+        if (! Cups::isValid($supply->cups) || ! Supply::isValidDistributorCode($supply->distributorCode) || $supply->distributorCode === null) {
+            throw new InvalidRequestException('The supply was listed without a usable CUPS or distributor code; list the supplies again.');
         }
 
         if ($startDate !== null && $supply->validDateFrom !== null && $startDate->isBefore(Month::fromDate($supply->validDateFrom))) {
             throw new InvalidRequestException('The range starts before the contract of the supply ('.Month::fromDate($supply->validDateFrom)->format().'); Datadis refuses it, and the refusal counts for 24 hours. MonthPlanner::ranges() keeps to the contract.');
         }
 
-        return [Cups::fromString($supply->cups), $supply->distributorCode, $supply->pointType];
+        return [Cups::fromString($supply->cups), $supply->distributorCode];
+    }
+
+    /** Only consumption takes the point type. */
+    private function pointTypeOf(#[SensitiveParameter] Supply $supply): int
+    {
+        if ($supply->pointType === null || ! Supply::isValidPointType($supply->pointType)) {
+            throw new InvalidRequestException('The supply was listed without a usable point type, which consumption needs; list the supplies again.');
+        }
+
+        return $supply->pointType;
     }
 
     /**

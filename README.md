@@ -236,7 +236,7 @@ Every list method returns an `ApiResult`:
 
 | | |
 |---|---|
-| `records` | The decoded rows. Each keeps the untouched row in `raw`. |
+| `records` | The decoded rows. Each keeps the row in `raw` as received, with decimal numbers as their exact text. |
 | `isEmpty()` | Nothing came back. Normal for a month not published yet. It is never "zero consumption". |
 | `distributorErrors` | Failures of a distributor that Datadis reports inside a successful answer (API v2). |
 | `isEmptyBecauseOfErrors()` | Empty because a distributor failed, not because there is no data. |
@@ -246,7 +246,7 @@ Some conventions hold everywhere:
 
 - **Names are Datadis's own.** Methods are named after the endpoints (`get-consumption-data` is `getConsumptionData()`, `api-search` is `apiSearch()`), and every field Datadis sends keeps its key exactly, odd spelling included (`consumptionKWh`, `contractedPowerkW`, `municipioCode`, `codeDescription`), so anything in the official documentation can be found here by its name. Only values the client works out itself have names of their own (`start`, `end`, `hourOfDay`, `day`).
 
-- **Numbers are decimal strings, never floats, and never rounded**: every digit Datadis sends is kept (numbers sent as JSON numbers go through PHP's float on the way, which is exact up to about 15 significant digits, far beyond any real value), written with at least three decimals for energy (kWh), maximum power (kW) and installed capacity, and at least two for contracted power (`3.45`, `1.725`). Installed capacity comes in whatever unit Datadis sends: the documentation says kW, its only sample looks like W, so check it against your own data.
+- **Numbers are decimal strings, never floats, and never rounded**: every digit Datadis sends is kept, also of numbers sent as JSON numbers, which never go through a float (so `raw` holds a decimal JSON number as its text, `"0.301"`), written with at least three decimals for energy (kWh), maximum power (kW) and installed capacity, and at least two for contracted power (`3.45`, `1.725`). Installed capacity comes in whatever unit Datadis sends: the documentation says kW, its only sample looks like W, so check it against your own data.
 - **Dates and times are `DateTimeImmutable`** in the zone the client was given (Europe/Madrid by default). A contract or supply without an end has `null` there and `isOpenEnded()` returns `true`.
 - **Consumption rows keep the order Datadis sent them in**, and each one knows its real interval: `start`, `end`, `index` (hour 0 to 23, or quarter 0 to 95) and `hourOfDay` (0 to 23 for both).
 

@@ -84,6 +84,18 @@ it('treats a no content answer as an empty page', function () {
     expect(publicApi($http)->apiSearch(searchQuery())->isEmpty())->toBeTrue();
 });
 
+it('refuses a single object without the fields of a record instead of reading it as one', function (string $body) {
+    $http = (new FakeHttpClient)->queue(Responses::json($body));
+
+    expect(fn () => publicApi($http)->apiSearch(searchQuery()))->toThrow(UninterpretableResponseException::class, 'without the fields of a record');
+})->with(['{"message":"maintenance"}', '{"status":"DOWN","error":"x"}']);
+
+it('reads a single sum object as one record', function () {
+    $http = (new FakeHttpClient)->queue(Responses::json('{"sumEnergy":12.5,"sumContract":3}'));
+
+    expect(publicApi($http)->apiSumSearch(searchQuery())->records[0]->sumEnergy())->toBe('12.500');
+});
+
 it('refuses answers it cannot read', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('{"content":"x"}'));
 

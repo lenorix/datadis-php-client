@@ -18,6 +18,7 @@ use Lenorix\DatadisClient\Support\PersonalDataRedactor;
 use Lenorix\DatadisClient\Support\SystemClock;
 use Psr\Clock\ClockInterface;
 use Psr\SimpleCache\CacheInterface;
+use SensitiveParameter;
 use Throwable;
 
 /**
@@ -80,7 +81,9 @@ final class TokenProvider
             $cached = null;
         }
 
-        if (is_string($cached) && self::clean($cached) === $cached) {
+        // The store's TTL is not trusted alone: a store that ignores it would hand back an expired
+        // token, and every call would fail with a 401 until it went.
+        if (is_string($cached) && self::clean($cached) === $cached && ! $this->expired($cached)) {
             return $cached;
         }
 
@@ -102,6 +105,14 @@ final class TokenProvider
         }
 
         return $token;
+    }
+
+    /** Past its `exp`, less the skew; a token without one is trusted to the TTL it was stored with. */
+    private function expired(#[SensitiveParameter] string $token): bool
+    {
+        $expiry = JwtExpiry::read($token);
+
+        return $expiry !== null && $expiry - self::SKEW_SECONDS <= $this->clock->now()->getTimestamp();
     }
 
     public function invalidate(): void

@@ -43,6 +43,33 @@ it('logs in again once the token is about to expire', function () {
     expect($stack->http->requests())->toHaveCount(2);
 });
 
+it('logs in again when a store that ignores the TTL hands back an expired token', function () {
+    $clock = new FrozenClock;
+    $cache = new QuirkyCache;
+    $stack = new Stack(clock: $clock, cache: $cache);
+    $stack->http->queue($stack->loginOk(3600));
+
+    $first = $stack->tokens->token();
+    $clock->advance(3600);
+    $stack->http->queue($stack->loginOk(3600));
+    $second = $stack->tokens->token();
+
+    expect($second)->not->toBe($first)
+        ->and($stack->http->requests())->toHaveCount(2)
+        ->and(array_values($cache->items))->toBe([$second]);
+});
+
+it('takes a token from a store that ignores the TTL while it is still valid', function () {
+    $clock = new FrozenClock;
+    $stack = new Stack(clock: $clock, cache: new QuirkyCache);
+    $stack->http->queue($stack->loginOk(3600));
+
+    $first = $stack->tokens->token();
+    $clock->advance(3600 - TokenProvider::SKEW_SECONDS - 1);
+
+    expect($stack->tokens->token())->toBe($first)->and($stack->http->requests())->toHaveCount(1);
+});
+
 it('falls back to a conservative lifetime when the token has no exp', function () {
     $clock = new FrozenClock;
     $stack = new Stack(clock: $clock, cache: new InMemoryCache($clock));

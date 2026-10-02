@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+use Brick\Math\BigDecimal;
 use Eris\Generators;
+use Lenorix\DatadisClient\Http\ResponseClassifier;
 use Lenorix\DatadisClient\Support\Decimal;
+use Lenorix\DatadisClient\Tests\Support\Responses;
 
 /** The decimal text of $units / 10^$decimals, written by hand: an oracle independent of any library. */
 function shifted(int $units, int $decimals): string
@@ -69,5 +72,18 @@ it('never fails in any other way than InvalidArgumentException on arbitrary stri
             } catch (InvalidArgumentException) {
                 expect($numeric)->toBeFalse();
             }
+        });
+});
+
+it('keeps every digit of a decimal JSON number from the answer to the value, however long', function () {
+    $this->limitTo(pbtIterations())
+        ->forAll(Generators::choose(0, 999_999), Generators::seq(Generators::choose(0, 9)), Generators::bool())
+        ->then(function (int $whole, array $fraction, bool $negative) {
+            // At least three decimals, so the minimum scale adds no zeros, and a last digit that is not 0.
+            $fraction = array_slice([0, 0, ...$fraction], 0, 40);
+            $text = ($negative ? '-' : '').$whole.'.'.implode('', $fraction).'7';
+            $decoded = ResponseClassifier::decode(Responses::json("{\"v\":{$text}}"), 'endpoint');
+
+            expect(Decimal::of($decoded['v'], 3))->toBe((string) BigDecimal::of($text));
         });
 });

@@ -93,7 +93,7 @@ final class Fields
             $integer = match (true) {
                 is_int($value) => $value,
                 is_float($value) => is_finite($value) && floor($value) === $value && abs($value) < 2 ** 63 ? (int) $value : null,
-                is_string($value) => ($int = filter_var(trim($value), FILTER_VALIDATE_INT)) === false ? null : $int,
+                is_string($value) => self::integerText(trim($value)),
                 default => null,
             };
 
@@ -103,6 +103,18 @@ final class Fields
         }
 
         return null;
+    }
+
+    /** An integer written as text, also with a zero fraction (`5.0`), as a decimal JSON number now arrives. */
+    private static function integerText(string $text): ?int
+    {
+        if (preg_match('/^(-?\d+)\.0+$/D', $text, $match) === 1) {
+            $text = $match[1];
+        }
+
+        $int = filter_var($text, FILTER_VALIDATE_INT);
+
+        return $int === false ? null : $int;
     }
 
     /**

@@ -30,7 +30,7 @@ it('reads no integer from a number too big for one', function (mixed $value) {
 
 it('reads integers only when they are whole', function (mixed $value, ?int $expected) {
     expect(Fields::integer(['k' => $value], 'k'))->toBe($expected);
-})->with([[5, 5], [5.0, 5], [5.5, null], [INF, null], [NAN, null], [' 7 ', 7], ['-3', -3], ['7.0', null], ['x', null], [null, null]]);
+})->with([[5, 5], [5.0, 5], [5.5, null], [INF, null], [NAN, null], [' 7 ', 7], ['-3', -3], ['7.0', 7], ['-7.00', -7], ['7.5', null], ['7.', null], ['x', null], [null, null]]);
 
 it('reads dates with surrounding spaces and ignores empty ones', function () {
     $zone = new DateTimeZone('Europe/Madrid');

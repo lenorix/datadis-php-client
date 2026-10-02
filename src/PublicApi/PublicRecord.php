@@ -23,6 +23,25 @@ final readonly class PublicRecord
 {
     public const int HOURLY_BUCKETS = 25;
 
+    /** Fields every captured search or sum row has at least one of. */
+    private const array RECORD_FIELDS = ['sumEnergy', 'sumContract', 'sumContracts', 'sumPower', 'dataDay', 'dataMonth', 'dataYear', 'mi1'];
+
+    /**
+     * Whether an object carries a field of a search or sum row.
+     *
+     * @param  array<array-key, mixed>  $object
+     */
+    public static function looksLikeOne(#[SensitiveParameter] array $object): bool
+    {
+        foreach (self::RECORD_FIELDS as $field) {
+            if (array_key_exists($field, $object)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** @param array<array-key, mixed> $raw */
     private function __construct(public array $raw) {}
 

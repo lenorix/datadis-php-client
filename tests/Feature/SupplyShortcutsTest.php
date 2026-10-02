@@ -96,3 +96,24 @@ it('sends a range that starts in the month the contract starts', function () {
 
     expect($s->query()['startDate'])->toBe('2026/03');
 });
+
+it('queries the contract, maximum power and reactive data of a supply listed without a point type, which only consumption needs', function (Closure $call, string $path, string $answer) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis($answer));
+
+    $call($s->client, supplyAsListed(['pointType' => null]));
+
+    expect($s->http->requests()[1]->getUri()->getPath())->toBe("/api-private/api/{$path}-v2")
+        ->and($s->query())->not->toHaveKey('pointType');
+})->with([
+    'contract detail' => [fn (DatadisClient $c, Supply $s) => $c->getContractDetailOf($s), 'get-contract-detail', '{"contract":[],"distributorError":[]}'],
+    'max power' => [fn (DatadisClient $c, Supply $s) => $c->getMaxPowerOf($s, Month::of(2026, 7)), 'get-max-power', '{"maxPower":[],"distributorError":[]}'],
+    'reactive' => [fn (DatadisClient $c, Supply $s) => $c->getReactiveDataOf($s, Month::of(2026, 7)), 'get-reactive-data', '{"reactiveEnergy":{},"distributorError":[]}'],
+]);
+
+it('refuses the consumption of a supply listed without a point type, naming it', function () {
+    $s = Scenario::make();
+
+    expect(fn () => $s->client->getConsumptionDataOf(supplyAsListed(['pointType' => null]), Month::of(2026, 7)))->toThrow(InvalidRequestException::class, 'point type')
+        ->and($s->http->requests())->toBe([]);
+});

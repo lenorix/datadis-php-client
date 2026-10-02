@@ -13,6 +13,7 @@ use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Exceptions\RequestRejectedException;
 use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
+use Lenorix\DatadisClient\Support\ExactJson;
 use Lenorix\DatadisClient\Support\PersonalDataRedactor;
 use Psr\Http\Message\ResponseInterface;
 
@@ -51,7 +52,8 @@ final class ResponseClassifier
         }
 
         // Not chained to a JsonException: its trace holds the whole body, personal data included.
-        $decoded = json_decode(trim($body), true, 512, JSON_BIGINT_AS_STRING);
+        // Decimal numbers arrive as their own text: a float would drop digits past about 15.
+        $decoded = ExactJson::decode(trim($body));
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new UninterpretableResponseException("{$endpoint}: the answer is not valid JSON.", $status, self::detail($body), $endpoint);

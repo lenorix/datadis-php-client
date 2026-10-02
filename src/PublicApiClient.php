@@ -187,7 +187,12 @@ final class PublicApiClient
             }
         }
 
-        // TOLERATED, NO SOURCE: a single object is read as one row.
+        // TOLERATED, NO SOURCE: a single object is read as one row, but only with a field of a
+        // record: a 200 with {"message": "maintenance"} is a failure, not a record without data.
+        if (! PublicRecord::looksLikeOne($decoded)) {
+            throw new UninterpretableResponseException("{$endpoint}: the answer is an object without the fields of a record.", endpoint: $endpoint);
+        }
+
         return [$decoded];
     }
 }

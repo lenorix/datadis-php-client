@@ -16,7 +16,8 @@ use InvalidArgumentException;
  */
 final class Decimal
 {
-    private const int MAX_LENGTH = 64;
+    /** The longest numeric text taken: no real value needs more, and an exponent is bounded too. */
+    public const int MAX_LENGTH = 64;
 
     public static function of(mixed $value, int $minScale): string
     {

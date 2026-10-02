@@ -16,7 +16,7 @@ The architecture as built. Each decision states the reason so it can be revisite
 - **No client interface.** Applications fake Datadis over HTTP in their tests; an interface would turn every new endpoint into a breaking change.
 - **Two ways to build the client, kept apart**: the constructor for plain code and `fromArray()` for application settings. Their parameter names are part of the 1.0 API. The wiring shared with the public API lives in the internal `Http\Connection`.
 - **Both entry points at the root**: `DatadisClient` for the private API and `PublicApiClient` for the public one; the public API's queries and records live in `PublicApi`.
-- **Kept as they are:** tolerated answer shapes no source documents (marked `TOLERATED, NO SOURCE` in the code), contract detail as a list like Datadis's answer, raw answers of the calls never captured (typed once a real answer is seen), and one time zone per client.
+- **Kept as they are:** tolerated answer shapes no source documents (marked `TOLERATED, NO SOURCE` in the code; a single public object is only read as a record when it has a field of one), contract detail as a list like Datadis's answer, raw answers of the calls never captured (typed once a real answer is seen), and one time zone per client.
 
 ## Dependencies
 
@@ -41,7 +41,7 @@ The architecture as built. Each decision states the reason so it can be revisite
 - `Nif`: normalisation, shape and control character (NIF/NIE modulo 23, CIF control digit or letter), checked by default because a mistyped NIF would be sent and refused; `checkControl: false` skips the check. Equality is `equals()` on every value object.
 - `MeasurementType`: backed enum (`0` hourly, `1` quarter-hourly).
 - Open values stay open: `pointType` int, `distributorCode` string, `obtainMethod` string with helper predicates.
-- Energy and power values: exact decimal strings with a minimum scale, never floats and never rounded in derived data. The raw float from JSON is kept in `raw`.
+- Energy and power values: exact decimal strings with a minimum scale, never floats and never rounded in derived data. A decimal JSON number never goes through a float: it is quoted before decoding (`ExactJson`), so `raw` keeps its exact text and every digit reaches the value.
 
 ## Results, not silent failures
 
