@@ -49,9 +49,12 @@ final class Transport
         } catch (Throwable $e) {
             // A PSR-18 client should only throw ClientExceptionInterface, but a misbehaving one or a
             // failing body stream must not break the exception contract of this package either.
+            // The HTTP client's own message may describe the request it was sending. The login carries
+            // the password in its body, in whatever encoding the client prints it, so nothing of that
+            // message is kept for it; the redaction of the others removes identifiers and tokens.
             throw new TransportException(
                 "{$endpoint}: the HTTP client failed before a whole answer arrived (".$e::class.').',
-                detail: $e->getMessage(),
+                detail: $preflight ? null : $e->getMessage(),
                 endpoint: $endpoint,
                 requestSent: ! $preflight,
             );

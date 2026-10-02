@@ -98,6 +98,15 @@ it('reads a single sum object as one record', function () {
     expect(publicApi($http)->apiSumSearch(searchQuery())->records[0]->sumEnergy())->toBe('12.500');
 });
 
+it('leaves out a row without the fields of a record, and refuses a list of only such rows', function () {
+    $http = (new FakeHttpClient)->queue(Responses::json('[{"sumEnergy":1},{"message":"maintenance"}]'), Responses::json('[{"message":"maintenance"}]'));
+
+    $result = publicApi($http)->apiSearch(searchQuery());
+
+    expect($result->records)->toHaveCount(1)->and($result->skippedRows)->toBe(1)
+        ->and(fn () => publicApi($http)->apiSearch(searchQuery()))->toThrow(UninterpretableResponseException::class, 'none of the 1 rows');
+});
+
 it('refuses answers it cannot read', function () {
     $http = (new FakeHttpClient)->queue(Responses::json('{"content":"x"}'));
 
@@ -133,7 +142,7 @@ it('walks every page until an empty or short page', function () {
 });
 
 it('stops at the page limit after yielding every record read, and says where more may remain', function () {
-    $http = (new FakeHttpClient)->queue(...array_fill(0, 3, Responses::json(json_encode([['a' => 1]]))));
+    $http = (new FakeHttpClient)->queue(...array_fill(0, 3, Responses::json(json_encode([['sumEnergy' => 1]]))));
     $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], page: 2, pageSize: 1);
     $records = [];
 
@@ -155,7 +164,7 @@ it('stops at the page limit after yielding every record read, and says where mor
 });
 
 it('returns what the walk read, the rows it left out included', function () {
-    $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},[],{"a":2}]'), Responses::json('[{"a":3},[]]'));
+    $http = (new FakeHttpClient)->queue(Responses::json('[{"sumEnergy":1},[],{"sumEnergy":2}]'), Responses::json('[{"sumEnergy":3},[]]'));
     $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], pageSize: 3);
     $walk = publicApi($http)->apiSearchAll($query);
 
@@ -172,7 +181,7 @@ it('refuses a page limit below 1 at the call, before reading anything', function
 })->with(['apiSearchAll', 'apiSearchAutoAll'])->with([0, -1]);
 
 it('walks every page of the self-consumption search', function () {
-    $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},{"a":2}]'), Responses::json('[{"a":3}]'));
+    $http = (new FakeHttpClient)->queue(Responses::json('[{"sumEnergy":1},{"sumEnergy":2}]'), Responses::json('[{"sumEnergy":3}]'));
     $query = new SelfConsumptionSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], pageSize: 2);
 
     $records = iterator_to_array(publicApi($http)->apiSearchAutoAll($query));
@@ -189,14 +198,14 @@ it('reports a 404 of the public API as no data', function () {
 })->throws(NoDataException::class);
 
 it('numbers the records of all pages from zero', function () {
-    $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},{"a":2}]'), Responses::json('[{"a":3}]'));
+    $http = (new FakeHttpClient)->queue(Responses::json('[{"sumEnergy":1},{"sumEnergy":2}]'), Responses::json('[{"sumEnergy":3}]'));
     $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], pageSize: 2);
 
     expect(array_keys(iterator_to_array(publicApi($http)->apiSearchAll($query))))->toBe([0, 1, 2]);
 });
 
 it('counts an unusable row as part of a full page', function () {
-    $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},5]'), Responses::json('[]'));
+    $http = (new FakeHttpClient)->queue(Responses::json('[{"sumEnergy":1},5]'), Responses::json('[]'));
     $query = new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid], ['05'], pageSize: 2);
 
     iterator_to_array(publicApi($http)->apiSearchAll($query));
@@ -205,13 +214,13 @@ it('counts an unusable row as part of a full page', function () {
 });
 
 it('reports unusable rows', function () {
-    $http = (new FakeHttpClient)->queue(Responses::json('[{"a":1},5,[]]'));
+    $http = (new FakeHttpClient)->queue(Responses::json('[{"sumEnergy":1},5,[]]'));
 
     expect(publicApi($http)->apiSearch(searchQuery())->skippedRows)->toBe(2);
 });
 
 it('reads an empty 200 as an empty page but fails on an envelope key that is not a list', function () {
-    $http = (new FakeHttpClient)->queue(Responses::empty(200), Responses::json('{"content":{"a":1}}'));
+    $http = (new FakeHttpClient)->queue(Responses::empty(200), Responses::json('{"content":{"sumEnergy":1}}'));
 
     expect(publicApi($http)->apiSearch(searchQuery())->isEmpty())->toBeTrue()
         ->and(fn () => publicApi($http)->apiSearch(searchQuery()))->toThrow(UninterpretableResponseException::class);

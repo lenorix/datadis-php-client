@@ -32,12 +32,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A login that failed in the HTTP client no longer carries the client's own message in `detail`: it may describe the request, whose body holds the password in whatever encoding the client prints. Data requests keep it, redacted.
+
 - The `...Of()` calls refuse a range that ends after the month the supply's contract ended, as they refuse one that starts before it: a production consumer reports Datadis refuses it, and the refusal counts.
 - `RequestLedger::rememberAt()` throws an `InvalidRequestException`, like the rest of the package, for an attempt in the future.
 
 - `newAuthorization()`, `cancelAuthorization()` and `partnerDeleteUser()` were sent again after a 401 and a new login, so a change could be applied twice. After a 401 only the calls safe to repeat are sent again; the others fail with an `AuthenticationException` whose `requestSent` is `true`.
 - `apiSearchAll()` and `apiSearchAutoAll()` stopped quietly at `maxPages` even when the last page was full, and dropped the count of unreadable rows of each page.
-- The public API took any object answered with a 200 as one record, so `{"message":"maintenance"}` became a record without data. A single object must now carry a field of a search or sum row, or the answer is an `UninterpretableResponseException`.
+- The public API took any object answered with a 200 as a record, alone or inside a list, so `{"message":"maintenance"}` became a record without data. Every row must now carry a field of a search or sum row: one without is left out and counted in `skippedRows`, and an answer with no such row at all is an `UninterpretableResponseException`.
 - `getContractDetailOf()`, `getMaxPowerOf()` and `getReactiveDataOf()` refused a supply listed without a point type, which only consumption needs. Only `getConsumptionDataOf()` asks for it now.
 - A token store that ignores TTLs could hand back an expired token, and every call failed with a 401 until it went. A cached token is now checked against its `exp`.
 

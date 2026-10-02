@@ -15,8 +15,11 @@ use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 use Lenorix\DatadisClient\Tests\Support\QuirkyCache;
 use Lenorix\DatadisClient\Tests\Support\Responses;
+use Lenorix\DatadisClient\Tests\Support\Scenario;
 use Lenorix\DatadisClient\Tests\Support\Stack;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
+use Lenorix\DatadisClient\Time\Month;
+use Lenorix\DatadisClient\Values\Cups;
 
 it('logs in once and reuses the cached token', function () {
     $stack = new Stack;
@@ -174,6 +177,43 @@ it('refuses login bodies that are not a token', function (string $body) {
     'token with inner whitespace' => 'abc def',
     'token with a newline inside' => "abc\ndef",
 ])->throws(UninterpretableResponseException::class);
+
+it('keeps the password out of a failed login, whatever the HTTP client says about the request', function (string $said) {
+    $stack = new Stack;
+    $said = str_replace('secret', Stack::PASSWORD, $said);
+    $stack->http->queue(new ConnectException($said, new Request('POST', 'https://datadis.test')));
+
+    try {
+        $stack->tokens->token();
+    } catch (TransportException $e) {
+        expect($e->detail)->toBeNull()
+            ->and($e->getMessage())->not->toContain(Stack::PASSWORD)
+            ->and((string) $e)->not->toContain(Stack::PASSWORD);
+
+        return;
+    }
+
+    throw new LogicException('Expected a TransportException.');
+})->with([
+    'as sent' => ['cURL error 28 while sending username=A00000000&password=secret'],
+    'url encoded' => ['failed: password%3Dsecret'],
+    'in a dump of the body' => ['body: {"password":"secret"}'],
+]);
+
+it('still says what the HTTP client reported about a data request, without identifiers', function () {
+    $s = Scenario::make();
+    $s->http->queue(new ConnectException('cURL error 28 for ES0000000000000000AA0A', new Request('GET', 'https://datadis.test')));
+
+    try {
+        $s->client->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '2', Month::of(2026, 8));
+    } catch (TransportException $e) {
+        expect($e->detail)->toContain('cURL error 28')->not->toContain('ES0000000000000000AA0A');
+
+        return;
+    }
+
+    throw new LogicException('Expected a TransportException.');
+});
 
 it('reports a network failure during login as unsent', function () {
     $stack = new Stack;

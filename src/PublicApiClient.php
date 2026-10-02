@@ -176,7 +176,9 @@ final class PublicApiClient
         $skipped = 0;
 
         foreach ($rows as $row) {
-            if (is_array($row) && $row !== []) {
+            // A row needs a field of a search or sum row: an error object inside a list
+            // ({"message": "maintenance"}) is not a record whose values are all missing.
+            if (is_array($row) && PublicRecord::looksLikeOne($row)) {
                 $records[] = PublicRecord::fromRow($row);
             } else {
                 $skipped++;

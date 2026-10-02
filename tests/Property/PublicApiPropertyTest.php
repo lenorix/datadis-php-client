@@ -70,7 +70,7 @@ it('reads any JSON answer as records or a DatadisException', function () {
     $this->limitTo(pbtIterations())
         ->forAll(Generators::oneOf(
             Generators::seq(Generators::oneOf(Generators::constant(['sumEnergy' => 1]), Generators::int(), Generators::string(), Generators::constant(null), Generators::constant([]))),
-            Generators::associative(['content' => Generators::oneOf(Generators::string(), Generators::seq(Generators::constant(['a' => 1])), Generators::constant(null))]),
+            Generators::associative(['content' => Generators::oneOf(Generators::string(), Generators::seq(Generators::constant(['sumEnergy' => 1])), Generators::constant(null))]),
             Generators::associative(['sumEnergy' => Generators::float(), 'mi1' => Generators::string()]),
         ))
         ->then(function (mixed $payload) {
@@ -99,7 +99,7 @@ it('walks pages until a short one, reports what it left out, and says so when th
             Generators::choose(1, 6),
         )
         ->then(function (array $pages, int $pageSize, int $maxPages) {
-            $page = fn (int $i) => array_slice([...array_fill(0, $pages[$i][0] ?? 0, ['a' => 1]), ...array_fill(0, ($pages[$i][0] ?? 0) > 0 ? $pages[$i][1] : 0, [])], 0, $pageSize);
+            $page = fn (int $i) => array_slice([...array_fill(0, $pages[$i][0] ?? 0, ['sumEnergy' => 1]), ...array_fill(0, ($pages[$i][0] ?? 0) > 0 ? $pages[$i][1] : 0, [])], 0, $pageSize);
             $http = new FakeHttpClient;
             $served = 0;
             $http->queue(...array_fill(0, 10, function () use (&$served, $page) {
