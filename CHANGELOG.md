@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-02
+
+The 24 hour ledger is reached only through the client and one store: lookups, imports of earlier queries and a history, without a key to rebuild. Several breaking changes: see Changed.
+
 ### Changed
 
 - `RequestLedger` takes one store for everything it reads and writes: a PSR-16 cache, or a `LedgerStore` of your own (`get`, `set`, `delete`), and an `AtomicLedgerStore` (which adds `add()`) makes checking and recording one step. `AtomicStore` and the `atomic:` argument are gone: two stores could point at different backends, and then a query refused or freed after an unsent failure was read or deleted in the wrong one. `windowSeconds` is now the fourth argument.
@@ -135,7 +139,8 @@ First public release.
 - Daylight saving change days placed on the right hours, in Madrid and the Canary Islands.
 - Helpers: month planning within the served window, access tariff recognition, the 2.0TD schedule, national holidays, territories, CUPS and NIF values (NIF control letter checked), personal data redaction.
 
-[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/lenorix/datadis-php-client/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/lenorix/datadis-php-client/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/lenorix/datadis-php-client/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/lenorix/datadis-php-client/compare/v0.1.0...v0.2.0
