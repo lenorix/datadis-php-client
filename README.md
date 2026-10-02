@@ -319,13 +319,40 @@ $ledger = new RequestLedger($psr16Cache, new RequestFingerprinter($aSecretOfAtLe
 $client = new DatadisClient($config, ledger: $ledger);
 ```
 
-A repeat fails with a `RepetitionWindowException` whose `requestSent` is `false`, before anything is sent. Only a keyed hash of each query is stored, never the CUPS.
+A repeat fails with a `RepetitionWindowException` whose `requestSent` is `false`, before anything is sent, and which says when the query was last attempted (`lastAttemptAt`) and from when it is allowed again (`availableAt`). Datadis's own 429 tells neither, so both are null then. Only a keyed hash of each query is stored, never the CUPS.
 
-The ledger remembers each query for 24 hours and 10 minutes, a margin for the clocks of your servers and of Datadis. Pass `windowSeconds:` to change it, never below 24 hours. A job that runs every day should not shorten it to fit: use [the daily calls](#keep-the-current-month-up-to-date-every-day), which never repeat a query from one day to the next. If your application keeps a record of its own of what it asked, let the ledger decide alone: two records with different windows refuse different calls.
+The ledger remembers each query for 24 hours and 10 minutes, a margin for the clocks of your servers and of Datadis. Pass `windowSeconds:` to change it, never below 24 hours. A job that runs every day should not shorten it to fit: use [the daily calls](#keep-the-current-month-up-to-date-every-day), which never repeat a query from one day to the next. If your application keeps a record of its own of what it asked, let the ledger decide alone: two records with different windows refuse different calls (see [moving from a record of your own](#moving-from-a-record-of-your-own)).
 
 If Datadis rejects the token of such a query (a 401, rare, since the token is renewed before it expires), the client does not send it again, because Datadis may already have counted it: you get an `AuthenticationException` with `requestSent = true`, and the next call logs in again.
 
 PSR-16 cannot store a key only if it is absent, so with a plain PSR-16 cache the ledger checks and records in two steps, and two workers that start the same query at the same instant can both send it. If your store can add atomically (Redis, Memcached, a database), wrap that call in an `AtomicStore` and pass it too: checking and recording become one step, and only one worker sends. With Laravel's cache it is one line, as in [the Laravel section](#using-it-in-a-laravel-application).
+
+### Moving from a record of your own
+
+An application that already keeps the queries it sent, and checks that record before each call, should let the ledger be the only one that decides whether a query may go. The ledger builds its key from exactly what the client sends, so no code outside it has to rebuild the parameters of Datadis, and checking and recording are one step with an `AtomicStore`. Its idea of "the same query" is also the one Datadis showed: maximum power and reactive data with the same parameters are the same query, `authorizedNif` does not count for either, and the endpoint itself is not part of the key. A record keyed on the endpoint, or on `authorizedNif` for maximum power, decides differently.
+
+Check-then-call becomes call-and-catch. A local refusal sends nothing:
+
+```php
+try {
+    $result = $client->getConsumptionDataOf($supply, $month);
+} catch (RepetitionWindowException $e) {
+    if ($e->httpStatus === null) {
+        // refused by the ledger, nothing sent: skip it until $e->availableAt
+    }
+    // a 429 from Datadis itself: sent, and refused; it counts for today
+}
+```
+
+A command that must not send anything when the query is still blocked does the same: the refusal comes before any request. Keep your record as a history of what was sent if you want one, written after the call; it no longer needs a key.
+
+Three things to plan when you switch:
+
+- **The queries of the last day.** The ledger starts empty, and the keys of your record cannot be turned into its keys (they are hashes of other parameters). Keep your old check, read only, beside the ledger for one window, 24 hours and 10 minutes after the switch, then remove it: together they refuse everything either of them would.
+- **A store that survives deploys.** A ledger in a cache that a deploy clears (`cache:clear`, `optimize:clear` in Laravel) starts empty and can repeat a query sent minutes before. Use a store of its own that nothing clears, such as a separate Laravel cache store on Redis or on a database table, or a small `CacheInterface` and `AtomicStore` over a table of your own with a unique key.
+- **Every worker on the same store**, with an `AtomicStore`, so two workers never send the same query at once.
+
+A measurement that must send the same query twice on purpose, to see Datadis's own answer, needs a second client with a ledger of its own (or none, which means its own in memory).
 
 ### Share the login token
 

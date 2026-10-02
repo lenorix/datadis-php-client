@@ -310,3 +310,50 @@ it('frees an unsent query again with an atomic store, and sends nothing when the
         ->and(fn () => $consumption($client))->toThrow(LedgerUnavailableException::class)
         ->and($http->requests())->toHaveCount(3);
 });
+
+it('says when a query refused locally was last attempted and from when it is allowed again', function (?int $window) use ($consumption) {
+    $http = new FakeHttpClient;
+    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, windowSeconds: $window);
+    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+    $http->queue(login($clock), Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+    $sentAt = $clock->now()->getTimestamp();
+
+    $consumption($client);
+    $clock->advance(3600);
+
+    try {
+        $consumption($client);
+    } catch (RepetitionWindowException $e) {
+        expect($e->lastAttemptAt?->getTimestamp())->toBe($sentAt)
+            ->and($e->availableAt?->getTimestamp())->toBe($sentAt + ($window ?? RequestLedger::WINDOW_SECONDS))
+            ->and($e->getMessage())->toContain('allowed again from')
+            ->and($http->requests())->toHaveCount(2);
+
+        // Once that moment comes, the guard lets it through.
+        $clock->advance($e->availableAt->getTimestamp() - $clock->now()->getTimestamp());
+        $http->queue(Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+        $consumption($client);
+
+        expect($http->requests())->toHaveCount(3);
+
+        return;
+    }
+
+    throw new LogicException('Expected a RepetitionWindowException.');
+})->with(['the default window' => [null], 'a window of two days' => [2 * 86400]]);
+
+it('cannot say either for the 429 of Datadis itself', function () use ($consumption) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadisError('Consulta ya realizada en las últimas 24 horas. ', 429));
+
+    try {
+        $consumption($s->client);
+    } catch (RepetitionWindowException $e) {
+        expect($e->httpStatus)->toBe(429)->and($e->lastAttemptAt)->toBeNull()->and($e->availableAt)->toBeNull();
+
+        return;
+    }
+
+    throw new LogicException('Expected a RepetitionWindowException.');
+});

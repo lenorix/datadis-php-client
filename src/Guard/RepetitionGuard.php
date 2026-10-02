@@ -55,10 +55,14 @@ final readonly class RepetitionGuard
         }
 
         if ($last !== null) {
+            $availableAt = $last->modify('+'.$this->ledger->windowSeconds().' seconds');
+
             throw new RepetitionWindowException(
-                "{$name}: the same query was already sent at {$last->format(DATE_ATOM)}; Datadis refuses repeating it within 24 hours.",
+                "{$name}: the same query was already sent at {$last->format(DATE_ATOM)}; Datadis refuses repeating it within 24 hours, so it is allowed again from {$availableAt->format(DATE_ATOM)}.",
                 endpoint: $name,
                 requestSent: false,
+                lastAttemptAt: $last,
+                availableAt: $availableAt,
             );
         }
 

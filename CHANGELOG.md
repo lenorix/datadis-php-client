@@ -12,6 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `RepetitionWindowException::$lastAttemptAt` and `$availableAt` for a query refused by the ledger: when it was last attempted and from when it is allowed again (null for Datadis's own 429). `RequestLedger::windowSeconds()` gives the window.
+- A README section on moving from an application's own record of sent queries to the ledger: call and catch instead of check and call, keep the old check for one window, and keep the ledger in a store that deploys do not clear.
+
 - `PageLimitReachedException`, thrown by `apiSearchAll()` and `apiSearchAutoAll()` after the last record when they stop at `maxPages` with a full last page, so more records may remain; it carries `nextPage` and `skippedRows`. When a walk ends on its own, the generator returns a `PageWalk` with the pages read and the rows left out across them.
 
 ### Fixed

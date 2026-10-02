@@ -79,6 +79,12 @@ final class RequestLedger
         $this->clock = $clock ?? new SystemClock;
     }
 
+    /** How long an attempt blocks the same query, in seconds. */
+    public function windowSeconds(): int
+    {
+        return $this->windowSeconds;
+    }
+
     /**
      * When the query was last attempted, or null if not within the window.
      *
