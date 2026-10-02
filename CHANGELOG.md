@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- `RequestLedger` takes one store for everything it reads and writes: a PSR-16 cache, or a `LedgerStore` of your own (`get`, `set`, `delete`), and an `AtomicLedgerStore` (which adds `add()`) makes checking and recording one step. `AtomicStore` and the `atomic:` argument are gone: two stores could point at different backends, and then a query refused or freed after an unsent failure was read or deleted in the wrong one. `windowSeconds` is now the fourth argument.
 - Decimal JSON numbers are read as their exact text, never through a float, so every digit Datadis sends is kept (`0.123456789012345678901` was read as `0.12345678901234568`). `raw` holds them as text (`"0.301"` instead of `0.301`); integers are unchanged.
 
 ### Added

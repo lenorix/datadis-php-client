@@ -44,20 +44,21 @@ final class RequestLedger
     private readonly int $windowSeconds;
 
     /**
-     * The stores are often the application's own cache, which may also hold the login token and
-     * show its values when dumped. var_export cannot show what a closure holds, and __debugInfo
-     * leaves them out of var_dump and print_r.
+     * The store is often the application's own cache, which may also hold the login token and show
+     * its values when dumped. var_export cannot show what a closure holds, and __debugInfo leaves it
+     * out of var_dump and print_r.
      *
-     * @var Closure(): CacheInterface
+     * @var Closure(): LedgerStore
      */
-    private readonly Closure $cache;
+    private readonly Closure $store;
 
-    /** @var (Closure(): AtomicStore)|null */
-    private readonly ?Closure $atomic;
+    private readonly bool $atomic;
 
     /**
-     * @param  AtomicStore|null  $atomic  the same store, able to add a key only if absent: then checking
-     *                                    and recording are one step and concurrent workers cannot both send
+     * @param  LedgerStore|CacheInterface  $store  one store for every read and write; a PSR-16 cache is
+     *                                             wrapped in Psr16LedgerStore. An AtomicLedgerStore makes
+     *                                             checking and recording one step, so concurrent workers
+     *                                             cannot both send
      * @param  int|null  $windowSeconds  how long an attempt blocks the same query, at least 24 hours;
      *                                   WINDOW_SECONDS by default. A sync that runs every day should vary
      *                                   its ranges (MonthPlanner::latest()) rather than shorten this.
@@ -65,10 +66,9 @@ final class RequestLedger
      * @throws ConfigurationException when the window is shorter than 24 hours
      */
     public function __construct(
-        CacheInterface $cache,
+        LedgerStore|CacheInterface $store,
         private readonly RequestFingerprinter $fingerprinter,
         ?ClockInterface $clock = null,
-        ?AtomicStore $atomic = null,
         ?int $windowSeconds = null,
     ) {
         if ($windowSeconds !== null && $windowSeconds < self::MIN_WINDOW_SECONDS) {
@@ -76,8 +76,9 @@ final class RequestLedger
         }
 
         $this->windowSeconds = $windowSeconds ?? self::WINDOW_SECONDS;
-        $this->cache = static fn (): CacheInterface => $cache;
-        $this->atomic = $atomic === null ? null : static fn (): AtomicStore => $atomic;
+        $store = $store instanceof LedgerStore ? $store : new Psr16LedgerStore($store);
+        $this->store = static fn (): LedgerStore => $store;
+        $this->atomic = $store instanceof AtomicLedgerStore;
         $this->clock = $clock ?? new SystemClock;
     }
 
@@ -111,7 +112,7 @@ final class RequestLedger
     private function read(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): mixed
     {
         try {
-            return ($this->cache)()->get($this->key($account, $query));
+            return ($this->store)()->get($this->key($account, $query));
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be read.', previous: $e);
         }
@@ -135,7 +136,7 @@ final class RequestLedger
 
     /**
      * Records the attempt unless the query was already attempted in the window: null when it may
-     * be sent now, or the time of the earlier attempt. With an AtomicStore this is a single step.
+     * be sent now, or the time of the earlier attempt. With an AtomicLedgerStore this is a single step.
      *
      * @param  array<string, string|int|list<string>|null>  $query
      *
@@ -143,7 +144,7 @@ final class RequestLedger
      */
     public function claim(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): ?DateTimeImmutable
     {
-        if ($this->atomic === null) {
+        if (! $this->atomic) {
             $last = $this->lastAttempt($account, $query);
 
             if ($last === null) {
@@ -155,7 +156,7 @@ final class RequestLedger
 
         $now = $this->clock->now()->getTimestamp();
 
-        if ($this->add(($this->atomic)(), $account, $query, $now, $this->windowSeconds)) {
+        if ($this->add($account, $query, $now, $this->windowSeconds)) {
             return null;
         }
 
@@ -166,10 +167,13 @@ final class RequestLedger
     }
 
     /** @param  array<string, string|int|list<string>|null>  $query */
-    private function add(AtomicStore $atomic, #[SensitiveParameter] string $account, #[SensitiveParameter] array $query, int $at, int $ttl): bool
+    private function add(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, int $at, int $ttl): bool
     {
+        $store = ($this->store)();
+        assert($store instanceof AtomicLedgerStore);
+
         try {
-            return $atomic->add($this->key($account, $query), $at, $ttl);
+            return $store->add($this->key($account, $query), $at, $ttl);
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
         }
@@ -189,7 +193,7 @@ final class RequestLedger
     private function store(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, int $at, int $ttl): void
     {
         try {
-            $stored = ($this->cache)()->set($this->key($account, $query), $at, $ttl);
+            $stored = ($this->store)()->set($this->key($account, $query), $at, $ttl);
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
         }
@@ -233,7 +237,7 @@ final class RequestLedger
             return false;
         }
 
-        if ($last === null && $this->atomic !== null && $this->add(($this->atomic)(), $account, $query, $at, $ttl)) {
+        if ($last === null && $this->atomic && $this->add($account, $query, $at, $ttl)) {
             return true;
         }
 
@@ -257,7 +261,7 @@ final class RequestLedger
     public function forget(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): void
     {
         try {
-            ($this->cache)()->delete($this->key($account, $query));
+            ($this->store)()->delete($this->key($account, $query));
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
         }
@@ -273,6 +277,6 @@ final class RequestLedger
     /** @return array<string, mixed> */
     public function __debugInfo(): array
     {
-        return ['cache' => '[hidden]', 'atomic' => $this->atomic === null ? null : '[hidden]'];
+        return ['store' => '[hidden]', 'atomic' => $this->atomic];
     }
 }

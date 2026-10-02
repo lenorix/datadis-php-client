@@ -32,7 +32,7 @@ function rememberingClient(bool $atomic = false): array
     $http = new FakeHttpClient;
     $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
     $store = $atomic ? new AtomicCache : new InMemoryCache($clock);
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $atomic ? $store : null);
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
     $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
     $http->queue(Responses::text(Tokens::datadis($clock->now()->getTimestamp())));
 

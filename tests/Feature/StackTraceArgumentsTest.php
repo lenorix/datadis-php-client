@@ -13,7 +13,6 @@ use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\PublicApi\Community;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApiClient;
-use Lenorix\DatadisClient\Tests\Support\AtomicCache;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\QuirkyCache;
 use Lenorix\DatadisClient\Tests\Support\Responses;
@@ -168,7 +167,7 @@ it('never shows the token when the client or the public client is dumped with a 
     $token = Tokens::jwt(['exp' => time() + 3600]);
     $http->answers = [Responses::text($token), Responses::datadis($public ? '[]' : '{"supplies":[]}')];
     $config = new DatadisConfig('A00000000', 'never-dump-this', baseUrl: 'https://datadis.test');
-    $ledger = new RequestLedger($cache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), atomic: new AtomicCache);
+    $ledger = new RequestLedger($cache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'));
     $client = $public
         ? new PublicApiClient($config, $http, tokenCache: $cache)
         : new DatadisClient($config, http: $http, tokenCache: $cache, ledger: $ledger);

@@ -261,7 +261,7 @@ it('does not keep a query blocked when its request could not even be built', fun
 function worker(AtomicCache $store, FrozenClock $clock, bool $atomic): array
 {
     $http = new FakeHttpClient;
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $atomic ? $store : null);
+    $ledger = new RequestLedger($atomic ? $store : $store->withoutAdd(), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
 
     return [new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger), $http];
 }

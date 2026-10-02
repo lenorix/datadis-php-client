@@ -135,7 +135,7 @@ it('takes a time a little ahead as a recent attempt, but one far in the future a
 it('counts a key an atomic store holds even when its value does not, so no two workers can both take it', function (Closure $stored) use ($query) {
     $clock = new FrozenClock;
     $store = new AtomicCache;
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $store);
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
     $ledger->record('A00000000', $query);
     foreach (array_keys($store->items) as $key) {
         $store->items[$key] = $stored($clock->now()->getTimestamp());
@@ -151,7 +151,7 @@ it('counts a key an atomic store holds even when its value does not, so no two w
 it('answers a lost atomic claim with the time the other worker sent the query', function () use ($query) {
     $clock = new FrozenClock;
     $store = new AtomicCache;
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $store);
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
     $sent = $clock->now()->getTimestamp();
     $ledger->claim('A00000000', $query);
 
@@ -164,7 +164,7 @@ it('takes a window of its own, never shorter than the 24 hours of Datadis', func
     $clock = new FrozenClock;
     $atomic = new AtomicCache;
     $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, windowSeconds: 86400);
-    $withAtomic = new RequestLedger($atomic, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $atomic, 2 * 86400);
+    $withAtomic = new RequestLedger($atomic, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, 2 * 86400);
 
     $ledger->record('A00000000', $query);
     $withAtomic->claim('A00000000', $query);
@@ -183,7 +183,7 @@ it('takes a window of its own, never shorter than the 24 hours of Datadis', func
 it('remembers an earlier attempt for what is left of its window, in a plain or an atomic store', function (bool $atomic) use ($query) {
     $clock = new FrozenClock;
     $store = $atomic ? new AtomicCache : new InMemoryCache($clock);
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $atomic ? $store : null);
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
     $sentAt = $clock->now()->modify('-23 hours');
 
     expect($ledger->rememberAt('A00000000', $query, $sentAt))->toBeTrue()
@@ -202,7 +202,7 @@ it('remembers an earlier attempt for what is left of its window, in a plain or a
 it('replaces only an older attempt, also one held in an atomic store', function () use ($query) {
     $clock = new FrozenClock;
     $store = new AtomicCache;
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $store);
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
 
     $ledger->claim('A00000000', $query);
     $clock->advance(3600);
@@ -215,7 +215,7 @@ it('replaces only an older attempt, also one held in an atomic store', function 
 it('replaces a held key whose time cannot be read, since nothing newer is known', function () use ($query) {
     $clock = new FrozenClock;
     $store = new AtomicCache(staleReads: true);
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $store);
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
     $ledger->claim('A00000000', $query);
 
     expect($ledger->rememberAt('A00000000', $query, $clock->now()->modify('-1 hour')))->toBeTrue();
@@ -239,7 +239,7 @@ it('reports a store that refuses to keep a remembered attempt', function () use 
 it('leaves alone a query a worker sent while the earlier attempt was being remembered', function () use ($query) {
     $clock = new FrozenClock;
     $store = new AtomicCache;
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $store);
+    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
     // Between the import's read and its add, a worker sends the query now.
     $store->beforeAdd = function (AtomicCache $cache) use ($ledger, $query): void {
         $cache->beforeAdd = null;

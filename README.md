@@ -325,11 +325,11 @@ The ledger remembers each query for 24 hours and 10 minutes, a margin for the cl
 
 If Datadis rejects the token of such a query (a 401, rare, since the token is renewed before it expires), the client does not send it again, because Datadis may already have counted it: you get an `AuthenticationException` with `requestSent = true`, and the next call logs in again.
 
-PSR-16 cannot store a key only if it is absent, so with a plain PSR-16 cache the ledger checks and records in two steps, and two workers that start the same query at the same instant can both send it. If your store can add atomically (Redis, Memcached, a database), wrap that call in an `AtomicStore` and pass it too: checking and recording become one step, and only one worker sends. With Laravel's cache it is one line, as in [the Laravel section](#using-it-in-a-laravel-application).
+The ledger takes one store for everything it reads and writes: any PSR-16 cache, or a `LedgerStore` of your own (`get`, `set` and `delete` of a key and a timestamp). PSR-16 cannot store a key only if it is absent, so with it the ledger checks and records in two steps, and two workers that start the same query at the same instant can both send it. A store that can add atomically (Redis `SET NX`, an insert on a unique key, Laravel's `Cache::add()`) implements `AtomicLedgerStore`, which adds `add()`: checking and recording become one step, and only one worker sends. Its `add()` must treat an expired entry as absent, or the query stays blocked for good: in a table, insert the row or replace it when its expiry has passed, in one statement. [The Laravel section](#using-it-in-a-laravel-application) has one over a Laravel cache store.
 
 ### Moving from a record of your own
 
-An application that already keeps the queries it sent, and checks that record before each call, should let the ledger be the only one that decides whether a query may go. The ledger builds its key from exactly what the client sends, so no code outside it has to rebuild the parameters of Datadis, and checking and recording are one step with an `AtomicStore`. Its idea of "the same query" is also the one Datadis showed: maximum power and reactive data with the same parameters are the same query, `authorizedNif` does not count for either, and the endpoint itself is not part of the key. A record keyed on the endpoint, or on `authorizedNif` for maximum power, decides differently.
+An application that already keeps the queries it sent, and checks that record before each call, should let the ledger be the only one that decides whether a query may go. The ledger builds its key from exactly what the client sends, so no code outside it has to rebuild the parameters of Datadis, and checking and recording are one step with an `AtomicLedgerStore`. Its idea of "the same query" is also the one Datadis showed: maximum power and reactive data with the same parameters are the same query, `authorizedNif` does not count for either, and the endpoint itself is not part of the key. A record keyed on the endpoint, or on `authorizedNif` for maximum power, decides differently.
 
 Check-then-call becomes call-and-catch. A local refusal sends nothing:
 
@@ -358,8 +358,8 @@ Three things to plan when you switch:
   ```
 
   An attempt older than the window is skipped and the newest attempt of a query wins. Import before any worker sends with the ledger, with the workers paused. If you cannot tell what you sent (your record keeps only hashes), keep your old check, read only, beside the ledger for one window, 24 hours and 10 minutes, then remove it: together they refuse everything either of them would.
-- **A store that survives deploys.** A ledger in a cache that a deploy clears (`cache:clear`, `optimize:clear` in Laravel) starts empty and can repeat a query sent minutes before. Use a store of its own that nothing clears, such as a separate Laravel cache store on Redis or on a database table, or a small `CacheInterface` and `AtomicStore` over a table of your own with a unique key.
-- **Every worker on the same store**, with an `AtomicStore`, so two workers never send the same query at once.
+- **A store that survives deploys.** A ledger in a cache that a deploy clears (`cache:clear`, `optimize:clear` in Laravel) starts empty and can repeat a query sent minutes before. Use a store of its own that nothing clears, such as a separate Laravel cache store on Redis or on a database table, or an `AtomicLedgerStore` over a table of your own with a unique key.
+- **Every worker on the same store**, an `AtomicLedgerStore`, so two workers never send the same query at once.
 
 A measurement that must send the same query twice on purpose, to see Datadis's own answer, needs a second client with a ledger of its own (or none, which means its own in memory).
 
@@ -430,7 +430,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\DatadisConfig;
-use Lenorix\DatadisClient\Guard\AtomicStore;
+use Lenorix\DatadisClient\Guard\AtomicLedgerStore;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Http\GuzzleClientFactory;
@@ -446,19 +446,36 @@ public function register(): void
             // The package's Guzzle settings (timeouts, no redirects, no automatic decompression)
             // on Laravel's handler stack, so Http::fake() and Http::assertSent() see every call.
             http: GuzzleClientFactory::create(DatadisConfig::fromArray($settings), ['handler' => Http::buildHandlerStack()]),
-            // The token and the 24 hour guard live in the cache every worker shares. Cache::add() is
-            // atomic on Redis, Memcached and the database store, so two workers never both send a query.
+            // The token and the 24 hour guard live in caches every worker shares. The guard gets a store
+            // of its own (`datadis` in config/cache.php, on Redis or the database) that a deploy's
+            // cache:clear does not empty; add() is atomic there, so two workers never both send a query.
             tokenCache: Cache::store(),
             ledger: new RequestLedger(
-                Cache::store(),
-                new RequestFingerprinter(config('app.key')),
-                atomic: new class implements AtomicStore
+                new class(Cache::store('datadis')) implements AtomicLedgerStore
                 {
-                    public function add(string $key, mixed $value, int $ttlSeconds): bool
+                    public function __construct(private \Illuminate\Contracts\Cache\Repository $cache) {}
+
+                    public function get(string $key): mixed
                     {
-                        return Cache::add($key, $value, $ttlSeconds);
+                        return $this->cache->get($key);
+                    }
+
+                    public function set(string $key, int $value, int $ttlSeconds): bool
+                    {
+                        return $this->cache->put($key, $value, $ttlSeconds);
+                    }
+
+                    public function delete(string $key): void
+                    {
+                        $this->cache->forget($key);
+                    }
+
+                    public function add(string $key, int $value, int $ttlSeconds): bool
+                    {
+                        return $this->cache->add($key, $value, $ttlSeconds);
                     }
                 },
+                new RequestFingerprinter(config('app.key')),
             ),
         );
     });
