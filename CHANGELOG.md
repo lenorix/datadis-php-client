@@ -6,10 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-02
+
 ### Added
 
 - `getLatestConsumptionDataOf()` and `getLatestMaxPowerOf()`, and `MonthPlanner::latest()`, for a sync that runs every day: the range alternates between the current month and the previous plus the current month with the civil day, so no query is repeated from one day to the next. Asking the same range every day is refused by Datadis whenever a run starts earlier than the day before.
 - `RequestLedger` takes `windowSeconds:` (24 hours and 10 minutes by default, never below 24 hours).
+
+### Fixed
+
+- The static analysis in CI refused `FILTER_VALIDATE_BOOL` in `filter_var()`; the configuration now uses `FILTER_VALIDATE_BOOLEAN`, the same value.
 
 ## [0.3.0] - 2026-10-02
 
@@ -83,7 +89,8 @@ First public release.
 - Daylight saving change days placed on the right hours, in Madrid and the Canary Islands.
 - Helpers: month planning within the served window, access tariff recognition, the 2.0TD schedule, national holidays, territories, CUPS and NIF values (NIF control letter checked), personal data redaction.
 
-[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/lenorix/datadis-php-client/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/lenorix/datadis-php-client/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/lenorix/datadis-php-client/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/lenorix/datadis-php-client/releases/tag/v0.1.0
