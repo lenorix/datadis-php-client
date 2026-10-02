@@ -6,7 +6,7 @@ use Eris\Generators;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Time\MonthPlanner;
 
-it('never plans the same first range on two consecutive civil days, across months, years and daylight saving changes', function () {
+it('never plans the same range on two consecutive civil days, across months, years and daylight saving changes', function () {
     $zone = new DateTimeZone('Europe/Madrid');
 
     $this->limitTo(pbtIterations())
@@ -20,9 +20,8 @@ it('never plans the same first range on two consecutive civil days, across month
             $plan = MonthPlanner::latest($today);
             $next = MonthPlanner::latest($tomorrow);
 
-            expect($plan)->toHaveCount(2)
-                ->and($key($plan[0]))->not->toBe($key($next[0]))
-                ->and($key($plan[0]))->not->toBe($key($plan[1]));
+            expect($plan)->toHaveCount(1)
+                ->and($key($plan[0]))->not->toBe($key($next[0]));
 
             foreach ($plan as [$from, $to]) {
                 expect($to->equals(Month::current($today)))->toBeTrue()

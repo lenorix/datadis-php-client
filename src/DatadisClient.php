@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient;
 
-use Closure;
 use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
@@ -26,7 +25,6 @@ use Lenorix\DatadisClient\Decoding\ReactiveEnergyAnswer;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
-use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
@@ -351,12 +349,10 @@ final class DatadisClient
     /**
      * The consumption of the current month for a sync that runs every day: the range comes from
      * MonthPlanner::latest(), so today's query is never yesterday's, and on odd days it also
-     * brings the previous month. When that range was already asked today (a second run), the
-     * other one is tried; a 429 from Datadis is never followed by another query.
+     * brings the previous month. A second run on the same day is refused like any repeat.
      *
      * @return ApiResult<ConsumptionReading>
      *
-     * @throws RepetitionWindowException when both ranges were asked in the last 24 hours
      * @throws InvalidRequestException when the supply's contract has nothing to refresh this month
      */
     public function getLatestConsumptionDataOf(
@@ -364,7 +360,9 @@ final class DatadisClient
         MeasurementType $measurementType = MeasurementType::Hourly,
         ?Nif $authorizedNif = null,
     ): ApiResult {
-        return $this->latest($supply, fn (Month $from, Month $to) => $this->getConsumptionDataOf($supply, $from, $to, $measurementType, $authorizedNif));
+        [$from, $to] = $this->latest($supply);
+
+        return $this->getConsumptionDataOf($supply, $from, $to, $measurementType, $authorizedNif);
     }
 
     /**
@@ -374,43 +372,20 @@ final class DatadisClient
      *
      * @return ApiResult<MaxPowerReading>
      *
-     * @throws RepetitionWindowException when both ranges were asked in the last 24 hours
      * @throws InvalidRequestException when the supply's contract has nothing to refresh this month
      */
     public function getLatestMaxPowerOf(#[SensitiveParameter] Supply $supply, ?Nif $authorizedNif = null): ApiResult
     {
-        return $this->latest($supply, fn (Month $from, Month $to) => $this->getMaxPowerOf($supply, $from, $to, $authorizedNif));
+        [$from, $to] = $this->latest($supply);
+
+        return $this->getMaxPowerOf($supply, $from, $to, $authorizedNif);
     }
 
-    /**
-     * @template T
-     *
-     * @param  Closure(Month, Month): ApiResult<T>  $query
-     * @return ApiResult<T>
-     */
-    private function latest(#[SensitiveParameter] Supply $supply, #[SensitiveParameter] Closure $query): ApiResult
+    /** @return array{0: Month, 1: Month} */
+    private function latest(#[SensitiveParameter] Supply $supply): array
     {
-        $ranges = MonthPlanner::latest($this->clock->now(), $supply);
-
-        if ($ranges === []) {
-            throw new InvalidRequestException('The contract of the supply has no data to refresh this month.');
-        }
-
-        [$lastFrom, $lastTo] = array_pop($ranges);
-
-        foreach ($ranges as [$from, $to]) {
-            try {
-                return $query($from, $to);
-            } catch (RepetitionWindowException $e) {
-                // Only a local refusal moves on: after Datadis's own 429 the other range was most
-                // likely asked yesterday, and another query would only be refused too.
-                if ($e->httpStatus !== null) {
-                    throw $e;
-                }
-            }
-        }
-
-        return $query($lastFrom, $lastTo);
+        return MonthPlanner::latest($this->clock->now(), $supply)[0]
+            ?? throw new InvalidRequestException('The contract of the supply has no data to refresh this month.');
     }
 
     /**

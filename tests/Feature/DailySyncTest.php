@@ -26,30 +26,22 @@ it('asks the same range every day only to be refused, which is why the range alt
         ->and($datadis->refused)->toBe(1);
 });
 
-it('takes the other range on a second run the same day, and refuses a third', function () {
+it('refuses a second run on the same day, which leaves the next day free even when it runs earlier', function () {
     $clock = new FrozenClock(new DateTimeImmutable('2026-09-16 01:00', new DateTimeZone('Europe/Madrid')));
     $datadis = new DatadisWithTheRule($clock);
     $client = $datadis->client();
 
     $client->getLatestConsumptionDataOf(DatadisWithTheRule::supply());
     $clock->advance(3600);
+
+    expect(fn () => $client->getLatestConsumptionDataOf(DatadisWithTheRule::supply()))->toThrow(RepetitionWindowException::class);
+
+    // The next day at 00:30, half an hour earlier than the first run.
+    $clock->advance(86400 - 5400);
     $client->getLatestConsumptionDataOf(DatadisWithTheRule::supply());
-    $clock->advance(3600);
 
-    expect(fn () => $client->getLatestConsumptionDataOf(DatadisWithTheRule::supply()))->toThrow(RepetitionWindowException::class)
-        ->and(array_map(fn (string $k) => explode('|', $k)[2].'-'.explode('|', $k)[3], $datadis->sent))->toBe(['2026/09-2026/09', '2026/08-2026/09'])
+    expect(array_map(fn (string $k) => explode('|', $k)[2].'-'.explode('|', $k)[3], $datadis->sent))->toBe(['2026/09-2026/09', '2026/08-2026/09'])
         ->and($datadis->refused)->toBe(0);
-});
-
-it('does not try the other range after Datadis itself refuses the first', function () {
-    $clock = new FrozenClock(new DateTimeImmutable('2026-09-16 01:00', new DateTimeZone('Europe/Madrid')));
-    $datadis = new DatadisWithTheRule($clock);
-    // Another application with the same account asked the range a moment ago.
-    $datadis->client()->getConsumptionDataOf(DatadisWithTheRule::supply(), Month::of(2026, 9));
-
-    expect(fn () => $datadis->client()->getLatestConsumptionDataOf(DatadisWithTheRule::supply()))->toThrow(RepetitionWindowException::class)
-        ->and($datadis->sent)->toHaveCount(2)
-        ->and($datadis->refused)->toBe(1);
 });
 
 it('refreshes a contract that started this month every other day, and refuses one with nothing to refresh', function () {

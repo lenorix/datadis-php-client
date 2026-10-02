@@ -183,7 +183,7 @@ $readings = $client->getLatestConsumptionDataOf($supply);   // ApiResult, as get
 $peaks = $client->getLatestMaxPowerOf($supply);
 ```
 
-Store the records by their time: a two-month answer repeats the days you already have. A second run on the same day takes the other range, and a third is refused. A contract that started this month has only one range, so it is updated every other day. Reactive data shares its 24 hour key with maximum power, so ask it for closed months only. `MonthPlanner::latest()` gives the same plan if you prefer to make the calls yourself.
+Store the records by their time: a two-month answer repeats the days you already have. The day is the calendar day in Madrid, so run the job at a fixed time well clear of midnight there: a run that slips past midnight lands on the next day's range. A second run on the same day asks the same range again: with a shared ledger it is refused before sending, and without one Datadis refuses it; either way the next day is not affected. A contract that started this month has only one range, so it is updated every other day. Reactive data shares its 24 hour key with maximum power, so ask it for closed months only. `MonthPlanner::latest()` gives the same plan if you prefer to make the calls yourself.
 
 ### Authorizations, groups and partner accounts
 

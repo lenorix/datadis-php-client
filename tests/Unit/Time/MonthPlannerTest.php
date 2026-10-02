@@ -60,10 +60,10 @@ it('alternates the range of the current month with the civil day, so consecutive
     $zone = new DateTimeZone('Europe/Madrid');
     $plan = fn (string $at) => $format(MonthPlanner::latest(new DateTimeImmutable($at, $zone)));
 
-    expect($plan('2026-09-15 00:05'))->toBe(['2026/08-2026/09', '2026/09-2026/09'])
-        ->and($plan('2026-09-16 00:05'))->toBe(['2026/09-2026/09', '2026/08-2026/09'])
-        ->and($plan('2026-09-16 23:55'))->toBe(['2026/09-2026/09', '2026/08-2026/09'])
-        ->and($plan('2026-10-01 00:05'))->toBe(['2026/09-2026/10', '2026/10-2026/10']);
+    expect($plan('2026-09-15 00:05'))->toBe(['2026/08-2026/09'])
+        ->and($plan('2026-09-16 00:05'))->toBe(['2026/09-2026/09'])
+        ->and($plan('2026-09-16 23:55'))->toBe(['2026/09-2026/09'])
+        ->and($plan('2026-10-01 00:05'))->toBe(['2026/09-2026/10']);
 });
 
 it('judges the civil day in Madrid, whatever the zone of now', function () use ($format) {
@@ -76,8 +76,8 @@ it('keeps the plan inside the contract of the supply', function (array $contract
     expect($format(MonthPlanner::latest($now, Supply::fromRow(['cups' => 'ES0000000000000000AA0A'] + $contract, new DateTimeZone('Europe/Madrid')))))->toBe($expected);
 })->with([
     'started this month: only the current month' => [['validDateFrom' => '2026/09/10'], ['2026/09-2026/09']],
-    'started last month: both' => [['validDateFrom' => '2026/08/20'], ['2026/08-2026/09', '2026/09-2026/09']],
-    'ends this month: both' => [['validDateFrom' => '2020/01/01', 'validDateTo' => '2026/09/30'], ['2026/08-2026/09', '2026/09-2026/09']],
+    'started last month: both months on an odd day' => [['validDateFrom' => '2026/08/20'], ['2026/08-2026/09']],
+    'ends this month: both months on an odd day' => [['validDateFrom' => '2020/01/01', 'validDateTo' => '2026/09/30'], ['2026/08-2026/09']],
     'ended last month: nothing' => [['validDateFrom' => '2020/01/01', 'validDateTo' => '2026/08/31'], []],
     'starts next month: nothing' => [['validDateFrom' => '2026/10/01'], []],
 ]);
