@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `RequestLedger` takes `onChange:`, told with a `LedgerEvent` of every query claimed, released or remembered (endpoint, opaque key, time), to keep a history of what was sent.
+- `DatadisClient::checkLogin()` logs in, or takes the cached token (`fresh: true` to try the credentials now), and tells until when the token lasts, without reading any data.
+- `DatadisClient::assertServedRange()` refuses a range of months Datadis would refuse, before logging in.
+
 - `consumptionDataBlockedUntil()`, `maxPowerBlockedUntil()` and `reactiveDataBlockedUntil()`, and their `...Of()` twins: until when the ledger would refuse a query, with the same arguments as the call, without sending or claiming it.
 - `rememberConsumptionDataOf()`, `rememberMaxPowerOf()` and `rememberReactiveDataOf()`, for a supply as listed.
 

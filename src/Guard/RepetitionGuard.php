@@ -52,7 +52,7 @@ final readonly class RepetitionGuard
         $key = self::repetitionKey($endpoint, $query);
 
         try {
-            $last = $this->ledger->claim(($this->account)(), $key);
+            $last = $this->ledger->claim(($this->account)(), $key, $name);
         } catch (LedgerUnavailableException $e) {
             throw new LedgerUnavailableException("{$name}: {$e->getMessage()}", $name, $e);
         }
@@ -74,7 +74,7 @@ final readonly class RepetitionGuard
         } catch (DatadisException $e) {
             if (! $e->requestSent) {
                 try {
-                    $this->ledger->forget(($this->account)(), $key);
+                    $this->ledger->forget(($this->account)(), $key, $name);
                 } catch (Throwable) {
                     // The original failure matters more; the entry expires with the window.
                 }
@@ -107,9 +107,9 @@ final readonly class RepetitionGuard
      * @throws InvalidRequestException when the attempt is in the future
      * @throws LedgerUnavailableException when the store cannot be read or written
      */
-    public function remember(Endpoint $endpoint, #[SensitiveParameter] array $query, DateTimeInterface $sentAt): bool
+    public function remember(Endpoint $endpoint, string $name, #[SensitiveParameter] array $query, DateTimeInterface $sentAt): bool
     {
-        return $this->ledger->rememberAt(($this->account)(), self::repetitionKey($endpoint, $query), $sentAt);
+        return $this->ledger->rememberAt(($this->account)(), self::repetitionKey($endpoint, $query), $sentAt, $name);
     }
 
     /**

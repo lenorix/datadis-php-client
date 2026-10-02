@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Http;
 
+use DateTimeImmutable;
 use GuzzleHttp\Psr7\HttpFactory;
+use Lenorix\DatadisClient\Auth\JwtExpiry;
 use Lenorix\DatadisClient\Auth\TokenProvider;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
@@ -54,6 +56,21 @@ final class ApiCaller
         $transport = new Transport($http ?? GuzzleClientFactory::create($config), $streamFactory);
 
         return new self($requests, $transport, new TokenProvider($config, $requests, $transport, $tokenCache, $clock));
+    }
+
+    /**
+     * Logs in, or takes the cached token, and tells when that token expires: null when it says
+     * nothing about it. `fresh` drops the cached token first, so the credentials are tried now.
+     */
+    public function tokenExpiry(bool $fresh = false): ?DateTimeImmutable
+    {
+        if ($fresh) {
+            $this->tokens->invalidate();
+        }
+
+        $expiry = JwtExpiry::read($this->tokens->token());
+
+        return $expiry === null ? null : (new DateTimeImmutable)->setTimestamp($expiry);
     }
 
     /**

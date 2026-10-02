@@ -22,10 +22,13 @@ use Lenorix\DatadisClient\Decoding\DistributorCodes;
 use Lenorix\DatadisClient\Decoding\Envelope;
 use Lenorix\DatadisClient\Decoding\Fields;
 use Lenorix\DatadisClient\Decoding\ReactiveEnergyAnswer;
+use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
+use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
+use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
@@ -146,6 +149,31 @@ final class DatadisClient
     }
 
     /**
+     * Logs in, or takes the cached token, and tells until when the token lasts (null when Datadis
+     * does not say): a check of the credentials that reads no data. `fresh` ignores a cached token,
+     * so the username and password are tried now.
+     *
+     * @throws AuthenticationException when Datadis refuses the credentials
+     * @throws DatadisException when the login fails otherwise; nothing is sent besides it
+     */
+    public function checkLogin(bool $fresh = false): ?DateTimeImmutable
+    {
+        return $this->caller->tokenExpiry($fresh);
+    }
+
+    /**
+     * Refuses a range of months that Datadis would refuse: reversed, before the last 24 months or in
+     * the future (Madrid calendar, this client's clock). The data calls check it too; this lets a
+     * command or a form check it before it logs in.
+     *
+     * @throws InvalidRequestException when Datadis would refuse the range
+     */
+    public function assertServedRange(Month $startDate, ?Month $endDate = null): void
+    {
+        $this->assertRange($startDate, $endDate ?? $startDate);
+    }
+
+    /**
      * The same client, reading the supplies of a holder who authorized the account: the holder's NIF
      * goes as `authorizedNif` on every supply and data call, so no call can forget it. It shares the
      * login, the connection and the 24 hour guard with this client, which stays as it was.
@@ -232,6 +260,11 @@ final class DatadisClient
      * some point types; Datadis decides, so it is not checked here.
      *
      * @return ApiResult<ConsumptionReading>
+     *
+     * @throws InvalidRequestException when the query is refused before sending (nothing sent)
+     * @throws RepetitionWindowException when the same query was attempted in the last 24 hours (`httpStatus` null: refused here, nothing sent)
+     * @throws LedgerUnavailableException when the ledger's store fails (nothing sent)
+     * @throws DatadisException for any other failure; check `requestSent`
      */
     public function getConsumptionData(
         Cups $cups,
@@ -263,6 +296,11 @@ final class DatadisClient
      * Maximum power between two whole months, both included (one month when `$endDate` is omitted). Datadis refuses the identical query for 24 hours.
      *
      * @return ApiResult<MaxPowerReading>
+     *
+     * @throws InvalidRequestException when the query is refused before sending (nothing sent)
+     * @throws RepetitionWindowException when the same query was attempted in the last 24 hours (`httpStatus` null: refused here, nothing sent)
+     * @throws LedgerUnavailableException when the ledger's store fails (nothing sent)
+     * @throws DatadisException for any other failure; check `requestSent`
      */
     public function getMaxPower(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
@@ -276,6 +314,11 @@ final class DatadisClient
      * The result usually holds zero or one ReactiveEnergy.
      *
      * @return ApiResult<ReactiveEnergy>
+     *
+     * @throws InvalidRequestException when the query is refused before sending (nothing sent)
+     * @throws RepetitionWindowException when the same query was attempted in the last 24 hours (`httpStatus` null: refused here, nothing sent)
+     * @throws LedgerUnavailableException when the ledger's store fails (nothing sent)
+     * @throws DatadisException for any other failure; check `requestSent`
      */
     public function getReactiveData(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
@@ -489,7 +532,7 @@ final class DatadisClient
             throw new ConfigurationException('This client has no ledger of yours, only its own in memory: give it the RequestLedger your workers share before remembering what was sent.');
         }
 
-        return $this->guard->remember($endpoint, $query, $sentAt);
+        return $this->guard->remember($endpoint, $this->name($endpoint), $query, $sentAt);
     }
 
     /**

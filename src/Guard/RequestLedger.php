@@ -54,11 +54,17 @@ final class RequestLedger
 
     private readonly bool $atomic;
 
+    /** @var (Closure(LedgerEvent): void)|null */
+    private readonly ?Closure $onChange;
+
     /**
      * @param  LedgerStore|CacheInterface  $store  one store for every read and write; a PSR-16 cache is
      *                                             wrapped in Psr16LedgerStore. An AtomicLedgerStore makes
      *                                             checking and recording one step, so concurrent workers
      *                                             cannot both send
+     * @param  (Closure(LedgerEvent): void)|null  $onChange  told of every query claimed, released or remembered, to keep a
+     *                                                       history; what it throws is ignored, so it never decides whether
+     *                                                       a query goes
      * @param  int|null  $windowSeconds  how long an attempt blocks the same query, at least 24 hours;
      *                                   WINDOW_SECONDS by default. A sync that runs every day should vary
      *                                   its ranges (MonthPlanner::latest()) rather than shorten this.
@@ -70,7 +76,9 @@ final class RequestLedger
         private readonly RequestFingerprinter $fingerprinter,
         ?ClockInterface $clock = null,
         ?int $windowSeconds = null,
+        ?Closure $onChange = null,
     ) {
+        $this->onChange = $onChange;
         if ($windowSeconds !== null && $windowSeconds < self::MIN_WINDOW_SECONDS) {
             throw new ConfigurationException('The repetition window must be at least '.self::MIN_WINDOW_SECONDS." seconds (24 hours), {$windowSeconds} given: Datadis refuses a repeat within 24 hours and counts it.");
         }
@@ -142,13 +150,14 @@ final class RequestLedger
      *
      * @throws LedgerUnavailableException when the store cannot be read or written
      */
-    public function claim(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): ?DateTimeImmutable
+    public function claim(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, ?string $endpoint = null): ?DateTimeImmutable
     {
         if (! $this->atomic) {
             $last = $this->lastAttempt($account, $query);
 
             if ($last === null) {
                 $this->record($account, $query);
+                $this->tell(LedgerEventKind::Claimed, $account, $query, $this->clock->now()->getTimestamp(), $endpoint);
             }
 
             return $last;
@@ -157,6 +166,8 @@ final class RequestLedger
         $now = $this->clock->now()->getTimestamp();
 
         if ($this->add($account, $query, $now, $this->windowSeconds)) {
+            $this->tell(LedgerEventKind::Claimed, $account, $query, $now, $endpoint);
+
             return null;
         }
 
@@ -216,7 +227,7 @@ final class RequestLedger
      * @throws InvalidRequestException when the attempt is further in the future than the clock tolerance
      * @throws LedgerUnavailableException when the store cannot be read or written
      */
-    public function rememberAt(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, DateTimeInterface $sentAt): bool
+    public function rememberAt(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, DateTimeInterface $sentAt, ?string $endpoint = null): bool
     {
         $at = $sentAt->getTimestamp();
         $age = $this->clock->now()->getTimestamp() - $at;
@@ -238,6 +249,8 @@ final class RequestLedger
         }
 
         if ($last === null && $this->atomic && $this->add($account, $query, $at, $ttl)) {
+            $this->tell(LedgerEventKind::Remembered, $account, $query, $at, $endpoint);
+
             return true;
         }
 
@@ -249,6 +262,7 @@ final class RequestLedger
         }
 
         $this->store($account, $query, $at, $ttl);
+        $this->tell(LedgerEventKind::Remembered, $account, $query, $at, $endpoint);
 
         return true;
     }
@@ -258,12 +272,28 @@ final class RequestLedger
      *
      * @throws LedgerUnavailableException when the store cannot remove the record
      */
-    public function forget(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): void
+    public function forget(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, ?string $endpoint = null): void
     {
         try {
             ($this->store)()->delete($this->key($account, $query));
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
+        }
+
+        $this->tell(LedgerEventKind::Released, $account, $query, $this->clock->now()->getTimestamp(), $endpoint);
+    }
+
+    /** @param  array<string, string|int|list<string>|null>  $query */
+    private function tell(LedgerEventKind $kind, #[SensitiveParameter] string $account, #[SensitiveParameter] array $query, int $at, ?string $endpoint): void
+    {
+        if ($this->onChange === null) {
+            return;
+        }
+
+        try {
+            ($this->onChange)(new LedgerEvent($kind, $this->key($account, $query), (new DateTimeImmutable)->setTimestamp($at), $endpoint));
+        } catch (Throwable) {
+            // A history that fails must not decide whether a query goes, nor hide why it did not.
         }
     }
 
