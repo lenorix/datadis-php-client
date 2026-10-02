@@ -124,16 +124,42 @@ final class TokenProvider
         }
     }
 
+    /**
+     * The text with the password and the username removed: as they are, form encoded (`+` for a
+     * space), percent encoded (`%20`), escaped in JSON (with or without escaped slashes and
+     * non-ASCII characters) and escaped in HTML. Case is ignored, since
+     * percent encoding may use either case; removing too much is the safe side.
+     */
+    private function withoutCredentials(#[SensitiveParameter] string $text): string
+    {
+        $forms = [];
+
+        foreach ([$this->config->password(), $this->config->username()] as $secret) {
+            $forms = [...$forms, $secret, urlencode($secret), rawurlencode($secret), htmlspecialchars($secret, ENT_QUOTES | ENT_HTML5)];
+
+            // JSON, with and without escaped slashes and non-ASCII characters.
+            foreach ([0, JSON_UNESCAPED_SLASHES, JSON_UNESCAPED_UNICODE, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE] as $flags) {
+                $json = json_encode($secret, $flags);
+                $forms[] = $json === false ? $secret : substr($json, 1, -1);
+            }
+        }
+
+        // Longest first, so a form that contains another is removed whole.
+        $forms = array_values(array_unique(array_filter($forms, static fn (string $form): bool => $form !== '')));
+        usort($forms, static fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+
+        return str_ireplace($forms, PersonalDataRedactor::PLACEHOLDER, $text);
+    }
+
     private function login(): string
     {
         $response = $this->transport->send($this->requests->login($this->config), self::ENDPOINT, preflight: true);
         $status = $response->getStatusCode();
         $text = ResponseClassifier::text($response);
         // The login body is where credentials were submitted, so an error body that echoes them must not
-        // reach a message. The password cannot be recognised by shape, hence the exact match.
-        $detail = PersonalDataRedactor::excerpt(
-            str_replace([$this->config->password(), $this->config->username()], PersonalDataRedactor::PLACEHOLDER, $text),
-        );
+        // reach a message. The password cannot be recognised by shape, hence the exact match, in the
+        // forms a server echoes a form field in.
+        $detail = PersonalDataRedactor::excerpt($this->withoutCredentials($text));
         $message = self::ENDPOINT.": Datadis answered HTTP {$status}".($detail === '' ? '.' : " · {$detail}");
 
         if ($status === 401 || $status === 403) {

@@ -23,6 +23,7 @@ final class QuirkyCache implements CacheInterface
         public bool $failSet = false,
         public bool $stringify = false,
         public bool $throwOnDelete = false,
+        public bool $failDelete = false,
     ) {}
 
     public function get(string $key, mixed $default = null): mixed
@@ -53,6 +54,10 @@ final class QuirkyCache implements CacheInterface
     {
         if ($this->throwOnDelete) {
             throw new RuntimeException('cache backend down');
+        }
+
+        if ($this->failDelete) {
+            return false;
         }
 
         unset($this->items[$key]);

@@ -276,13 +276,23 @@ final class RequestLedger
      */
     public function forget(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, ?string $endpoint = null): void
     {
+        $key = $this->key($account, $query);
+        $now = $this->clock->now()->getTimestamp();
+
         try {
-            ($this->store)()->delete($this->key($account, $query));
+            // A store that could not delete gets an attempt already outside the window, living one
+            // second: free at once for a plain store, which reads the time, and within a second for
+            // an atomic one, which counts a held key whatever its time.
+            $freed = ($this->store)()->delete($key) || ($this->store)()->set($key, $now - $this->windowSeconds, 1);
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
         }
 
-        $this->tell(LedgerEventKind::Released, $account, $query, $this->clock->now()->getTimestamp(), $endpoint);
+        if (! $freed) {
+            throw new LedgerUnavailableException('The repetition ledger store could not free the query.');
+        }
+
+        $this->tell(LedgerEventKind::Released, $account, $query, $now, $endpoint);
     }
 
     /** @param  array<string, string|int|list<string>|null>  $query */

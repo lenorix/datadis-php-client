@@ -250,3 +250,25 @@ it('leaves alone a query a worker sent while the earlier attempt was being remem
     expect($ledger->rememberAt('A00000000', $query, $clock->now()->modify('-1 hour')))->toBeFalse()
         ->and($ledger->lastAttempt('A00000000', $query)?->getTimestamp())->toBe($clock->now()->getTimestamp());
 });
+
+it('frees a query whose key the store could not delete, by an attempt already outside the window', function () use ($query) {
+    $clock = new FrozenClock;
+    $ledger = new RequestLedger(new QuirkyCache(failDelete: true), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+
+    $ledger->record('A00000000', $query);
+    $ledger->forget('A00000000', $query);
+
+    expect($ledger->lastAttempt('A00000000', $query))->toBeNull()
+        ->and($ledger->claim('A00000000', $query))->toBeNull();
+});
+
+it('reports a store that can neither delete nor overwrite the key', function () use ($query) {
+    $clock = new FrozenClock;
+    $cache = new QuirkyCache(failDelete: true);
+    $ledger = new RequestLedger($cache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger->record('A00000000', $query);
+    $cache->failSet = true;
+
+    expect(fn () => $ledger->forget('A00000000', $query))->toThrow(LedgerUnavailableException::class, 'could not free the query')
+        ->and($ledger->lastAttempt('A00000000', $query))->not->toBeNull();
+});

@@ -32,6 +32,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A login error that echoed the password form encoded, percent encoded (`%20`), escaped in JSON or in HTML kept it in `detail`: only the password as it is was removed. Every one of those forms is removed now, for the username too.
+- A query freed after an unsent failure stayed blocked when the store's `delete()` answered false, and was reported as freed. The ledger then overwrites it with an attempt already outside the window, and reports the store unavailable, without telling it freed, when that fails too. `LedgerStore::delete()` returns a bool.
+
 - A login that failed in the HTTP client no longer carries the client's own message in `detail`: it may describe the request, whose body holds the password in whatever encoding the client prints. Data requests keep it, redacted.
 
 - The `...Of()` calls refuse a range that ends after the month the supply's contract ended, as they refuse one that starts before it: a production consumer reports Datadis refuses it, and the refusal counts.

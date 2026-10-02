@@ -37,9 +37,9 @@ final class Psr16LedgerStore implements LedgerStore
         return ($this->cache)()->set($key, $value, $ttlSeconds);
     }
 
-    public function delete(string $key): void
+    public function delete(string $key): bool
     {
-        ($this->cache)()->delete($key);
+        return ($this->cache)()->delete($key);
     }
 
     /** @return array<string, string> */

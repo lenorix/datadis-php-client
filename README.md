@@ -487,9 +487,9 @@ public function register(): void
                         return $this->cache->put($key, $value, $ttlSeconds);
                     }
 
-                    public function delete(string $key): void
+                    public function delete(string $key): bool
                     {
-                        $this->cache->forget($key);
+                        return $this->cache->forget($key);
                     }
 
                     public function add(string $key, int $value, int $ttlSeconds): bool

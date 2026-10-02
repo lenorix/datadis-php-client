@@ -19,5 +19,6 @@ interface LedgerStore
     /** Keeps $value under $key for $ttlSeconds, replacing what was there; false when it could not. */
     public function set(string $key, int $value, int $ttlSeconds): bool;
 
-    public function delete(string $key): void;
+    /** Removes $key; false when it could not (a key that is not there counts as removed). */
+    public function delete(string $key): bool;
 }

@@ -6,6 +6,7 @@ use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\Request;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\DatadisConfig;
+use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Guard\LedgerEvent;
 use Lenorix\DatadisClient\Guard\LedgerEventKind;
@@ -15,6 +16,7 @@ use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Tests\Support\AtomicCache;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
+use Lenorix\DatadisClient\Tests\Support\QuirkyCache;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
@@ -87,4 +89,39 @@ it('never lets a failing history decide whether a query goes', function () {
     $client->getMaxPower(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 8));
 
     expect($http->requests())->toHaveCount(2);
+});
+
+it('frees, and tells it freed, a query whose key the store could not delete', function () {
+    $http = new FakeHttpClient;
+    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $events = new ArrayObject;
+    $cache = new QuirkyCache(failDelete: true);
+    $ledger = new RequestLedger($cache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, onChange: fn (LedgerEvent $e) => $events->append($e));
+    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+    $http->queue(Responses::datadisError('bad credentials', 401), Responses::text(Tokens::datadis($clock->now()->getTimestamp())), Responses::datadis('{"maxPower":[],"distributorError":[]}'));
+    $query = fn () => $client->getMaxPower(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 8));
+
+    // The login fails before the request: the query never left, so it is free again.
+    expect($query)->toThrow(AuthenticationException::class)
+        ->and(array_map(fn (LedgerEvent $e) => $e->kind, $events->getArrayCopy()))->toBe([LedgerEventKind::Claimed, LedgerEventKind::Released]);
+
+    $query();
+
+    expect($http->requests())->toHaveCount(3);
+});
+
+it('does not tell it freed a query the store could not free, and keeps the original failure', function () {
+    $http = new FakeHttpClient;
+    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $events = new ArrayObject;
+    $cache = new QuirkyCache(failDelete: true);
+    $ledger = new RequestLedger($cache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, onChange: function (LedgerEvent $e) use ($events, $cache): void {
+        $events->append($e);
+        $cache->failSet = true;   // the store fails from now on
+    });
+    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+    $http->queue(Responses::datadisError('bad credentials', 401));
+
+    expect(fn () => $client->getMaxPower(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 8)))->toThrow(AuthenticationException::class)
+        ->and(array_map(fn (LedgerEvent $e) => $e->kind, $events->getArrayCopy()))->toBe([LedgerEventKind::Claimed]);
 });

@@ -58,9 +58,11 @@ final class AtomicCache implements AtomicLedgerStore
         return true;
     }
 
-    public function delete(string $key): void
+    public function delete(string $key): bool
     {
         unset($this->items[$key]);
+
+        return true;
     }
 
     /** The same store without add(), as a plain store over the same backend would be. */
@@ -80,9 +82,9 @@ final class AtomicCache implements AtomicLedgerStore
                 return $this->store->set($key, $value, $ttlSeconds);
             }
 
-            public function delete(string $key): void
+            public function delete(string $key): bool
             {
-                $this->store->delete($key);
+                return $this->store->delete($key);
             }
         };
     }

@@ -348,6 +348,31 @@ it('removes a poisoned token from the store even if saving the new one fails', f
     expect($cache->items)->not->toHaveKey($key);
 });
 
+it('removes the password a login error echoes in any of the forms a server writes a form field in', function (Closure $echo) {
+    $password = 'review only-secret/ñ"&<1>';
+    $stack = new Stack(config: new DatadisConfig('A00000000', $password, baseUrl: 'https://datadis.test'));
+    $stack->http->queue(Responses::text('bad login: '.$echo($password), 401));
+
+    try {
+        $stack->tokens->token();
+    } catch (AuthenticationException $e) {
+        expect($e->detail)->toContain('[redacted]')->not->toContain('only')
+            ->and($e->getMessage())->not->toContain('only');
+
+        return;
+    }
+
+    throw new LogicException('Expected an AuthenticationException.');
+})->with([
+    'as it is' => [fn (string $p) => "password={$p}"],
+    'form encoded' => [fn (string $p) => 'password='.urlencode($p)],
+    'percent encoded' => [fn (string $p) => 'password='.rawurlencode($p)],
+    'percent encoded in lower case' => [fn (string $p) => 'password='.preg_replace_callback('/%[0-9A-F]{2}/', fn ($m) => strtolower($m[0]), rawurlencode($p))],
+    'in JSON' => [fn (string $p) => json_encode(['password' => $p])],
+    'in JSON, unicode escaped' => [fn (string $p) => json_encode(['password' => $p], JSON_UNESCAPED_SLASHES)],
+    'in HTML' => [fn (string $p) => '<td>'.htmlspecialchars($p).'</td>'],
+]);
+
 it('scrubs an echoed username, also one whose control character was not checked', function () {
     $stack = new Stack(config: new DatadisConfig('00000000A', Stack::PASSWORD, baseUrl: 'https://datadis.test', checkUsernameControl: false));
     $stack->http->queue(Responses::text('unknown user 00000000A', 401));
