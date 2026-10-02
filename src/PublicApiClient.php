@@ -16,6 +16,7 @@ use Lenorix\DatadisClient\PublicApi\PageWalk;
 use Lenorix\DatadisClient\PublicApi\PublicRecord;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApi\SelfConsumptionSearchQuery;
+use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -48,8 +49,9 @@ final class PublicApiClient
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         ?CacheInterface $tokenCache = null,
+        ?ClockInterface $clock = null,
     ) {
-        $this->caller = ApiCaller::connect($config, $http, $requestFactory, $streamFactory, $tokenCache);
+        $this->caller = ApiCaller::connect($config, $http, $requestFactory, $streamFactory, $tokenCache, $clock);
     }
 
     /** @return ApiResult<PublicRecord> */

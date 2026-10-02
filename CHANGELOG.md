@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `PublicApiClient` takes a `clock:` like `DatadisClient`, used to judge the expiry of the token it logs in with: it read the system clock only, so an application that moves its own time (a test, a simulation) saw the public API disagree with the private one about a token the two share.
+
 ## [0.5.0] - 2026-10-02
 
 The 24 hour ledger is reached only through the client and one store: lookups, imports of earlier queries and a history, without a key to rebuild. Several breaking changes: see Changed.
