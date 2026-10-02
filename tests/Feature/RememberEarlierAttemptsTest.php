@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\DatadisConfig;
+use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
@@ -163,4 +164,15 @@ it('refuses what it would refuse to send, and an attempt in the future, without 
     'a wrong point type' => [fn (DatadisClient $c, DateTimeImmutable $now) => $c->rememberConsumptionData($now->modify('-1 hour'), cups(), '2', 9, Month::of(2026, 8))],
     'a wrong distributor code' => [fn (DatadisClient $c, DateTimeImmutable $now) => $c->rememberMaxPower($now->modify('-1 hour'), cups(), '', Month::of(2026, 8))],
     'another holder on a holder client' => [fn (DatadisClient $c, DateTimeImmutable $now) => $c->forHolder(Nif::fromString('00000000T'))->rememberMaxPower($now->modify('-1 hour'), cups(), '2', Month::of(2026, 8), authorizedNif: Nif::fromString('X0000000T'))],
+]);
+
+it('refuses to remember on a client without a ledger of yours, which would keep it in its own memory only', function (Closure $remember) {
+    $s = Scenario::make();
+
+    expect(fn () => $remember($s->client, $s->clock->now()->modify('-1 hour')))->toThrow(ConfigurationException::class, 'RequestLedger your workers share')
+        ->and($s->http->requests())->toBe([]);
+})->with([
+    'consumption' => [fn (DatadisClient $c, DateTimeImmutable $at) => $c->rememberConsumptionData($at, cups(), '2', 5, Month::of(2026, 8))],
+    'maximum power' => [fn (DatadisClient $c, DateTimeImmutable $at) => $c->rememberMaxPower($at, cups(), '2', Month::of(2026, 8))],
+    'reactive' => [fn (DatadisClient $c, DateTimeImmutable $at) => $c->rememberReactiveData($at, cups(), '2', Month::of(2026, 8))],
 ]);

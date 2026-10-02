@@ -68,6 +68,9 @@ final class DatadisClient
 
     private readonly RepetitionGuard $guard;
 
+    /** Whether the ledger is this client's own, in memory, rather than one the application gave. */
+    private readonly bool $ledgerInMemory;
+
     private readonly ClockInterface $clock;
 
     private readonly DateTimeZone $timeZone;
@@ -99,6 +102,7 @@ final class DatadisClient
 
         $this->caller = ApiCaller::connect($config, $http, $requestFactory, $streamFactory, $tokenCache, $this->clock);
         // Datadis refuses a repeated query for 24 hours and counts the refusal: never repeat one, even by default.
+        $this->ledgerInMemory = $ledger === null;
         $ledger ??= new RequestLedger(new InMemoryCache($this->clock), new RequestFingerprinter(random_bytes(32)), $this->clock);
         $this->guard = new RepetitionGuard($ledger, $config->username());
     }
@@ -291,10 +295,12 @@ final class DatadisClient
      * as it was sent; it is built exactly as getConsumptionData() builds it (the holder and the
      * account's own NIF included), so the ledger refuses that very query until its window ends. An
      * attempt older than the window is not recorded, and the newest attempt of a query wins. Import
-     * before any worker sends with the ledger, with the workers paused.
+     * before any worker sends with the ledger, with the workers paused, through a client given the
+     * ledger the workers share.
      *
      * @return bool whether it was recorded
      *
+     * @throws ConfigurationException when the client has no ledger given by the application, only its own in memory
      * @throws InvalidRequestException when a value is not valid, the range is reversed or `$sentAt` is in the future
      * @throws LedgerUnavailableException when the ledger's store fails
      */
@@ -317,6 +323,7 @@ final class DatadisClient
      *
      * @return bool whether it was recorded
      *
+     * @throws ConfigurationException when the client has no ledger given by the application
      * @throws InvalidRequestException when a value is not valid, the range is reversed or `$sentAt` is in the future
      * @throws LedgerUnavailableException when the ledger's store fails
      */
@@ -331,6 +338,7 @@ final class DatadisClient
      *
      * @return bool whether it was recorded
      *
+     * @throws ConfigurationException when the client has no ledger given by the application
      * @throws InvalidRequestException when a value is not valid, the range is reversed or `$sentAt` is in the future
      * @throws LedgerUnavailableException when the ledger's store fails
      */
@@ -342,6 +350,11 @@ final class DatadisClient
     /** @param  array<string, string|int|null>  $query */
     private function remember(Endpoint $endpoint, #[SensitiveParameter] array $query, DateTimeInterface $sentAt): bool
     {
+        // Remembered in this process's memory only, no worker would ever see it: an import would report success and protect nothing.
+        if ($this->ledgerInMemory) {
+            throw new ConfigurationException('This client has no ledger of yours, only its own in memory: give it the RequestLedger your workers share before remembering what was sent.');
+        }
+
         try {
             return $this->guard->remember($endpoint, $query, $sentAt);
         } catch (InvalidArgumentException $e) {

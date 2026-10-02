@@ -348,7 +348,7 @@ A command that must not send anything when the query is still blocked does the s
 
 Three things to plan when you switch:
 
-- **The queries of the last day.** The ledger starts empty. Tell it what you sent, with the same arguments you would give to the call and when it was sent; it builds each query exactly as the call does (the holder, the account's own NIF, one month as a range of one), so it refuses those very queries until their windows end:
+- **The queries of the last day.** The ledger starts empty. Through a client given the ledger your workers share (one without a ledger of yours refuses, since it would remember in its own memory only), tell it what you sent, with the same arguments you would give to the call and when it was sent; it builds each query exactly as the call does (the holder, the account's own NIF, one month as a range of one), so it refuses those very queries until their windows end:
 
   ```php
   foreach ($sentInTheLastDay as $sent) {   // rebuilt from your own data: the supply, the month, the endpoint
