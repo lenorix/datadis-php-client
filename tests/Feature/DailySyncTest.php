@@ -55,3 +55,18 @@ it('refreshes a contract that started this month every other day, and refuses on
         ->and(fn () => $datadis->client()->getLatestMaxPowerOf(DatadisWithTheRule::supply('2020/01/01', '2026/08/31')))->toThrow(InvalidRequestException::class, 'no data to refresh')
         ->and($datadis->sent)->toHaveCount(2);
 });
+
+it('says which months the daily call asked for, also when they came back empty', function (string $at, string $from) {
+    $clock = new FrozenClock(new DateTimeImmutable($at, new DateTimeZone('Europe/Madrid')));
+    $datadis = new DatadisWithTheRule($clock);
+
+    $readings = $datadis->client()->getLatestConsumptionDataOf(DatadisWithTheRule::supply());
+    $peaks = $datadis->client()->getLatestMaxPowerOf(DatadisWithTheRule::supply());
+
+    expect($readings->isEmpty())->toBeTrue()
+        ->and($readings->startDate?->format())->toBe($from)->and($readings->endDate?->format())->toBe('2026/09')
+        ->and($peaks->startDate?->format())->toBe($from)->and($peaks->endDate?->format())->toBe('2026/09');
+})->with([
+    'an odd day: the previous and the current month' => ['2026-09-15 06:00', '2026/08'],
+    'an even day: the current month' => ['2026-09-16 06:00', '2026/09'],
+]);

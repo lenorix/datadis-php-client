@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
+use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
@@ -225,7 +226,7 @@ it('refuses an attempt further in the future than the clock tolerance, and takes
     $clock = new FrozenClock;
     $ledger = ledger($clock);
 
-    expect(fn () => $ledger->rememberAt('A00000000', $query, $clock->now()->modify('+'.(RequestLedger::CLOCK_TOLERANCE_SECONDS + 1).' seconds')))->toThrow(InvalidArgumentException::class)
+    expect(fn () => $ledger->rememberAt('A00000000', $query, $clock->now()->modify('+'.(RequestLedger::CLOCK_TOLERANCE_SECONDS + 1).' seconds')))->toThrow(InvalidRequestException::class)
         ->and($ledger->rememberAt('A00000000', $query, $clock->now()->modify('+'.RequestLedger::CLOCK_TOLERANCE_SECONDS.' seconds')))->toBeTrue();
 });
 

@@ -8,7 +8,6 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
 use Exception;
-use InvalidArgumentException;
 use Lenorix\DatadisClient\Data\ApiResult;
 use Lenorix\DatadisClient\Data\Authorization;
 use Lenorix\DatadisClient\Data\ConsumptionReading;
@@ -257,7 +256,7 @@ final class DatadisClient
             return ConsumptionReading::fromRow($row, $this->timeZone, $measurementType, $occurrence, $quarters);
         };
 
-        return Envelope::build($decoded, 'timeCurve', $this->name(Endpoint::Consumption), $decode);
+        return Envelope::build($decoded, 'timeCurve', $this->name(Endpoint::Consumption), $decode)->forMonths($startDate, $endDate ?? $startDate);
     }
 
     /**
@@ -269,7 +268,7 @@ final class DatadisClient
     {
         $decoded = $this->fetch(Endpoint::MaxPower, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
 
-        return Envelope::build($decoded, 'maxPower', $this->name(Endpoint::MaxPower), fn (array $row) => MaxPowerReading::fromRow($row, $this->timeZone));
+        return Envelope::build($decoded, 'maxPower', $this->name(Endpoint::MaxPower), fn (array $row) => MaxPowerReading::fromRow($row, $this->timeZone))->forMonths($startDate, $endDate ?? $startDate);
     }
 
     /**
@@ -286,7 +285,7 @@ final class DatadisClient
 
         $decoded = $this->fetch(Endpoint::Reactive, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
 
-        return ReactiveEnergyAnswer::result($decoded, $this->name(Endpoint::Reactive));
+        return ReactiveEnergyAnswer::result($decoded, $this->name(Endpoint::Reactive))->forMonths($startDate, $endDate ?? $startDate);
     }
 
     /**
@@ -355,11 +354,7 @@ final class DatadisClient
             throw new ConfigurationException('This client has no ledger of yours, only its own in memory: give it the RequestLedger your workers share before remembering what was sent.');
         }
 
-        try {
-            return $this->guard->remember($endpoint, $query, $sentAt);
-        } catch (InvalidArgumentException $e) {
-            throw new InvalidRequestException($e->getMessage());
-        }
+        return $this->guard->remember($endpoint, $query, $sentAt);
     }
 
     /**
@@ -386,7 +381,7 @@ final class DatadisClient
         MeasurementType $measurementType = MeasurementType::Hourly,
         ?Nif $authorizedNif = null,
     ): ApiResult {
-        [$cups, $code] = $this->queryable($supply, $startDate);
+        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
         $pointType = $this->pointTypeOf($supply);
 
         return $this->getConsumptionData($cups, $code, $pointType, $startDate, $endDate, $measurementType, $authorizedNif);
@@ -399,7 +394,7 @@ final class DatadisClient
      */
     public function getMaxPowerOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
-        [$cups, $code] = $this->queryable($supply, $startDate);
+        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
 
         return $this->getMaxPower($cups, $code, $startDate, $endDate, $authorizedNif);
     }
@@ -411,7 +406,7 @@ final class DatadisClient
      */
     public function getReactiveDataOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
-        [$cups, $code] = $this->queryable($supply, $startDate);
+        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
 
         return $this->getReactiveData($cups, $code, $startDate, $endDate, $authorizedNif);
     }
@@ -419,7 +414,8 @@ final class DatadisClient
     /**
      * The consumption of the current month for a sync that runs every day: the range comes from
      * MonthPlanner::latest(), so today's query is never yesterday's, and on odd days it also
-     * brings the previous month. A second run on the same day is refused like any repeat.
+     * brings the previous month. The result's `startDate` and `endDate` say which months it asked
+     * for, so a month that came back empty is known to have been asked. A second run on the same day is refused like any repeat.
      * Schedule the job at a fixed hour in Madrid time (the range follows the Madrid calendar day),
      * well clear of midnight and of 02:00-03:00; split the records by month before adding them up.
      *
@@ -658,7 +654,7 @@ final class DatadisClient
      *
      * @return array{Cups, string}
      */
-    private function queryable(#[SensitiveParameter] Supply $supply, ?Month $startDate = null): array
+    private function queryable(#[SensitiveParameter] Supply $supply, ?Month $startDate = null, ?Month $endDate = null): array
     {
         if (! Cups::isValid($supply->cups) || ! Supply::isValidDistributorCode($supply->distributorCode) || $supply->distributorCode === null) {
             throw new InvalidRequestException('The supply was listed without a usable CUPS or distributor code; list the supplies again.');
@@ -666,6 +662,13 @@ final class DatadisClient
 
         if ($startDate !== null && $supply->validDateFrom !== null && $startDate->isBefore(Month::fromDate($supply->validDateFrom))) {
             throw new InvalidRequestException('The range starts before the contract of the supply ('.Month::fromDate($supply->validDateFrom)->format().'); Datadis refuses it, and the refusal counts for 24 hours. MonthPlanner::ranges() keeps to the contract.');
+        }
+
+        // REPORTED by a production consumer: a month after the contract ended is refused like one before it.
+        $last = $endDate ?? $startDate;
+
+        if ($last !== null && $supply->validDateTo !== null && $last->isAfter(Month::fromDate($supply->validDateTo))) {
+            throw new InvalidRequestException('The range ends after the contract of the supply ('.Month::fromDate($supply->validDateTo)->format().'); Datadis refuses it, and the refusal counts for 24 hours. MonthPlanner::ranges() keeps to the contract.');
         }
 
         return [Cups::fromString($supply->cups), $supply->distributorCode];

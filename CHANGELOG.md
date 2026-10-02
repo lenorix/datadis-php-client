@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- The results of consumption, maximum power and reactive data carry the months they asked for (`startDate`, `endDate`), so the range `getLatest...Of()` chose is known, also when a month came back empty.
+
 - `RepetitionWindowException::$lastAttemptAt` and `$availableAt` for a query refused by the ledger: when it was last attempted and from when it is allowed again (null for Datadis's own 429). `RequestLedger::windowSeconds()` gives the window.
 - `rememberConsumptionData()`, `rememberMaxPower()` and `rememberReactiveData()` tell the ledger that a query was sent earlier, with the same arguments as the call and when: it is built exactly as the call builds it and kept for what is left of its window, and the newest attempt wins. They refuse on a client without a ledger given by the application, which would remember in its own memory only. `RequestLedger::rememberAt()` does it for a query given as sent.
 - A README section on moving from an application's own record of sent queries to the ledger: call and catch instead of check and call, import the queries of the last day (or keep the old check for one window), and keep the ledger in a store that deploys do not clear.
@@ -20,6 +22,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `PageLimitReachedException`, thrown by `apiSearchAll()` and `apiSearchAutoAll()` after the last record when they stop at `maxPages` with a full last page, so more records may remain; it carries `nextPage` and `skippedRows`. When a walk ends on its own, the generator returns a `PageWalk` with the pages read and the rows left out across them.
 
 ### Fixed
+
+- The `...Of()` calls refuse a range that ends after the month the supply's contract ended, as they refuse one that starts before it: a production consumer reports Datadis refuses it, and the refusal counts.
+- `RequestLedger::rememberAt()` throws an `InvalidRequestException`, like the rest of the package, for an attempt in the future.
 
 - `newAuthorization()`, `cancelAuthorization()` and `partnerDeleteUser()` were sent again after a 401 and a new login, so a change could be applied twice. After a 401 only the calls safe to repeat are sent again; the others fail with an `AuthenticationException` whose `requestSent` is `true`.
 - `apiSearchAll()` and `apiSearchAutoAll()` stopped quietly at `maxPages` even when the last page was full, and dropped the count of unreadable rows of each page.

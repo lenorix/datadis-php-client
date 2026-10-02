@@ -7,8 +7,8 @@ namespace Lenorix\DatadisClient\Guard;
 use Closure;
 use DateTimeImmutable;
 use DateTimeInterface;
-use InvalidArgumentException;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
+use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Support\SystemClock;
 use Psr\Clock\ClockInterface;
@@ -213,7 +213,7 @@ final class RequestLedger
      * @param  array<string, string|int|list<string>|null>  $query
      * @return bool whether it was recorded
      *
-     * @throws InvalidArgumentException when the attempt is further in the future than the clock tolerance
+     * @throws InvalidRequestException when the attempt is further in the future than the clock tolerance
      * @throws LedgerUnavailableException when the store cannot be read or written
      */
     public function rememberAt(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, DateTimeInterface $sentAt): bool
@@ -222,7 +222,7 @@ final class RequestLedger
         $age = $this->clock->now()->getTimestamp() - $at;
 
         if ($age < -self::CLOCK_TOLERANCE_SECONDS) {
-            throw new InvalidArgumentException('An attempt cannot have been made in the future.');
+            throw new InvalidRequestException('An attempt cannot have been made in the future.');
         }
 
         if ($age >= $this->windowSeconds) {

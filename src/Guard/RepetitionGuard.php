@@ -6,8 +6,8 @@ namespace Lenorix\DatadisClient\Guard;
 
 use Closure;
 use DateTimeInterface;
-use InvalidArgumentException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
+use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Http\Endpoint;
@@ -88,7 +88,7 @@ final readonly class RepetitionGuard
      *
      * @param  array<string, string|int|list<string>|null>  $query  the query as the client sends it
      *
-     * @throws InvalidArgumentException when the attempt is in the future
+     * @throws InvalidRequestException when the attempt is in the future
      * @throws LedgerUnavailableException when the store cannot be read or written
      */
     public function remember(Endpoint $endpoint, #[SensitiveParameter] array $query, DateTimeInterface $sentAt): bool

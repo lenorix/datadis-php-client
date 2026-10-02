@@ -117,3 +117,34 @@ it('refuses the consumption of a supply listed without a point type, naming it',
     expect(fn () => $s->client->getConsumptionDataOf(supplyAsListed(['pointType' => null]), Month::of(2026, 7)))->toThrow(InvalidRequestException::class, 'point type')
         ->and($s->http->requests())->toBe([]);
 });
+
+it('refuses before sending a range that ends after the contract, which Datadis is reported to refuse and count', function (Closure $call) {
+    $s = Scenario::make();
+    $supply = supplyAsListed(['validDateTo' => '2026/05/31']);
+
+    expect(fn () => $call($s->client, $supply))->toThrow(InvalidRequestException::class, 'ends after the contract of the supply (2026/05)')
+        ->and($s->http->requests())->toBe([]);
+})->with([
+    'consumption into the next month' => [fn (DatadisClient $c, Supply $s) => $c->getConsumptionDataOf($s, Month::of(2026, 5), Month::of(2026, 6))],
+    'max power of the next month' => [fn (DatadisClient $c, Supply $s) => $c->getMaxPowerOf($s, Month::of(2026, 6))],
+    'reactive of the next month' => [fn (DatadisClient $c, Supply $s) => $c->getReactiveDataOf($s, Month::of(2026, 6))],
+]);
+
+it('sends a range that ends in the month the contract ends', function () {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis('{"maxPower":[],"distributorError":[]}'));
+
+    $s->client->getMaxPowerOf(supplyAsListed(['validDateTo' => '2026/05/31']), Month::of(2026, 4), Month::of(2026, 5));
+
+    expect($s->query()['endDate'])->toBe('2026/05');
+});
+
+it('says which months a data query asked for, and leaves the lists without them', function () {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis('{"reactiveEnergy":{},"distributorError":[]}'), Responses::datadis('{"supplies":[],"distributorError":[]}'));
+
+    $reactive = $s->client->getReactiveDataOf(supplyAsListed(), Month::of(2026, 5), Month::of(2026, 7));
+
+    expect($reactive->startDate?->format())->toBe('2026/05')->and($reactive->endDate?->format())->toBe('2026/07')
+        ->and($s->client->getSupplies()->startDate)->toBeNull();
+});

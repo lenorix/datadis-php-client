@@ -7,6 +7,7 @@ namespace Lenorix\DatadisClient\Data;
 use ArrayIterator;
 use Countable;
 use IteratorAggregate;
+use Lenorix\DatadisClient\Time\Month;
 use Traversable;
 
 /**
@@ -33,13 +34,29 @@ final readonly class ApiResult implements Countable, IteratorAggregate
      * @param  list<DistributorError>  $distributorErrors  partial failures reported inside a 200 (v2 only)
      * @param  int  $skippedRows  rows that could not be used and were left out
      * @param  array<array-key, mixed>  $raw  the decoded payload as received
+     * @param  Month|null  $startDate  the first month asked for, for consumption, maximum power and reactive data
+     * @param  Month|null  $endDate  the last month asked for, both included: the range getLatest...Of() chose
      */
     public function __construct(
         public array $records,
         public array $distributorErrors = [],
         public int $skippedRows = 0,
         public array $raw = [],
+        public ?Month $startDate = null,
+        public ?Month $endDate = null,
     ) {}
+
+    /**
+     * The same result, saying which months were asked for.
+     *
+     * @return self<T>
+     *
+     * @internal
+     */
+    public function forMonths(Month $startDate, Month $endDate): self
+    {
+        return new self($this->records, $this->distributorErrors, $this->skippedRows, $this->raw, $startDate, $endDate);
+    }
 
     public function isEmpty(): bool
     {
