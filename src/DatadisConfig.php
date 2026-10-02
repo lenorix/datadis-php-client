@@ -189,7 +189,7 @@ final readonly class DatadisConfig
             return $default;
         }
 
-        return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE)
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
             ?? throw new ConfigurationException("The Datadis setting \"{$key}\" must be true or false.");
     }
 
