@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `getLatestConsumptionDataOf()` and `getLatestMaxPowerOf()`, and `MonthPlanner::latest()`, for a sync that runs every day: the range alternates between the current month and the previous plus the current month with the civil day, so no query is repeated from one day to the next. Asking the same range every day is refused by Datadis whenever a run starts earlier than the day before.
+- `RequestLedger` takes `windowSeconds:` (24 hours and 10 minutes by default, never below 24 hours).
+
 ## [0.3.0] - 2026-10-02
 
 Checked against the reference integration in production and the other Datadis clients: two cases could still cost a query for 24 hours.

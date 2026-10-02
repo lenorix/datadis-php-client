@@ -18,6 +18,9 @@ final class AtomicCache implements AtomicStore, CacheInterface
     /** @var array<string, mixed> */
     public array $items = [];
 
+    /** @var list<int> the TTL of every add() */
+    public array $ttls = [];
+
     public function __construct(public bool $staleReads = false, public bool $failAdd = false) {}
 
     public function add(string $key, mixed $value, int $ttlSeconds): bool
@@ -25,6 +28,8 @@ final class AtomicCache implements AtomicStore, CacheInterface
         if ($this->failAdd) {
             throw new \RuntimeException('cache backend down');
         }
+
+        $this->ttls[] = $ttlSeconds;
 
         if (array_key_exists($key, $this->items)) {
             return false;

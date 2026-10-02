@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Time;
 
+use DateTimeImmutable;
 use DateTimeInterface;
+use DateTimeZone;
 use InvalidArgumentException;
 use Lenorix\DatadisClient\Data\Supply;
 use SensitiveParameter;
@@ -36,11 +38,11 @@ final class MonthPlanner
         // No range is longer than the history Datadis serves, so a larger number means one request.
         $monthsPerRequest = min($monthsPerRequest, Month::HISTORY_MONTHS);
         $current = Month::current($now);
-        $first = self::latest($from, $current->addMonths(-(Month::HISTORY_MONTHS - 1)));
+        $first = self::later($from, $current->addMonths(-(Month::HISTORY_MONTHS - 1)));
         $last = self::earliest($to, $current);
 
         if ($supply?->validDateFrom !== null) {
-            $first = self::latest($first, Month::fromDate($supply->validDateFrom));
+            $first = self::later($first, Month::fromDate($supply->validDateFrom));
         }
 
         if ($supply?->validDateTo !== null) {
@@ -55,7 +57,57 @@ final class MonthPlanner
         return $ranges;
     }
 
-    private static function latest(Month $a, Month $b): Month
+    /**
+     * The ranges to ask for the current month in a sync that runs every day, best first.
+     *
+     * Datadis refuses an identical query for 24 hours, so asking the same range every day fails
+     * whenever a run starts a little earlier than the day before. The first range alternates with
+     * the civil day (Madrid): the current month alone on even days, the previous and the current
+     * month on odd days, so consecutive days never send the same query and each range comes back
+     * about every 48 hours. The previous month is refreshed every other day too, which also brings
+     * its last days, published after it ended.
+     *
+     * The second range, when there is one, is the other one: use it only when the first was
+     * refused locally (a second run on the same day), never after a 429 from Datadis, which would
+     * most likely refuse it too. Given a supply, the ranges keep to its contract: a contract that
+     * starts this month only has the current month (refreshed every other day), and one that
+     * ended before this month, or starts after it, has nothing to refresh.
+     *
+     * @param  DateTimeInterface  $now  any zone: the civil day and the current month are those of Madrid
+     * @return list<array{0: Month, 1: Month}>
+     */
+    public static function latest(DateTimeInterface $now, #[SensitiveParameter] ?Supply $supply = null): array
+    {
+        $current = Month::current($now);
+        $previous = $current->addMonths(-1);
+
+        $ended = $supply?->validDateTo !== null && Month::fromDate($supply->validDateTo)->isBefore($current);
+        $notStarted = $supply?->validDateFrom !== null && Month::fromDate($supply->validDateFrom)->isAfter($current);
+
+        if ($ended || $notStarted) {
+            return [];
+        }
+
+        $alone = [$current, $current];
+        $both = [$previous, $current];
+
+        if ($supply?->validDateFrom !== null && $previous->isBefore(Month::fromDate($supply->validDateFrom))) {
+            return [$alone];
+        }
+
+        return self::civilDayNumber($now) % 2 === 0 ? [$alone, $both] : [$both, $alone];
+    }
+
+    /** Days since 1970-01-01 of the Madrid civil date, so consecutive days always differ in parity. */
+    private static function civilDayNumber(DateTimeInterface $now): int
+    {
+        $date = DateTimeImmutable::createFromInterface($now)->setTimezone(new DateTimeZone(Month::SERVICE_TIME_ZONE))->format('Y-m-d');
+        $days = intdiv((new DateTimeImmutable($date, new DateTimeZone('UTC')))->getTimestamp(), 86400);
+
+        return $days < 0 ? -$days : $days;
+    }
+
+    private static function later(Month $a, Month $b): Month
     {
         return $a->isAfter($b) ? $a : $b;
     }

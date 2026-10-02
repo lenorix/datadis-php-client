@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
@@ -157,4 +158,24 @@ it('answers a lost atomic claim with the time the other worker sent the query', 
     $clock->advance(3600);
 
     expect($ledger->claim('A00000000', $query)?->getTimestamp())->toBe($sent);
+});
+
+it('takes a window of its own, never shorter than the 24 hours of Datadis', function () use ($query) {
+    $clock = new FrozenClock;
+    $atomic = new AtomicCache;
+    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, windowSeconds: 86400);
+    $withAtomic = new RequestLedger($atomic, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, $atomic, 2 * 86400);
+
+    $ledger->record('A00000000', $query);
+    $withAtomic->claim('A00000000', $query);
+    $clock->advance(86400 - 1);
+    expect($ledger->lastAttempt('A00000000', $query))->not->toBeNull();
+
+    $clock->advance(1);
+    expect($ledger->lastAttempt('A00000000', $query))->toBeNull()
+        ->and($withAtomic->claim('A00000000', $query))->not->toBeNull()
+        ->and($atomic->ttls)->toBe([2 * 86400, 2 * 86400]);
+
+    expect(fn () => new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), windowSeconds: 86399))
+        ->toThrow(ConfigurationException::class, 'at least 86400');
 });

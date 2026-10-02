@@ -174,6 +174,17 @@ foreach (MonthPlanner::ranges($current->addMonths(-23), $current, $now, supply: 
 
 One month per request is the default on purpose: distributors time out on long ranges, and a failed long request costs as much as a short one.
 
+### Keep the current month up to date every day
+
+A job that asks for the current month every day cannot send the same query each time: Datadis refuses it for 24 hours, so any run that reaches Datadis a little earlier than the day before would be refused, and the month would only be updated every other day. The `getLatest...Of()` calls alternate the range with the day instead: the current month alone one day, the previous and the current month the next, so no query is repeated within 48 hours and each run brings today's data (and, every other day, the last days of the previous month too).
+
+```php
+$readings = $client->getLatestConsumptionDataOf($supply);   // ApiResult, as getConsumptionDataOf()
+$peaks = $client->getLatestMaxPowerOf($supply);
+```
+
+Store the records by their time: a two-month answer repeats the days you already have. A second run on the same day takes the other range, and a third is refused. A contract that started this month has only one range, so it is updated every other day. Reactive data shares its 24 hour key with maximum power, so ask it for closed months only. `MonthPlanner::latest()` gives the same plan if you prefer to make the calls yourself.
+
 ### Authorizations, groups and partner accounts
 
 ```php
@@ -294,6 +305,8 @@ $client = new DatadisClient($config, ledger: $ledger);
 ```
 
 A repeat fails with a `RepetitionWindowException` whose `requestSent` is `false`, before anything is sent. Only a keyed hash of each query is stored, never the CUPS.
+
+The ledger remembers each query for 24 hours and 10 minutes, a margin for the clocks of your servers and of Datadis. Pass `windowSeconds:` to change it, never below 24 hours. A job that runs every day should not shorten it to fit: use [the daily calls](#keep-the-current-month-up-to-date-every-day), which never repeat a query from one day to the next. If your application keeps a record of its own of what it asked, let the ledger decide alone: two records with different windows refuse different calls.
 
 If Datadis rejects the token of such a query (a 401, rare, since the token is renewed before it expires), the client does not send it again, because Datadis may already have counted it: you get an `AuthenticationException` with `requestSent = true`, and the next call logs in again.
 

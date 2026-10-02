@@ -6,6 +6,7 @@ namespace Lenorix\DatadisClient\Guard;
 
 use Closure;
 use DateTimeImmutable;
+use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Support\SystemClock;
 use Psr\Clock\ClockInterface;
@@ -23,8 +24,11 @@ use Throwable;
  */
 final class RequestLedger
 {
-    /** 24 hours plus a margin for clock differences with Datadis. */
+    /** The default window: 24 hours plus a margin for clock differences with Datadis. */
     public const int WINDOW_SECONDS = 86400 + 600;
+
+    /** Datadis's own window: a shorter one would let through queries Datadis refuses and counts. */
+    public const int MIN_WINDOW_SECONDS = 86400;
 
     /**
      * How far ahead of this clock a stored time may be and still count: another worker's clock can
@@ -34,6 +38,8 @@ final class RequestLedger
     public const int CLOCK_TOLERANCE_SECONDS = 600;
 
     private readonly ClockInterface $clock;
+
+    private readonly int $windowSeconds;
 
     /**
      * The stores are often the application's own cache, which may also hold the login token and
@@ -50,13 +56,24 @@ final class RequestLedger
     /**
      * @param  AtomicStore|null  $atomic  the same store, able to add a key only if absent: then checking
      *                                    and recording are one step and concurrent workers cannot both send
+     * @param  int|null  $windowSeconds  how long an attempt blocks the same query, at least 24 hours;
+     *                                   WINDOW_SECONDS by default. A sync that runs every day should vary
+     *                                   its ranges (MonthPlanner::latest()) rather than shorten this.
+     *
+     * @throws ConfigurationException when the window is shorter than 24 hours
      */
     public function __construct(
         CacheInterface $cache,
         private readonly RequestFingerprinter $fingerprinter,
         ?ClockInterface $clock = null,
         ?AtomicStore $atomic = null,
+        ?int $windowSeconds = null,
     ) {
+        if ($windowSeconds !== null && $windowSeconds < self::MIN_WINDOW_SECONDS) {
+            throw new ConfigurationException('The repetition window must be at least '.self::MIN_WINDOW_SECONDS." seconds (24 hours), {$windowSeconds} given: Datadis refuses a repeat within 24 hours and counts it.");
+        }
+
+        $this->windowSeconds = $windowSeconds ?? self::WINDOW_SECONDS;
         $this->cache = static fn (): CacheInterface => $cache;
         $this->atomic = $atomic === null ? null : static fn (): AtomicStore => $atomic;
         $this->clock = $clock ?? new SystemClock;
@@ -101,7 +118,7 @@ final class RequestLedger
 
         $elapsed = is_int($value) ? $this->clock->now()->getTimestamp() - $value : null;
 
-        if ($elapsed === null || $elapsed >= self::WINDOW_SECONDS || $elapsed < -self::CLOCK_TOLERANCE_SECONDS) {
+        if ($elapsed === null || $elapsed >= $this->windowSeconds || $elapsed < -self::CLOCK_TOLERANCE_SECONDS) {
             return null;
         }
 
@@ -144,7 +161,7 @@ final class RequestLedger
     private function add(AtomicStore $atomic, #[SensitiveParameter] string $account, #[SensitiveParameter] array $query, int $now): bool
     {
         try {
-            return $atomic->add($this->key($account, $query), $now, self::WINDOW_SECONDS);
+            return $atomic->add($this->key($account, $query), $now, $this->windowSeconds);
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
         }
@@ -158,7 +175,7 @@ final class RequestLedger
     public function record(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): void
     {
         try {
-            $stored = ($this->cache)()->set($this->key($account, $query), $this->clock->now()->getTimestamp(), self::WINDOW_SECONDS);
+            $stored = ($this->cache)()->set($this->key($account, $query), $this->clock->now()->getTimestamp(), $this->windowSeconds);
         } catch (Throwable $e) {
             throw new LedgerUnavailableException('The repetition ledger store could not be written.', previous: $e);
         }

@@ -55,3 +55,29 @@ it('judges the current month on the Madrid calendar whatever zone now is given i
 it('plans one request for any number of months per request above the history Datadis serves', function (int $monthsPerRequest) use ($now, $format) {
     expect($format(MonthPlanner::ranges(Month::of(2020, 1), Month::of(2030, 1), $now, $monthsPerRequest)))->toBe(['2024/10-2026/09']);
 })->with([24, 25, 200000, PHP_INT_MAX]);
+
+it('alternates the range of the current month with the civil day, so consecutive days differ', function () use ($format) {
+    $zone = new DateTimeZone('Europe/Madrid');
+    $plan = fn (string $at) => $format(MonthPlanner::latest(new DateTimeImmutable($at, $zone)));
+
+    expect($plan('2026-09-15 00:05'))->toBe(['2026/08-2026/09', '2026/09-2026/09'])
+        ->and($plan('2026-09-16 00:05'))->toBe(['2026/09-2026/09', '2026/08-2026/09'])
+        ->and($plan('2026-09-16 23:55'))->toBe(['2026/09-2026/09', '2026/08-2026/09'])
+        ->and($plan('2026-10-01 00:05'))->toBe(['2026/09-2026/10', '2026/10-2026/10']);
+});
+
+it('judges the civil day in Madrid, whatever the zone of now', function () use ($format) {
+    // 23:30 UTC on the 15th is already the 16th in Madrid.
+    expect($format(MonthPlanner::latest(new DateTimeImmutable('2026-09-15 23:30 UTC'))))
+        ->toBe($format(MonthPlanner::latest(new DateTimeImmutable('2026-09-16 12:00', new DateTimeZone('Europe/Madrid')))));
+});
+
+it('keeps the plan inside the contract of the supply', function (array $contract, array $expected) use ($now, $format) {
+    expect($format(MonthPlanner::latest($now, Supply::fromRow(['cups' => 'ES0000000000000000AA0A'] + $contract, new DateTimeZone('Europe/Madrid')))))->toBe($expected);
+})->with([
+    'started this month: only the current month' => [['validDateFrom' => '2026/09/10'], ['2026/09-2026/09']],
+    'started last month: both' => [['validDateFrom' => '2026/08/20'], ['2026/08-2026/09', '2026/09-2026/09']],
+    'ends this month: both' => [['validDateFrom' => '2020/01/01', 'validDateTo' => '2026/09/30'], ['2026/08-2026/09', '2026/09-2026/09']],
+    'ended last month: nothing' => [['validDateFrom' => '2020/01/01', 'validDateTo' => '2026/08/31'], []],
+    'starts next month: nothing' => [['validDateFrom' => '2026/10/01'], []],
+]);
