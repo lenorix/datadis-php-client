@@ -346,6 +346,141 @@ final class DatadisClient
         return $this->remember(Endpoint::Reactive, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif, served: false), $sentAt);
     }
 
+    /**
+     * rememberConsumptionData() for a supply as listed by getSupplies().
+     *
+     * @throws ConfigurationException when the client has no ledger given by the application
+     * @throws InvalidRequestException when the supply or the range cannot be queried, or `$sentAt` is in the future
+     * @throws LedgerUnavailableException when the ledger's store fails
+     */
+    public function rememberConsumptionDataOf(
+        DateTimeInterface $sentAt,
+        #[SensitiveParameter] Supply $supply,
+        Month $startDate,
+        ?Month $endDate = null,
+        MeasurementType $measurementType = MeasurementType::Hourly,
+        ?Nif $authorizedNif = null,
+    ): bool {
+        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+
+        return $this->rememberConsumptionData($sentAt, $cups, $code, $this->pointTypeOf($supply), $startDate, $endDate, $measurementType, $authorizedNif);
+    }
+
+    /**
+     * rememberMaxPower() for a supply as listed by getSupplies().
+     *
+     * @throws ConfigurationException when the client has no ledger given by the application
+     * @throws InvalidRequestException when the supply or the range cannot be queried, or `$sentAt` is in the future
+     * @throws LedgerUnavailableException when the ledger's store fails
+     */
+    public function rememberMaxPowerOf(DateTimeInterface $sentAt, #[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): bool
+    {
+        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+
+        return $this->rememberMaxPower($sentAt, $cups, $code, $startDate, $endDate, $authorizedNif);
+    }
+
+    /**
+     * rememberReactiveData() for a supply as listed by getSupplies().
+     *
+     * @throws ConfigurationException when the client has no ledger given by the application
+     * @throws InvalidRequestException when the supply or the range cannot be queried, or `$sentAt` is in the future
+     * @throws LedgerUnavailableException when the ledger's store fails
+     */
+    public function rememberReactiveDataOf(DateTimeInterface $sentAt, #[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): bool
+    {
+        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+
+        return $this->rememberReactiveData($sentAt, $cups, $code, $startDate, $endDate, $authorizedNif);
+    }
+
+    /**
+     * Until when getConsumptionData() with these arguments would be refused by the ledger, without
+     * sending or claiming anything: null when it may be sent now. For a command that only looks; a
+     * job calls and catches the RepetitionWindowException instead, which decides in one step.
+     *
+     * @throws InvalidRequestException when the query could not be sent anyway
+     * @throws LedgerUnavailableException when the ledger's store cannot be read
+     */
+    public function consumptionDataBlockedUntil(
+        Cups $cups,
+        string $distributorCode,
+        int $pointType,
+        Month $startDate,
+        ?Month $endDate = null,
+        MeasurementType $measurementType = MeasurementType::Hourly,
+        ?Nif $authorizedNif = null,
+    ): ?DateTimeImmutable {
+        return $this->guard->blockedUntil(Endpoint::Consumption, $this->consumptionQuery($cups, $distributorCode, $pointType, $startDate, $endDate, $measurementType, $authorizedNif));
+    }
+
+    /**
+     * Until when getMaxPower() with these arguments would be refused. See consumptionDataBlockedUntil().
+     *
+     * @throws InvalidRequestException when the query could not be sent anyway
+     * @throws LedgerUnavailableException when the ledger's store cannot be read
+     */
+    public function maxPowerBlockedUntil(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
+    {
+        return $this->guard->blockedUntil(Endpoint::MaxPower, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
+    }
+
+    /**
+     * Until when getReactiveData() with these arguments would be refused: the same key as maximum
+     * power. See consumptionDataBlockedUntil().
+     *
+     * @throws InvalidRequestException when the query could not be sent anyway
+     * @throws LedgerUnavailableException when the ledger's store cannot be read
+     */
+    public function reactiveDataBlockedUntil(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
+    {
+        return $this->guard->blockedUntil(Endpoint::Reactive, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
+    }
+
+    /**
+     * consumptionDataBlockedUntil() for a supply as listed by getSupplies().
+     *
+     * @throws InvalidRequestException when the supply or the range cannot be queried
+     * @throws LedgerUnavailableException when the ledger's store cannot be read
+     */
+    public function consumptionDataOfBlockedUntil(
+        #[SensitiveParameter] Supply $supply,
+        Month $startDate,
+        ?Month $endDate = null,
+        MeasurementType $measurementType = MeasurementType::Hourly,
+        ?Nif $authorizedNif = null,
+    ): ?DateTimeImmutable {
+        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+
+        return $this->consumptionDataBlockedUntil($cups, $code, $this->pointTypeOf($supply), $startDate, $endDate, $measurementType, $authorizedNif);
+    }
+
+    /**
+     * maxPowerBlockedUntil() for a supply as listed by getSupplies().
+     *
+     * @throws InvalidRequestException when the supply or the range cannot be queried
+     * @throws LedgerUnavailableException when the ledger's store cannot be read
+     */
+    public function maxPowerOfBlockedUntil(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
+    {
+        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+
+        return $this->maxPowerBlockedUntil($cups, $code, $startDate, $endDate, $authorizedNif);
+    }
+
+    /**
+     * reactiveDataBlockedUntil() for a supply as listed by getSupplies().
+     *
+     * @throws InvalidRequestException when the supply or the range cannot be queried
+     * @throws LedgerUnavailableException when the ledger's store cannot be read
+     */
+    public function reactiveDataOfBlockedUntil(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
+    {
+        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+
+        return $this->reactiveDataBlockedUntil($cups, $code, $startDate, $endDate, $authorizedNif);
+    }
+
     /** @param  array<string, string|int|null>  $query */
     private function remember(Endpoint $endpoint, #[SensitiveParameter] array $query, DateTimeInterface $sentAt): bool
     {

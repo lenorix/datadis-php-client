@@ -11,6 +11,7 @@ use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Tests\Support\AtomicCache;
+use Lenorix\DatadisClient\Tests\Support\DatadisWithTheRule;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 use Lenorix\DatadisClient\Tests\Support\Responses;
@@ -175,4 +176,33 @@ it('refuses to remember on a client without a ledger of yours, which would keep 
     'consumption' => [fn (DatadisClient $c, DateTimeImmutable $at) => $c->rememberConsumptionData($at, cups(), '2', 5, Month::of(2026, 8))],
     'maximum power' => [fn (DatadisClient $c, DateTimeImmutable $at) => $c->rememberMaxPower($at, cups(), '2', Month::of(2026, 8))],
     'reactive' => [fn (DatadisClient $c, DateTimeImmutable $at) => $c->rememberReactiveData($at, cups(), '2', Month::of(2026, 8))],
+]);
+
+it('looks without sending or claiming, and tells what the call then does', function () {
+    [$client, $http, $clock] = rememberingClient();
+    $supply = DatadisWithTheRule::supply();
+
+    expect($client->consumptionDataOfBlockedUntil($supply, Month::of(2026, 8)))->toBeNull()
+        ->and($client->maxPowerOfBlockedUntil($supply, Month::of(2026, 8)))->toBeNull()
+        ->and($http->requests())->toBe([]);
+
+    $http->queue(Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+    $client->getConsumptionDataOf($supply, Month::of(2026, 8));
+
+    expect($client->consumptionDataOfBlockedUntil($supply, Month::of(2026, 8))?->getTimestamp())->toBe($clock->now()->getTimestamp() + RequestLedger::WINDOW_SECONDS)
+        ->and($client->consumptionDataOfBlockedUntil($supply, Month::of(2026, 7)))->toBeNull();
+});
+
+it('remembers a query of a supply as listed', function (Closure $remember, Closure $look) {
+    [$client, $http, $clock] = rememberingClient();
+    $supply = DatadisWithTheRule::supply();
+    $sentAt = $clock->now()->modify('-2 hours');
+
+    expect($remember($client, $supply, $sentAt))->toBeTrue()
+        ->and($look($client, $supply)?->getTimestamp())->toBe($sentAt->getTimestamp() + RequestLedger::WINDOW_SECONDS)
+        ->and($http->requests())->toBe([]);
+})->with([
+    'consumption' => [fn ($c, $s, $at) => $c->rememberConsumptionDataOf($at, $s, Month::of(2026, 8)), fn ($c, $s) => $c->consumptionDataOfBlockedUntil($s, Month::of(2026, 8))],
+    'max power, which keys reactive data too' => [fn ($c, $s, $at) => $c->rememberMaxPowerOf($at, $s, Month::of(2026, 8)), fn ($c, $s) => $c->reactiveDataOfBlockedUntil($s, Month::of(2026, 8))],
+    'reactive, which keys maximum power too' => [fn ($c, $s, $at) => $c->rememberReactiveDataOf($at, $s, Month::of(2026, 8)), fn ($c, $s) => $c->maxPowerOfBlockedUntil($s, Month::of(2026, 8))],
 ]);

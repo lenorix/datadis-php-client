@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `consumptionDataBlockedUntil()`, `maxPowerBlockedUntil()` and `reactiveDataBlockedUntil()`, and their `...Of()` twins: until when the ledger would refuse a query, with the same arguments as the call, without sending or claiming it.
+- `rememberConsumptionDataOf()`, `rememberMaxPowerOf()` and `rememberReactiveDataOf()`, for a supply as listed.
+
 - The results of consumption, maximum power and reactive data carry the months they asked for (`startDate`, `endDate`), so the range `getLatest...Of()` chose is known, also when a month came back empty.
 
 - `RepetitionWindowException::$lastAttemptAt` and `$availableAt` for a query refused by the ledger: when it was last attempted and from when it is allowed again (null for Datadis's own 429). `RequestLedger::windowSeconds()` gives the window.

@@ -344,7 +344,7 @@ try {
 }
 ```
 
-A command that must not send anything when the query is still blocked does the same: the refusal comes before any request. Keep your record as a history of what was sent if you want one, written after the call; it no longer needs a key.
+A command that only wants to look, without sending or taking the query, asks with the same arguments: `consumptionDataBlockedUntil()`, `maxPowerBlockedUntil()` and `reactiveDataBlockedUntil()` (and their `...Of()` twins for a supply) give the moment the query is allowed again, or null when it may go now. Use them to report; to send, call and catch as above, which decides in one step. Keep your record as a history of what was sent if you want one, written after the call; it no longer needs a key.
 
 Three things to plan when you switch:
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Guard;
 
 use Closure;
+use DateTimeImmutable;
 use DateTimeInterface;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
@@ -81,6 +82,21 @@ final readonly class RepetitionGuard
 
             throw $e;
         }
+    }
+
+    /**
+     * Until when call() would refuse this query, without claiming it: null when it may be sent now.
+     * A hint for a caller that only looks: the call itself decides, and with an atomic store a key
+     * whose time cannot be read yet counts as taken now.
+     *
+     * @param  array<string, string|int|list<string>|null>  $query  the query as the client sends it
+     *
+     * @throws LedgerUnavailableException when the store cannot be read
+     */
+    public function blockedUntil(Endpoint $endpoint, #[SensitiveParameter] array $query): ?DateTimeImmutable
+    {
+        return $this->ledger->lastAttempt(($this->account)(), self::repetitionKey($endpoint, $query))
+            ?->modify('+'.$this->ledger->windowSeconds().' seconds');
     }
 
     /**

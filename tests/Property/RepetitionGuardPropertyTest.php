@@ -158,6 +158,14 @@ it('refuses exactly the query that was remembered, built the same way as the cal
                 : ['p', $months($s, $e)];
             $same = $key($rememberedKind, $start, $end, $nif, $type) === $key($calledKind, $start2, $end2, $nif2, $type2);
 
+            // Looking first claims nothing, and tells the same as the call.
+            $blockedUntil = match ($calledKind) {
+                'consumption' => $client->consumptionDataBlockedUntil($cups, '2', 5, $start2, $end2, $type2, $nif2),
+                'maxPower' => $client->maxPowerBlockedUntil($cups, '2', $start2, $end2, $nif2),
+                'reactive' => $client->reactiveDataBlockedUntil($cups, '2', $start2, $end2, $nif2),
+            };
+            expect($blockedUntil?->getTimestamp())->toBe($same ? $sentAt->getTimestamp() + RequestLedger::WINDOW_SECONDS : null);
+
             try {
                 match ($calledKind) {
                     'consumption' => $client->getConsumptionData($cups, '2', 5, $start2, $end2, $type2, $nif2),
