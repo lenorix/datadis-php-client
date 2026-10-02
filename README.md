@@ -44,7 +44,7 @@ use Lenorix\DatadisClient\Values\Cups;
 
 $client = new DatadisClient(new DatadisConfig('A00000000', 'your-password'));
 
-// 1. Find the supply: it carries the codes every other call needs.
+// 1. Find the supply: it carries the codes every other call needs (consumption needs them all).
 $supply = $client->findSupply(Cups::fromString('ES0000000000000000AA0A'));
 
 if ($supply === null || ! $supply->isQueryable()) {

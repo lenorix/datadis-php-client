@@ -78,7 +78,9 @@ final readonly class Supply
     }
 
     /**
-     * Whether the CUPS and the two codes every other endpoint asks for are present and usable.
+     * Whether the CUPS, the distributor code and the point type are present and usable: all that
+     * consumption needs. Contract detail, maximum power and reactive data only need the CUPS and
+     * the distributor code.
      *
      * @phpstan-assert-if-true !null $this->distributorCode
      * @phpstan-assert-if-true !null $this->pointType
