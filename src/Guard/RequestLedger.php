@@ -215,7 +215,9 @@ final class RequestLedger
     }
 
     /**
-     * Records an attempt made earlier, when this ledger did not keep the record yet. It is kept for
+     * Records an attempt made earlier, when this ledger did not keep the record yet. The query must
+     * be the one the guard keys on (for maximum power and reactive data, without `authorizedNif`):
+     * the client's remember...() methods build it, and are the way to use this. It is kept for
      * what is left of its window, so a query sent 23 hours ago blocks a repeat for little more than
      * an hour, and an attempt older than the window is not recorded. The newest attempt of a query
      * wins, whatever order a history is given in. Import with the workers paused: an import that
