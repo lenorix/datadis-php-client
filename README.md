@@ -195,6 +195,28 @@ foreach ($readings->records as $reading) {
 
 **Schedule the job in Madrid time**, at a fixed hour between about 04:00 and 22:00 (in Laravel, `->dailyAt('06:00')->timezone('Europe/Madrid')`). The range follows the calendar day in Madrid, so a job fixed in UTC can run twice on the same Madrid day, or skip one, when the clocks change, and a run near midnight can land on the next day's range; either way that run is refused and the day's data waits for the next one. Kept in that band, two runs that ask the same range are always at least 29 hours apart (30, or 29 across a clock change), well outside the 24 hours. A second run on the same day asks the same range again: with a shared ledger it is refused before sending, and without one Datadis refuses it; either way the next day is not affected. A contract that started this month has only one range, so it is updated every other day. Reactive data shares its 24 hour key with maximum power, so ask it for closed months only. `MonthPlanner::latest()` gives the same plan if you prefer to make the calls yourself.
 
+### Billing periods
+
+Datadis publishes consumption by calendar month and hour, and knows nothing of billing: the retailer bills from one day to the same day of the next month (from the 15th to the 14th, from the 1st to the last day), and the days may move a little with the meter readings. `BillingCycle` and `BillingPeriod` put the readings on those days:
+
+```php
+use Lenorix\DatadisClient\Time\BillingCycle;
+use Lenorix\DatadisClient\Time\BillingPeriod;
+
+$period = BillingCycle::monthlyFrom(15)->lastEndedPeriod(new DateTimeImmutable());   // 15/08 to 14/09
+// or, when you have the invoice, its own dates:
+$period = BillingPeriod::between(new DateTimeImmutable('2026-08-15'), new DateTimeImmutable('2026-09-14'));
+
+[$from, $to] = $period->months();                     // 2026/08 and 2026/09: the months to ask for
+$readings = $client->getConsumptionDataOf($supply, $from, $to)->records;
+
+$period->readingsOf($readings);   // the readings whose hour starts within the period
+$period->totalKWh($readings);     // their consumption, exact: '312.457'
+$period->isCoveredBy($readings);  // whether they reach its last hour yet (Datadis publishes a day or two late)
+```
+
+A period runs from 00:00 of its first day to 00:00 of the day after its last, on the Madrid calendar (pass another zone for the Canary Islands). When the cycle day does not exist in a month (the 31st in April), that period starts on the month's last day. Use the dates printed on the invoice when you have them: they are the ones the retailer used.
+
 ### Authorizations, groups and partner accounts
 
 ```php

@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `BillingCycle` (a period every month from the same day, `monthlyFrom(15)`) and `BillingPeriod` (the days of an invoice, `between()`): the months to ask Datadis for, the readings that fall in the period, their exact total and whether they reach its end. Datadis does not publish billing dates; the retailer sets them.
+
 - `RequestLedger` takes `onChange:`, told with a `LedgerEvent` of every query claimed, released or remembered (endpoint, opaque key, time), to keep a history of what was sent.
 - `DatadisClient::checkLogin()` logs in, or takes the cached token (`fresh: true` to try the credentials now), and tells until when the token lasts, without reading any data.
 - `DatadisClient::assertServedRange()` refuses a range of months Datadis would refuse, before logging in.
