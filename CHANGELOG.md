@@ -6,14 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-03
+
+For sync jobs: the months of a refused query, and refusals with their own type.
+
 ### Added
 
 - `OutOfContractRangeException` (with `contractStart` or `contractEnd`), `OutOfServedRangeException` (with `month`) and `NothingToRefreshException`, all `InvalidRequestException`s, so a sync job can tell those refusals apart without reading messages. `InvalidRequestException` is no longer final.
-
 - `RepetitionWindowException::$startDate` and `$endDate`: the months the refused query asked for, refused by the ledger or by Datadis's own 429. A caller of `getLatest...Of()`, whose range the client picks, knows every month it did not get, not only the current one.
-
-### Added
-
 - `PublicApiClient` takes a `clock:` like `DatadisClient`, used to judge the expiry of the token it logs in with: it read the system clock only, so an application that moves its own time (a test, a simulation) saw the public API disagree with the private one about a token the two share.
 
 ## [0.5.0] - 2026-10-02
@@ -149,7 +149,8 @@ First public release.
 - Daylight saving change days placed on the right hours, in Madrid and the Canary Islands.
 - Helpers: month planning within the served window, access tariff recognition, the 2.0TD schedule, national holidays, territories, CUPS and NIF values (NIF control letter checked), personal data redaction.
 
-[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/lenorix/datadis-php-client/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/lenorix/datadis-php-client/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/lenorix/datadis-php-client/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/lenorix/datadis-php-client/compare/v0.2.0...v0.3.0
