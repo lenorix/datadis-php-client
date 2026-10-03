@@ -62,13 +62,14 @@ use SensitiveParameter;
  *
  * Read docs/quirks-and-rules.md before building anything that repeats calls: Datadis refuses an
  * identical consumption, max power or reactive query for 24 hours, and a rejected request counts.
- * The only repeat is one new login and one new call after a 401, and only for a call that is safe
- * to repeat (the lists and the reads): a guarded query or a change (an authorization, unlinking a
+ * The only repeat is one new call after a 401, with a newer token another client stored or after
+ * one new login, and only for a call that is safe to repeat (the lists and the reads): a guarded query or a change (an authorization, unlinking a
  * user) is never sent twice, since Datadis may have acted on the rejected one. Nothing else that
  * may have been sent is retried.
  *
- * Every call that takes `$authorizedNif` refuses, before sending, one that differs from the
- * holder of a client made with forHolder() (InvalidRequestException). Reactive data and groups
+ * Every supply and data call that takes `$authorizedNif` refuses, before sending, one that differs
+ * from the holder of a client made with forHolder() (InvalidRequestException); in newAuthorization()
+ * and cancelAuthorization() it is the third party, not the holder. Reactive data and groups
  * exist only in API v2 (UnsupportedOperationException on v1).
  *
  * Every list method returns an ApiResult. An empty result is a normal answer, never zero
@@ -394,6 +395,7 @@ final class DatadisClient
      * @throws ConfigurationException when the client has no ledger given by the application
      * @throws InvalidRequestException when a value is not valid, the range is reversed or `$sentAt` is in the future
      * @throws LedgerUnavailableException when the ledger's store fails
+     * @throws UnsupportedOperationException on API v1, where reactive data does not exist (nothing sent)
      */
     public function rememberReactiveData(DateTimeInterface $sentAt, #[SensitiveParameter] Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): bool
     {
@@ -442,6 +444,7 @@ final class DatadisClient
      * @throws ConfigurationException when the client has no ledger given by the application
      * @throws InvalidRequestException when the supply or the range cannot be queried, or `$sentAt` is in the future
      * @throws LedgerUnavailableException when the ledger's store fails
+     * @throws UnsupportedOperationException on API v1, where reactive data does not exist (nothing sent)
      */
     public function rememberReactiveDataOf(DateTimeInterface $sentAt, #[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): bool
     {
@@ -487,6 +490,7 @@ final class DatadisClient
      *
      * @throws InvalidRequestException when the query could not be sent anyway
      * @throws LedgerUnavailableException when the ledger's store cannot be read
+     * @throws UnsupportedOperationException on API v1, where reactive data does not exist (nothing sent)
      */
     public function reactiveDataBlockedUntil(#[SensitiveParameter] Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): ?DateTimeImmutable
     {
@@ -531,6 +535,7 @@ final class DatadisClient
      *
      * @throws InvalidRequestException when the supply or the range cannot be queried
      * @throws LedgerUnavailableException when the ledger's store cannot be read
+     * @throws UnsupportedOperationException on API v1, where reactive data does not exist (nothing sent)
      */
     public function reactiveDataBlockedUntilOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): ?DateTimeImmutable
     {
@@ -621,8 +626,9 @@ final class DatadisClient
 
     /**
      * The consumption of the current month for a sync that runs every day: the range comes from
-     * MonthPlanner::latest(), so today's query is never yesterday's, and on odd days it also
-     * brings the previous month. The result's `startDate` and `endDate` say which months it asked
+     * MonthPlanner::latest(), so today's query is not yesterday's, and on odd days it also brings
+     * the previous month. A contract that starts this month has only this month to ask, so it is
+     * asked every other day. The result's `startDate` and `endDate` say which months it asked
      * for, so a month that came back empty is known to have been asked. A second run on the same day is refused like any repeat.
      * Schedule the job at a fixed hour in Madrid time (the range follows the Madrid calendar day),
      * well clear of midnight and of 02:00-03:00; split the records by month before adding them up.
@@ -716,9 +722,12 @@ final class DatadisClient
     }
 
     /**
-     * The authorizations of the account, or of the given owner. v1 only and UNVERIFIED.
+     * The authorizations of the account, or of the given owner, verified against a real answer
+     * (v1 only, used whatever the configured version).
      *
      * @return ApiResult<Authorization>
+     *
+     * @throws DatadisException for a failure while talking to Datadis
      */
     public function listAuthorization(#[SensitiveParameter] ?Nif $ownerNif = null): ApiResult
     {
@@ -760,6 +769,8 @@ final class DatadisClient
      * answer.
      *
      * @return ApiResult<PartnerUser>
+     *
+     * @throws DatadisException for a failure while talking to Datadis
      */
     public function partnerUserList(): ApiResult
     {
@@ -771,6 +782,8 @@ final class DatadisClient
     /**
      * Unlinks a user from the partner account. It changes data, so it is never retried
      * automatically. UNVERIFIED: returns the raw answer text.
+     *
+     * @throws DatadisException for a failure while talking to Datadis; check `requestSent` before making it again
      */
     public function partnerDeleteUser(#[SensitiveParameter] Nif $nif): string
     {
@@ -781,6 +794,8 @@ final class DatadisClient
      * The date the partner agreement started, as Datadis writes it, or null when there is none
      * (`{"partnerAgreementDate": null}`, verified). The format of a date that is set has not been
      * seen. `$nif` is only for callers allowed to consult another partner.
+     *
+     * @throws DatadisException for a failure while talking to Datadis
      */
     public function partnerAgreementDate(#[SensitiveParameter] ?Nif $nif = null): ?string
     {

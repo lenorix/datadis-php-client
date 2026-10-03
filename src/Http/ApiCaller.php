@@ -25,8 +25,8 @@ use SensitiveParameter;
 /**
  * Makes an authenticated GET.
  *
- * A 401 means the token was rejected: the token is dropped, one new login is made and the call is
- * repeated once. A second 401 is final. Only a call that is safe to repeat is sent again: whether
+ * A 401 means the token was rejected: that token is dropped (only that one: another client may have
+ * stored a newer one), and the call is repeated once with the newer token or after one new login. A second 401 is final. Only a call that is safe to repeat is sent again: whether
  * Datadis acted on the rejected one is unknown, so a guarded query could cost the query for 24
  * hours, and a call that changes data (an authorization, unlinking a user) could be applied twice. A network failure is never retried here, because it may
  * have reached Datadis and Datadis refuses an identical query for 24 hours.

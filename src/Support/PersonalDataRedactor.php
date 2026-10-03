@@ -11,6 +11,8 @@ use SensitiveParameter;
  *
  * Datadis echoes rejected parameters (CUPS, NIF) in its error bodies, and it may echo identifiers
  * that were not sent, so redaction is by SHAPE and never by comparison with the values we sent.
+ *
+ * @internal
  */
 final class PersonalDataRedactor
 {

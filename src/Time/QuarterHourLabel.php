@@ -11,7 +11,8 @@ use InvalidArgumentException;
  * A quarter-hourly consumption label (`measurementType=1`), in either convention of
  * QuarterHourConvention. It is kept as the minute of the day the quarter ends at.
  *
- * UNVERIFIED: no source documents the real quarter-hourly format; see QuarterHourConvention.
+ * Not checked against a real quarter-hourly answer: the end of each quarter is how Datadis's own
+ * portal reads them; see QuarterHourConvention.
  */
 final readonly class QuarterHourLabel
 {

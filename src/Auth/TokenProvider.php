@@ -57,7 +57,7 @@ final class TokenProvider
 
     /**
      * A hash of the token this provider dropped last: a store whose delete() fails keeps handing
-     * it back, and a token Datadis rejected (or a check asked to ignore) must not be used again.
+     * it back, and a token Datadis rejected must not be used again.
      */
     private ?string $dropped = null;
 

@@ -84,7 +84,7 @@ A 2.0TD supply of point type 5, read with `authorizedNif`, on an account with th
 | 200 + non-JSON body | Failure (HTML maintenance page). Do not retry blindly. |
 | 200 + empty body, or 204 | No data. |
 | 400 | Rejected parameters (malformed CUPS or `distributorCode`, a `startDate` month before the month of the supply's `validDateFrom`, boundary month, missing `Accept`). Permanent: never resend the identical call. Body is `text/plain`, not JSON. |
-| 401 | Token missing or expired. Re-login once and repeat, except a guarded query: whether the rejected one counted is unknown, so it is not sent again. |
+| 401 | Token missing or expired. Drop that token, take a newer one or log in again, and repeat once, except a guarded query or a call that changes data: whether Datadis acted on the rejected one is unknown, so it is not sent again. A token refused a second time is dropped too. |
 | 403 | The `authorizedNif` has no authorized supplies, or a stale `distributorCode`/`pointType`. Also seen for blocked User-Agents and for unknown paths. Contract detail and consumption report a missing consent with a 400 instead. |
 | 404 | "No data": `No supplies` for an account without supplies (verified), "Data not found" reported for data calls. Only the body `No supplies` makes an empty list of supplies or distributors; any other 404 is raised as a `NoDataException`, since it may be a broken path or a changed API. |
 | 429 | Repetition window. Never retry. |

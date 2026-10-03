@@ -6,9 +6,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **The supplies and distributors lists** throw `UninterpretableResponseException` (with `httpStatus` 404 and the `NoDataException` as previous) for a 404 other than Datadis's `No supplies`, instead of `NoDataException`, which an application treats as an empty result.
+- **A login must hand back a JWT** (three base64url parts). A 200 with any other body (`null`, `OK`) is an `UninterpretableResponseException`, not a token.
+- **`BillingPeriod::readingsOf()` and `totalKWh()`** take only readings placed in time. A reading whose time could not be placed, such as the extra `00:00` row some distributors send, is left out of the total; it stays in the result.
+- **`tariff()`**: a contract that lists no contracted powers no longer contradicts its text. `StandardTariffResolver` takes tariffs by name (`'3.0TD'`) in its code table and refuses an unknown one when built, with `InvalidArgumentException`.
+- **The `detail` and message of a failure** quote only Datadis's own words: plain text, or the `message` (or `error`) of a JSON error. A data answer that cannot be read, any other JSON and HTML are described (`[a JSON answer, not quoted]`), never quoted, and emails are redacted.
+- **Failures can be serialized** (a queued job, a cache): the copy keeps the message, the detail, the fields of its kind and the failures of this package it chains, never the trace. `DatadisClient` and `PublicApiClient` refuse to be serialized with a `LogicException`.
+- **A failure while logging in again after a 401** is reported as what it is (`ServiceUnavailableException`, `TransportException`, `UninterpretableResponseException`), still as sent, instead of always `AuthenticationException`.
+- **`RequestLedger`** refuses a window longer than 30 days. `rememberAt()` and `RequestFingerprinter::fingerprint()` are internal: they take the query as the guard keys it, which the client's `remember...()` methods build.
+- **Upgrading from 0.6:** a token without `exp` is stored as `expiry:token` since 0.7, which 0.6 does not read. Workers of both versions sharing a token store log in more often until all are upgraded. Datadis's tokens carry `exp`, so this only matters for a service that issues tokens without one.
+
 ### Fixed
 
-- An answer without the endpoint's own list (`maxPower`, `timeCurve`, `reactiveEnergy`, the distributor codes...) was read as "no data" whenever it had a `distributorError` key, even an empty one, so another endpoint's envelope or a changed API passed as an empty result. It is uninterpretable now unless a distributor reported an error, which is still read as that failure.
+- **Data leaks:**
+  - Error reporters such as Ignition, Flare and Ray print a Stringable trace argument as its text, and most methods took a `Cups` or a `Nif` unmarked: every `Cups`, `Nif` and list of CUPS parameter is sensitive now, and so are the base URL and the user agent of the settings.
+  - A recording HTTP client given to the client no longer shows the token and identifiers it recorded when the client is dumped.
+  - The password and the token are removed from failures in every form a Java server or an HTTP client may print them: named and numeric HTML entities, Java's URLEncoder, Latin-1 bytes, JSON and percent encoding.
+- **Answers read as no data when they were not:**
+  - An answer without the endpoint's own list (`maxPower`, `timeCurve`, `reactiveEnergy`, the distributor codes...) was read as "no data" whenever it had a `distributorError` key, even an empty one or one that only said "no data", so another endpoint's envelope or a changed API passed as an empty result. Only a distributor's real failure explains a missing list now.
+  - An empty object where a list or an object belongs (`{"supplies":{}}`, `{"reactiveEnergy":{}}`) is refused.
+  - A reactive object without its fields, or with entries that are not entries, is no longer a record, and a bare list is not a reactive answer.
+  - Empty items and an object of codes are not distributor codes.
+  - `partnerAgreementDate()` reads only its own shape.
+- **Consumption rows:**
+  - A row whose date or time cannot be read, beside a null consumption, is unusable, not "not read yet".
+  - The repeated `03:00` of the autumn change day is counted on the day and the label as read.
+  - The message counts every row that could not be used.
+- **Calls that change data:** a maintenance page answered with 200 is no longer returned as their answer.
+- **Tokens:**
+  - A token Datadis refused a second time was kept, and the next call, a guarded query among them, went out with it.
+  - A worker that found its token expired dropped the newer one another worker had just stored.
+- **The 24-hour ledger:**
+  - Remembering an older attempt shortened a worker's claim whose time could not be read yet, freeing the query about 22 hours early.
+  - An atomic refusal of a key about to expire blocked the query for a whole window.
+  - A store that fails to read a held key refuses like an unreadable one and tells the history.
+- **Time:**
+  - In a zone whose change of the clocks skips midnight, a billing period ended an hour late.
+  - The years 0 to 100 were read as 1970 to 2069.
+  - Planning in the first months of year 1 failed.
+- **Settings and tariffs:**
+  - In `fromArray()`, a setting of only spaces turned the username check off or failed the timeouts; a password given as a number was reported as missing.
+  - `PatternTariffResolver` refuses a null or numeric tariff with its own exception.
+  - A CNMC code sent as a number finds its entry.
+  - The tariff alias no longer reads 2.0TD in `12.0TD`, and takes a decimal comma.
+  - The misspelt `accesFare` is used when `accessFare` is empty, and decimals with spaces around them are read.
+- **Portability:** the `Nif` check no longer needs the ctype extension, and `composer test-coverage` runs on Windows.
 
 ## [0.8.0] - 2026-10-03
 
@@ -27,8 +71,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - A month whose consumption rows have no consumption (absent or null: a month the distributor has not read yet) is an empty result, with the rows counted in `skippedRows`, instead of an `UninterpretableResponseException`; the query was sent either way. A value that is there but unreadable still makes its row unusable, and an answer of only those still fails.
 - `consumptionDataOfBlockedUntil()`, `maxPowerOfBlockedUntil()` and `reactiveDataOfBlockedUntil()` are renamed `consumptionDataBlockedUntilOf()`, `maxPowerBlockedUntilOf()` and `reactiveDataBlockedUntilOf()`, so every variant for a supply ends in `Of`.
 - `tariff()` also reads `codeFare` (`2T`, the CNMC codes `018`..`023`, or the tariff itself) and tells 2.0TD from two contracted powers, the only tariff with two; signals that disagree still give null.
-- A quarter-hourly answer that does not tell its convention is read as the end of each quarter, as Datadis's own portal reads it, instead of getting no intervals. Only labels of both conventions leave the rows without them.
+- A quarter-hourly answer that does not tell its convention is read as the end of each quarter, as Datadis's own portal reads it, instead of getting no intervals. Only labels of both conventions, or whole hours only (an hourly answer), leave the rows without them.
 - The filters of the public API and a distributor code are checked by shape only, so a code Datadis adds later still goes through: two digits for a measurement type or self-consumption type, a letter and digits for tension and time discrimination, a field name for sorting, and a distributor code of up to 20 characters without spaces.
+- `checkLogin(fresh: true)` logs in without dropping the cached token first: a check that fails leaves it in place, and the other clients keep using it until it expires or Datadis rejects it. Before, a failed check left the cache empty.
 
 ### Fixed
 
@@ -38,18 +83,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Error code 8 meant "no data" for any distributor; only with the description it was seen with (`No existen datos…`), since codes are each distributor's.
 - A row with no field at all (`{}`) counted as the blank row of a CUPS Datadis cannot see; it is an unusable row.
 - Planning December 9999 failed.
-
 - A quarter-hourly answer with only whole hours (an hourly answer to a quarter-hourly query) was read as quarters, putting an hour of energy on 15 minutes; its rows get no interval.
 - `StandardTariffResolver` failed with a `TypeError` on a numeric code added to its table (`'62'`, an integer key in PHP).
 - `PatternTariffResolver` took an unknown tariff, an unknown field or a misspelt one, and failed later or answered null; it refuses them at once, takes tariffs by name (`'3.0TD'`) from a configuration file, and says so when a pattern fails on a text instead of answering null.
 - Two clients sharing a token cache: the 401 of one deleted the token the other had just stored, and made it log in again. Only the rejected token is dropped, and a newer one in the cache is used.
 - A distributor code with an invisible, format or control character (a zero-width space, a bidi override) passed the check.
-
 - A new login that handed back the token the client had dropped (Datadis may return the same token while it is valid) was still treated as dropped, so the client logged in again on every call. Forcing a login and remembering a rejected token are now apart: a login that succeeds with the dropped token makes it good again.
-
-### Changed
-
-- `checkLogin(fresh: true)` logs in without dropping the cached token first: a check that fails leaves it in place, and the other clients keep using it until it expires or Datadis rejects it. Before, a failed check left the cache empty.
 
 ## [0.6.2] - 2026-10-03
 

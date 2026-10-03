@@ -51,7 +51,7 @@ Additional scenario tests required: mislabelled gzip body, HTTP 200 HTML page, n
 
 ## Architecture tests
 
-`tests/ArchTest.php` enforces: no `dd`/`dump`/`ray` in `src`, strict types everywhere, final classes (except the exception base), every exception extends `DatadisException`, Guzzle used only by the default wiring (`GuzzleClientFactory` and `ApiCaller`), and immutable results and values. Forbidden project names are checked with `grep` before each commit, never by a test, since a test would have to spell them out.
+`tests/ArchTest.php` enforces: no `dd`/`dump`/`ray` in `src`, strict types everywhere, final classes (except the exception base and `InvalidRequestException`, which the typed refusals extend), every exception extends `DatadisException`, Guzzle used only by the default wiring (`GuzzleClientFactory` and `ApiCaller`), and immutable results and values. Forbidden project names are checked with `grep` before each commit, never by a test, since a test would have to spell them out.
 
 ## Quality gates before every commit
 

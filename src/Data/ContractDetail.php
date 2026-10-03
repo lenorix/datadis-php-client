@@ -6,6 +6,7 @@ namespace Lenorix\DatadisClient\Data;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use InvalidArgumentException;
 use Lenorix\DatadisClient\Decoding\Fields;
 use Lenorix\DatadisClient\Support\Decimal;
 use Lenorix\DatadisClient\Tariff\AccessTariff;
@@ -112,6 +113,8 @@ final readonly class ContractDetail
      * The access tariff, read by a TariffResolver: the package's StandardTariffResolver unless you
      * give your own. Null when the contract does not tell it for sure. `accessFare` and `codeFare`
      * always keep the text as received, for a reading of your own.
+     *
+     * @throws InvalidArgumentException from a resolver that cannot read a text (see TariffResolver)
      */
     public function tariff(?TariffResolver $resolver = null): ?AccessTariff
     {

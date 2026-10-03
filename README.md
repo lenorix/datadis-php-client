@@ -307,7 +307,7 @@ Every failure while talking to Datadis is a `DatadisException`. What to do depen
 
 | Exception | What it means | What to do |
 |---|---|---|
-| `NoDataException` | Datadis answered 404, 204 or an empty body for a data query. | Treat it like an empty result. A month not published yet usually comes back as an empty result instead. |
+| `NoDataException` | Datadis answered 404, 204 or an empty body for a data query. | Treat it like an empty result. A month not published yet usually comes back as an empty result instead. The supplies and distributors lists never throw it: their verified 404 `No supplies` is an empty list, and any other 404 there is an `UninterpretableResponseException`. |
 | `RepetitionWindowException` | The same query was made in the last 24 hours. | Wait. Retrying does not help. |
 | `AuthorizationException` | You are not authorized for that CUPS, the holder's authorization expired, or the supply codes are stale. | Check the authorization in Datadis; reload the supply. |
 | `AuthenticationException` | Wrong username or password, or Datadis rejected the token of a call that is not safe to repeat: a consumption, maximum power or reactive query, or a change (an authorization, unlinking a user). Those are never sent twice. | Fix the credentials. If `requestSent` is `true`, treat a data query as used for today, and check in Datadis whether a change was applied before making it again. |
@@ -341,7 +341,7 @@ try {
 }
 ```
 
-Value objects such as `Cups`, `Nif` and `Month` throw a plain `InvalidArgumentException` for malformed input. Use `Cups::isValid()` and `Nif::isValid()` first when the value comes from a user or a document. `Nif` also checks the control letter of a NIF, NIE or CIF, so a typo fails here instead of being sent and refused (a refused data query still counts against the 24 hour rule); pass `checkControl: false` to take one as it is.
+Value objects such as `Cups`, `Nif` and `Month`, the time helpers (`MonthPlanner`, `BillingCycle`, `BillingPeriod`) and the tariff resolvers you build throw a plain `InvalidArgumentException` for malformed input or settings, as does `PatternTariffResolver` when one of your patterns fails on a contract's text. Use `Cups::isValid()` and `Nif::isValid()` first when the value comes from a user or a document. `Nif` also checks the control letter of a NIF, NIE or CIF, so a typo fails here instead of being sent and refused (a refused data query still counts against the 24 hour rule); pass `checkControl: false` to take one as it is.
 
 ## Setting it up for production
 
@@ -544,7 +544,7 @@ The same works in any framework: read the settings however it does, pass them to
 
 - **Send the CUPS exactly as the supplies list returns it.** Datadis refuses the same CUPS in lowercase or without its last two characters as "not authorized". `findSupply()` accepts either form and gives you back the right one.
 - **An empty answer is not always "no data yet".** A wrong distributor code that happens to exist also gives an empty answer. Always take the codes from the supplies list.
-- **Quarter-hourly labels are not verified against a real answer.** Datadis's own portal reads them as the end of each quarter (`00:15` to `24:00`, like the hourly labels), so the client does too. It also recognises the other convention one implementation assumes, the hour that ends followed by the minute the quarter starts (`01:00` is 00:00-00:15, `24:45` is 23:45-24:00), from the labels only it has (`24:15` to `24:45`), and places every quarter on its real time, daylight saving days included. An answer with the labels of both gets no `start` and `end`.
+- **Quarter-hourly labels are not verified against a real answer.** Datadis's own portal reads them as the end of each quarter (`00:15` to `24:00`, like the hourly labels), so the client does too. It also recognises the other convention one implementation assumes, the hour that ends followed by the minute the quarter starts (`01:00` is 00:00-00:15, `24:45` is 23:45-24:00), from the labels only it has (`24:15` to `24:45`), and places every quarter on its real time, daylight saving days included. An answer with the labels of both, or with whole hours only (an hourly answer to a quarter-hourly query), gets no `start` and `end`.
 - **Rows can lack a valid time.** Some distributors send an extra `00:00` row on normal days. It is kept, with `hasValidTime()` returning `false` and no `start`, `end` or `index`. Decide what to do with it before adding up energy.
 - **Store what you receive.** You cannot ask again for 24 hours, so keep `raw` if you might want to reinterpret the data later.
 - **Nothing for the current day, little for the last two.** Distributors publish with a delay; a month can keep changing for some days after it ends.
@@ -560,6 +560,8 @@ Most behaviour here was checked against real Datadis answers, on both API versio
 - A group, and a partner agreement date that is set.
 - The answers of the calls that change data: `newAuthorization()`, `cancelAuthorization()` and `partnerDeleteUser()`.
 - Hour labels of Canary Islands supplies around a daylight saving change.
+- On the public API: whether the sums take `page` and `pageSize`, and whether the measurement filter is `measurementType` (as the current documentation says) or another name.
+- That a new login keeps the account's earlier token valid: inferred from the documentation and other clients, not measured.
 
 [`docs/`](https://github.com/lenorix/datadis-php-client/tree/main/docs) in the repository records everything known about the API, with the evidence behind each point.
 
