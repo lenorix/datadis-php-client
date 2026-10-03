@@ -89,6 +89,7 @@ it('counts a distributor error of any shape as a failure, never as no data', fun
     'text' => ['boom', ['boom']],
     'one object' => [['errorDescription' => 'boom'], ['boom']],
     'a list with text, a number and an object' => [['text', 3, ['errorDescription' => 'boom']], ['text', '3', 'boom']],
+    'a blank before a real error' => [[null, ['errorDescription' => 'boom']], ['boom']],
 ]);
 
 it('reads no failure from an empty distributor error', function (mixed $errors) use ($decoder) {

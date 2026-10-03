@@ -108,7 +108,15 @@ it('reads the obtain method with spaces and knows every spelling of an estimate'
 })->with([[' Real ', true, false], ['Estimada', false, true], ['Estimated', false, true], ['estimate', false, true], ['', false, false]]);
 
 it('reads the self-consumption values with at least three decimals and every digit sent', function () {
-    $reading = ConsumptionReading::fromRow(['date' => '2026/01/01', 'time' => '01:00', 'consumptionKWh' => 1, 'generationEnergyKWh' => 0.12345, 'selfConsumptionEnergyKWh' => 2], new DateTimeZone('Europe/Madrid'), MeasurementType::Hourly);
+    $reading = ConsumptionReading::fromRow(['date' => '2026/01/01', 'time' => '01:00', 'consumptionKWh' => 1, 'surplusEnergyKWh' => 1.5, 'generationEnergyKWh' => 0.12345, 'selfConsumptionEnergyKWh' => 2], new DateTimeZone('Europe/Madrid'), MeasurementType::Hourly);
 
-    expect($reading->generationEnergyKWh)->toBe('0.12345')->and($reading->selfConsumptionEnergyKWh)->toBe('2.000');
+    expect($reading->surplusEnergyKWh)->toBe('1.500')
+        ->and($reading->generationEnergyKWh)->toBe('0.12345')
+        ->and($reading->selfConsumptionEnergyKWh)->toBe('2.000');
+});
+
+it('reads a row without obtainMethod as an empty method, neither real nor estimated', function () {
+    $reading = ConsumptionReading::fromRow(['date' => '2026/01/01', 'time' => '01:00', 'consumptionKWh' => 1], new DateTimeZone('Europe/Madrid'), MeasurementType::Hourly);
+
+    expect($reading->obtainMethod)->toBe('')->and($reading->isReal())->toBeFalse()->and($reading->isEstimated())->toBeFalse();
 });

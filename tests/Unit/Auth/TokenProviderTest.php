@@ -534,3 +534,26 @@ it('does not drop a newer token another worker stored while it found its own exp
 
     expect($cache->deletes)->toBe([]);
 });
+
+it('drops a token exactly the skew before it expires, not a second later', function () {
+    $clock = new FrozenClock;
+    $stack = new Stack(clock: $clock, cache: new InMemoryCache($clock));
+    $stack->http->queue($stack->loginOk(3600), $stack->loginOk(3600, subject: 'second'));
+    $first = $stack->tokens->token();
+
+    $clock->advance(3600 - TokenProvider::SKEW_SECONDS - 1);
+    expect($stack->tokens->token())->toBe($first);
+
+    $clock->advance(1);
+    expect($stack->tokens->token())->not->toBe($first);
+});
+
+it('keeps the token of one account on one service apart from the same account on another', function () {
+    $cache = new QuirkyCache;
+    $a = new Stack(cache: $cache, config: new DatadisConfig('A00000000', Stack::PASSWORD, baseUrl: 'https://one.datadis.test'));
+    $b = new Stack(cache: $cache, config: new DatadisConfig('A00000000', Stack::PASSWORD, baseUrl: 'https://two.datadis.test'));
+    $a->http->queue($a->loginOk());
+    $b->http->queue($b->loginOk(subject: 'other'));
+
+    expect($a->tokens->token())->not->toBe($b->tokens->token())->and($cache->items)->toHaveCount(2);
+});

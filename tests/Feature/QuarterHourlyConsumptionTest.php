@@ -87,7 +87,7 @@ it('keeps the rows without an interval when the labels fit no single convention'
 
     expect($readings)->toHaveCount(2)
         ->and(array_filter($readings, fn ($r) => $r->hasValidTime()))->toBe([])
-        ->and($readings[1]->consumptionKWh)->not->toBeNull();
+        ->and(array_map(fn ($r) => $r->time, $readings))->toBe(['00:15', '24:45']);
 });
 
 it('does not put an hour of energy on a quarter when a quarter-hourly query gets whole hours', function () {

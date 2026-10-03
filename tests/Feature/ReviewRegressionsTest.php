@@ -351,3 +351,12 @@ it('places the second 03:00 of the autumn change day even when the two are writt
 
     expect($records[1]->start?->getTimestamp())->toBe($records[0]->end?->getTimestamp());
 })->with(['2025/10/26 ', '2025-10-26']);
+
+it('counts a row that is not an object beside a valid one, without letting a raw error out', function () {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis('{"timeCurve":[5,{"date":"2026/01/01","time":"01:00","consumptionKWh":0.5}],"distributorError":[]}'));
+
+    $result = $s->client->getConsumptionData(Scenario::cups(), '2', 5, Month::of(2026, 1));
+
+    expect($result->records)->toHaveCount(1)->and($result->skippedRows)->toBe(1);
+});

@@ -45,11 +45,15 @@ it('does not block a query for 24 hours when only the login answer failed to be 
     $call = fn () => $client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
     $http->queue((new Response(200))->withBody(new ThrowingStream));
 
+    $thrown = null;
+
     try {
         $call();
     } catch (TransportException $e) {
-        expect($e->requestSent)->toBeFalse();
+        $thrown = $e;
     }
+
+    expect($thrown?->requestSent)->toBeFalse();
 
     $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 3600])), Responses::datadis('{"timeCurve":[]}'));
     $call();

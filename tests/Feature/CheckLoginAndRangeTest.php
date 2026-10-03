@@ -120,8 +120,10 @@ it('never uses again a token it dropped, even when the token cache cannot delete
         ->and(array_map(fn ($r) => $r->getHeaderLine('Authorization'), array_slice($data, -1)))->toBe($data === [] ? [] : ['Bearer '.$second]);
 })->with([
     'a fresh check logs in' => [function ($client, $http, $second) {
-        $http->queue(Responses::text($second));
+        $http->queue(Responses::text($second), Responses::datadis('{"supplies":[],"distributorError":[]}'));
         $client->checkLogin(fresh: true);
+        // The next call takes the token the check got, never the one it replaced.
+        $client->getSupplies();
     }, 2],
     'a rejected token is not sent again' => [function ($client, $http, $second) {
         $http->queue(Responses::datadisError('{"status":401}', 401), Responses::text($second), Responses::datadis('{"supplies":[],"distributorError":[]}'), Responses::datadis('{"supplies":[],"distributorError":[]}'));

@@ -83,12 +83,8 @@ it('keeps the attempt after failures that may have reached Datadis', function (C
     [$client, $http, $clock] = guarded();
     $http->queue(Scenario::login($clock, 7 * 86400), $failure());
 
-    try {
-        $consumption($client);
-    } catch (DatadisException) {
-    }
-
-    expect(fn () => $consumption($client))->toThrow(RepetitionWindowException::class)
+    expect(fn () => $consumption($client))->toThrow(DatadisException::class)
+        ->and(fn () => $consumption($client))->toThrow(RepetitionWindowException::class)
         ->and($http->requests())->toHaveCount(2);
 })->with([
     'rejected' => [fn () => Responses::text('bad', 400)],
@@ -125,16 +121,16 @@ it('does not guard the endpoints the rule does not cover, which Datadis answers 
     'distributors' => [fn (DatadisClient $c) => $c->getDistributorsWithSupplies(), '{"distExistenceUser":{"distributorCodes":["2"]},"distributorError":[]}'],
 ]);
 
-it('does not record queries refused before sending', function () use ($maxPower) {
-    [$client, $http, $clock] = guarded();
-    $http->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"maxPower":[]}'));
+it('does not record queries refused before sending', function () {
+    $store = new QuirkyCache;
+    $s = Scenario::make(ledger: fn (FrozenClock $clock) => Scenario::ledger($clock, $store), login: false);
 
-    expect(fn () => $client->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '', Month::of(2026, 1), Month::of(2026, 1)))
-        ->toThrow(DatadisException::class);
-
-    $maxPower($client);
-
-    expect($http->requests())->toHaveCount(2);
+    expect(fn () => $s->client->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '', Month::of(2026, 1), Month::of(2026, 1)))
+        ->toThrow(DatadisException::class)
+        ->and(fn () => $s->client->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '2', Month::of(2030, 1), Month::of(2030, 1)))
+        ->toThrow(DatadisException::class)
+        ->and($store->items)->toBe([])
+        ->and($s->http->requests())->toBe([]);
 });
 
 it('remembers its own queries without a ledger, so one client never repeats one', function () use ($consumption) {
@@ -144,7 +140,7 @@ it('remembers its own queries without a ledger, so one client never repeats one'
     $consumption($s->client);
 
     expect(fn () => $consumption($s->client))->toThrow(RepetitionWindowException::class)
-        ->and(fn () => $consumption($s->client->forHolder(Nif::fromString('00000000T'))))->not->toThrow(RepetitionWindowException::class)
+        ->and($consumption($s->client->forHolder(Nif::fromString('00000000T')))->isEmpty())->toBeTrue()
         ->and($s->http->requests())->toHaveCount(3);
 });
 

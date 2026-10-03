@@ -207,7 +207,9 @@ it('skips a row with an absurd number instead of failing the whole answer', func
 
     $result = $client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
 
-    expect($result->records)->toHaveCount(1)->and($result->skippedRows)->toBe(1);
+    expect($result->records)->toHaveCount(1)
+        ->and($result->records[0]->consumptionKWh)->toBe('0.500')
+        ->and($result->skippedRows)->toBe(1);
 });
 
 it('reads reactive energy tolerantly but never turns an unknown answer into an empty result', function (string $body, ?int $records) {
