@@ -131,7 +131,7 @@ Dates and hours are local Spanish civil time with no offset.
 
 ## Data quirks
 
-- `consumptionKWh` may be `null`. Discard those rows individually and expose how many were dropped. If every row of a non-empty response is unusable, the response is not interpretable.
+- `consumptionKWh` may be `null`. A row without consumption (absent or null) is not a reading: it is left out and counted in `skippedRows`, whatever self-consumption energy it carries (the spec types `consumptionKWh` as a number, and no source shows one null beside a surplus), and a month of only such rows is an empty result, not an error, since it is how a month the distributor has not read yet looks. A consumption that is there but unreadable makes its row unusable; those are counted too, and an answer of only those is not interpretable.
 - `obtainMethod` may be `""`. Keep it an open string.
 - `validDateTo` and `endDate` are `""` when open-ended.
 - `distributorCode` is a string, `pointType` is an int.

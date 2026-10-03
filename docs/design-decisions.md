@@ -48,7 +48,7 @@ The architecture as built. Each decision states the reason so it can be revisite
 
 - Every list endpoint returns a result object: records + `distributorErrors`. "Empty with distributor errors" is distinct from "empty".
 - Decoding problems raise a dedicated exception. Never return an empty result to hide a failure.
-- Rows with `consumptionKWh = null` are dropped individually and counted.
+- A consumption row without consumption (absent or null) is dropped and counted, even beside self-consumption energy: `consumptionKWh` stays a non-null string, as the spec types it. A month of such rows is an empty result: the query was sent and counts for the 24 hours, so throwing would hide that the distributor simply had nothing yet.
 - Hourly rows keep source order; duplicates on DST days remain.
 
 ## Exceptions

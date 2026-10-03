@@ -24,11 +24,14 @@ final class Envelope
      *
      * @param  array<array-key, mixed>  $decoded
      * @param  callable(array<array-key, mixed>): (T|null)  $decodeRow  returns the record, or null for an unusable row
+     * @param  (callable(array<array-key, mixed>): bool)|null  $holdsNoData  true for a row the decoder left out
+     *                                                                       because it holds no data by design:
+     *                                                                       counted like a blank row, never a fault
      * @return ApiResult<T>
      *
      * @throws UninterpretableResponseException
      */
-    public static function build(#[SensitiveParameter] array $decoded, string $key, string $endpoint, #[SensitiveParameter] callable $decodeRow): ApiResult
+    public static function build(#[SensitiveParameter] array $decoded, string $key, string $endpoint, #[SensitiveParameter] callable $decodeRow, ?callable $holdsNoData = null): ApiResult
     {
         [$rows, $errors] = self::open($decoded, $key, $endpoint);
 
@@ -45,7 +48,15 @@ final class Envelope
                 continue;
             }
 
+            // Every row goes through the decoder, even one that turns out to hold nothing: a decoder
+            // may count the rows it sees (the repeated hour of the autumn change day).
             $record = is_array($row) ? self::decodeRow($decodeRow, $row, $endpoint) : null;
+
+            if ($record === null && is_array($row) && $holdsNoData !== null && $holdsNoData($row)) {
+                $blank++;
+
+                continue;
+            }
 
             if ($record === null) {
                 $skipped++;

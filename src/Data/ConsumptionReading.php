@@ -25,6 +25,8 @@ use SensitiveParameter;
  *
  * `start`, `end`, `index` and `hourOfDay` are null when the label has an unexpected shape (for example an extra
  * `00:00`); such a row is kept and flagged instead of failing the whole answer.
+ *
+ * A row without consumption is not a reading: it is left out and counted in `skippedRows`.
  */
 final readonly class ConsumptionReading
 {
@@ -55,7 +57,7 @@ final readonly class ConsumptionReading
      * @param  array<array-key, mixed>  $row
      * @param  int  $occurrence  how many rows with the same date and time came before this one; it
      *                           tells the two `03:00` rows of the autumn change day apart
-     * @return self|null null when the row has no readable date or consumption (Datadis sends null values)
+     * @return self|null null when the row has no readable date, time or consumption (Datadis sends null values)
      */
     public static function fromRow(
         #[SensitiveParameter] array $row,
@@ -96,6 +98,20 @@ final readonly class ConsumptionReading
             Fields::decimal($row, 3, 'selfConsumptionEnergyKWh'),
             $row,
         );
+    }
+
+    /**
+     * Whether the row holds no reading: its consumption absent or null, as Datadis sends a month
+     * the distributor has not read yet. That is not a fault; a value that is there but cannot be
+     * read is, and makes the row unusable.
+     *
+     * @internal public only to be passed as a callable while decoding
+     *
+     * @param  array<array-key, mixed>  $row
+     */
+    public static function lacksReading(#[SensitiveParameter] array $row): bool
+    {
+        return ($row['consumptionKWh'] ?? null) === null;
     }
 
     public function hasValidTime(): bool

@@ -99,7 +99,7 @@ foreach ($calls as $name => $call) {
     });
 }
 
-it('decodes every row with a value, in order, and fails only when no row has one', function () {
+it('decodes every row with a value, in order, and answers an empty result when no row has one', function () {
     $days = [
         'normal' => ['2025/10/15', Payloads::normalDay()],
         'autumn change' => ['2025/10/26', Payloads::autumnDay()],
@@ -130,12 +130,7 @@ it('decodes every row with a value, in order, and fails only when no row has one
             $s->http->queue(Responses::datadis(Payloads::envelope('timeCurve', $rows)));
             $call = fn () => $s->client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of($year, $month), Month::of($year, $month));
 
-            if ($kept === []) {
-                expect($call)->toThrow(DatadisException::class);
-
-                return;
-            }
-
+            // A row with no energy is a reading not taken yet, never a broken answer.
             $result = $call();
 
             expect(array_map(fn ($r) => $r->time, $result->records))->toBe($kept)

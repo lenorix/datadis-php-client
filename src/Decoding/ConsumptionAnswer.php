@@ -36,7 +36,9 @@ final class ConsumptionAnswer
             return ConsumptionReading::fromRow($row, $zone, $measurementType, $occurrence, $quarters);
         };
 
-        return Envelope::build($decoded, 'timeCurve', $endpoint, $decode);
+        // A row without consumption is a month not read yet, not a broken answer: a month of them
+        // is an empty result, so the caller can tell it from one Datadis broke.
+        return Envelope::build($decoded, 'timeCurve', $endpoint, $decode, ConsumptionReading::lacksReading(...));
     }
 
     /**

@@ -107,7 +107,7 @@ it('keeps personal data of decoded answers out of stack trace arguments', functi
 
     try {
         $s = Scenario::make();
-        $s->http->queue(Responses::datadis('{"timeCurve":[{"cups":"ES0000000000000000AA0A","date":"x","time":"01:00","consumptionKWh":null}]}'));
+        $s->http->queue(Responses::datadis('{"timeCurve":[{"cups":"ES0000000000000000AA0A","date":"x","time":"01:00","consumptionKWh":1}]}'));
 
         try {
             $s->client->getConsumptionData(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));

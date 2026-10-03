@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- A month whose consumption rows have no consumption (absent or null: a month the distributor has not read yet) is an empty result, with the rows counted in `skippedRows`, instead of an `UninterpretableResponseException`; the query was sent either way. A value that is there but unreadable still makes its row unusable, and an answer of only those still fails.
 - `consumptionDataOfBlockedUntil()`, `maxPowerOfBlockedUntil()` and `reactiveDataOfBlockedUntil()` are renamed `consumptionDataBlockedUntilOf()`, `maxPowerBlockedUntilOf()` and `reactiveDataBlockedUntilOf()`, so every variant for a supply ends in `Of`.
 - `tariff()` also reads `codeFare` (`2T`, the CNMC codes `018`..`023`, or the tariff itself) and tells 2.0TD from two contracted powers, the only tariff with two; signals that disagree still give null.
 - A quarter-hourly answer that does not tell its convention is read as the end of each quarter, as Datadis's own portal reads it, instead of getting no intervals. Only labels of both conventions leave the rows without them.
