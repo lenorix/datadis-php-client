@@ -16,6 +16,7 @@ use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Support\ExactJson;
 use Lenorix\DatadisClient\Support\PersonalDataRedactor;
 use Psr\Http\Message\ResponseInterface;
+use SensitiveParameter;
 
 /**
  * Turns a PSR-7 response into decoded JSON or the exception that describes the failure.
@@ -35,7 +36,7 @@ final class ResponseClassifier
      *
      * @throws DatadisException
      */
-    public static function decode(ResponseInterface $response, string $endpoint): array
+    public static function decode(#[SensitiveParameter] ResponseInterface $response, string $endpoint): array
     {
         $status = $response->getStatusCode();
         $body = self::assertSuccessful($response, $endpoint);
@@ -83,7 +84,7 @@ final class ResponseClassifier
      *
      * @throws DatadisException
      */
-    public static function assertSuccessful(ResponseInterface $response, string $endpoint): string
+    public static function assertSuccessful(#[SensitiveParameter] ResponseInterface $response, string $endpoint): string
     {
         $status = $response->getStatusCode();
         $body = self::text($response);
@@ -95,7 +96,7 @@ final class ResponseClassifier
         return $body;
     }
 
-    private static function failure(int $status, string $body, string $endpoint): DatadisException
+    private static function failure(int $status, #[SensitiveParameter] string $body, string $endpoint): DatadisException
     {
         $detail = self::detail($body);
         $message = "{$endpoint}: Datadis answered HTTP {$status}".($detail === '' ? '.' : " · {$detail}");
@@ -114,7 +115,7 @@ final class ResponseClassifier
     }
 
     /** The body as text: inflated when it is gzip in disguise, without a byte order mark. */
-    public static function text(ResponseInterface $response): string
+    public static function text(#[SensitiveParameter] ResponseInterface $response): string
     {
         $body = (string) $response->getBody();
 
@@ -142,7 +143,7 @@ final class ResponseClassifier
      * Error bodies are `text/plain`, Spring style JSON (`{"timestamp","status","error","message","path"}`)
      * or `{"message": "..."}`. Whatever it is, the result is a redacted single-line excerpt.
      */
-    private static function detail(string $body): string
+    private static function detail(#[SensitiveParameter] string $body): string
     {
         $text = trim($body);
 

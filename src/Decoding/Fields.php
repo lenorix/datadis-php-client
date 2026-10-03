@@ -106,7 +106,7 @@ final class Fields
     }
 
     /** An integer written as text, also with a zero fraction (`5.0`), as a decimal JSON number now arrives. */
-    private static function integerText(string $text): ?int
+    private static function integerText(#[SensitiveParameter] string $text): ?int
     {
         if (preg_match('/^(-?\d+)\.0+$/D', $text, $match) === 1) {
             $text = $match[1];

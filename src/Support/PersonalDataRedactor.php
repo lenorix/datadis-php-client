@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Support;
 
+use SensitiveParameter;
+
 /**
  * Removes personal identifiers from text before it reaches an exception message or a log.
  *
@@ -26,7 +28,7 @@ final class PersonalDataRedactor
         '/(?<!\d)[A-HJ-NP-SUVW](?:\s+|-)?\d{7}(?:\s+|-)?[0-9A-J](?![0-9])/i',
     ];
 
-    public static function redact(string $text): string
+    public static function redact(#[SensitiveParameter] string $text): string
     {
         // Replacing one identifier can remove the neighbour that blocked another match, so repeat until stable.
         for ($pass = 0; $pass < 5; $pass++) {
@@ -51,7 +53,7 @@ final class PersonalDataRedactor
     }
 
     /** A redacted, single-line, valid UTF-8 excerpt of at most $max characters. */
-    public static function excerpt(string $text, int $max = 300): string
+    public static function excerpt(#[SensitiveParameter] string $text, int $max = 300): string
     {
         // Whitespace is collapsed first: collapsing after redacting could join the parts of an identifier again.
         $clean = self::redact(trim(preg_replace('/\s+/u', ' ', mb_scrub($text)) ?? ''));

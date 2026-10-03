@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Support;
 
+use SensitiveParameter;
+
 /**
  * Flattens free text before it is matched: accents removed, lowercase, whitespace collapsed.
  * Anything without an ASCII form (such as `€` or `≤`) is dropped, so callers that care about a
@@ -31,7 +33,7 @@ final class TextNormaliser
         'Ñ' => 'n', 'Ç' => 'c',
     ];
 
-    public static function normalise(string $text): string
+    public static function normalise(#[SensitiveParameter] string $text): string
     {
         // Byte-wise on purpose: after the table, any byte outside ASCII (including broken UTF-8) goes.
         $text = strtr($text, self::ASCII);

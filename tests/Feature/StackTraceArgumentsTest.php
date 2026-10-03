@@ -291,3 +291,12 @@ it('keeps a NIF given as the time zone out of the message, the chained exception
 
     throw new LogicException('Expected a ConfigurationException.');
 });
+
+it('keeps an error body that echoes a NIF or a CUPS out of the traces', function (int $status) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadisError('Parámetros incorrectos: 00000000T ES0000000000000000AA0A', $status));
+
+    $traces = tracesOf(fn () => $s->client->getContractDetail(Cups::fromString('ES0000000000000000AA0A'), '2'));
+
+    expect($traces)->not->toContain('00000000T')->not->toContain('ES0000000000000000AA0A');
+})->with([400, 403, 500]);

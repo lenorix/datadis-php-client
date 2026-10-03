@@ -85,7 +85,7 @@ final class DistributorCodes
     }
 
     /** The codes of `{"distributorCodes": [...]}`, of a plain list, or nothing for an empty value. */
-    private static function codesOf(mixed $value, string $endpoint): mixed
+    private static function codesOf(#[SensitiveParameter] mixed $value, string $endpoint): mixed
     {
         return match (true) {
             $value === null, $value === [] => [],
