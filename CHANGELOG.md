@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `OutOfContractRangeException` (with `contractStart` or `contractEnd`), `OutOfServedRangeException` (with `month`) and `NothingToRefreshException`, all `InvalidRequestException`s, so a sync job can tell those refusals apart without reading messages. `InvalidRequestException` is no longer final.
+
 - `RepetitionWindowException::$startDate` and `$endDate`: the months the refused query asked for, refused by the ledger or by Datadis's own 429. A caller of `getLatest...Of()`, whose range the client picks, knows every month it did not get, not only the current one.
 
 ### Added

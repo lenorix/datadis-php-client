@@ -28,6 +28,9 @@ use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
+use Lenorix\DatadisClient\Exceptions\NothingToRefreshException;
+use Lenorix\DatadisClient\Exceptions\OutOfContractRangeException;
+use Lenorix\DatadisClient\Exceptions\OutOfServedRangeException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
@@ -599,7 +602,7 @@ final class DatadisClient
      *
      * @return ApiResult<ConsumptionReading>
      *
-     * @throws InvalidRequestException when the supply's contract has nothing to refresh this month
+     * @throws NothingToRefreshException when the supply's contract has nothing to refresh this month
      */
     public function getLatestConsumptionDataOf(
         #[SensitiveParameter] Supply $supply,
@@ -618,7 +621,7 @@ final class DatadisClient
      *
      * @return ApiResult<MaxPowerReading>
      *
-     * @throws InvalidRequestException when the supply's contract has nothing to refresh this month
+     * @throws NothingToRefreshException when the supply's contract has nothing to refresh this month
      */
     public function getLatestMaxPowerOf(#[SensitiveParameter] Supply $supply, ?Nif $authorizedNif = null): ApiResult
     {
@@ -631,7 +634,7 @@ final class DatadisClient
     private function latest(#[SensitiveParameter] Supply $supply): array
     {
         return MonthPlanner::latest($this->clock->now(), $supply)[0]
-            ?? throw new InvalidRequestException('The contract of the supply has no data to refresh this month.');
+            ?? throw new NothingToRefreshException('The contract of the supply has no data to refresh this month.');
     }
 
     /**
@@ -839,14 +842,20 @@ final class DatadisClient
         }
 
         if ($startDate !== null && $supply->validDateFrom !== null && $startDate->isBefore(Month::fromDate($supply->validDateFrom))) {
-            throw new InvalidRequestException('The range starts before the contract of the supply ('.Month::fromDate($supply->validDateFrom)->format().'); Datadis refuses it, and the refusal counts for 24 hours. MonthPlanner::ranges() keeps to the contract.');
+            throw new OutOfContractRangeException(
+                'The range starts before the contract of the supply ('.Month::fromDate($supply->validDateFrom)->format().'); Datadis refuses it, and the refusal counts for 24 hours. MonthPlanner::ranges() keeps to the contract.',
+                contractStart: Month::fromDate($supply->validDateFrom),
+            );
         }
 
         // REPORTED by a production consumer: a month after the contract ended is refused like one before it.
         $last = $endDate ?? $startDate;
 
         if ($last !== null && $supply->validDateTo !== null && $last->isAfter(Month::fromDate($supply->validDateTo))) {
-            throw new InvalidRequestException('The range ends after the contract of the supply ('.Month::fromDate($supply->validDateTo)->format().'); Datadis refuses it, and the refusal counts for 24 hours. MonthPlanner::ranges() keeps to the contract.');
+            throw new OutOfContractRangeException(
+                'The range ends after the contract of the supply ('.Month::fromDate($supply->validDateTo)->format().'); Datadis refuses it, and the refusal counts for 24 hours. MonthPlanner::ranges() keeps to the contract.',
+                contractEnd: Month::fromDate($supply->validDateTo),
+            );
         }
 
         return [Cups::fromString($supply->cups), $supply->distributorCode];
@@ -968,7 +977,7 @@ final class DatadisClient
 
         foreach ([$startDate, $endDate] as $month) {
             if (! $month->isWithinHistory($now)) {
-                throw new InvalidRequestException('Datadis only serves the last '.Month::HISTORY_MONTHS." months up to the current one; {$month->format()} is outside that window.");
+                throw new OutOfServedRangeException('Datadis only serves the last '.Month::HISTORY_MONTHS." months up to the current one; {$month->format()} is outside that window.", $month);
             }
         }
     }

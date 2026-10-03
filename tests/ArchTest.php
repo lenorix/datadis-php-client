@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 use Lenorix\DatadisClient\Exceptions\DatadisException;
+use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Http\ApiCaller;
 use Lenorix\DatadisClient\Http\GuzzleClientFactory;
 use Lenorix\DatadisClient\Time\DatadisDate;
@@ -17,11 +18,11 @@ arch('every source file declares strict types')
     ->expect('Lenorix\DatadisClient')
     ->toUseStrictTypes();
 
-arch('source classes are final, except the exception base')
+arch('source classes are final, except the exception bases')
     ->expect('Lenorix\DatadisClient')
     ->classes()
     ->toBeFinal()
-    ->ignoring(DatadisException::class);
+    ->ignoring([DatadisException::class, InvalidRequestException::class]);
 
 arch('every exception extends DatadisException')
     ->expect('Lenorix\DatadisClient\Exceptions')
