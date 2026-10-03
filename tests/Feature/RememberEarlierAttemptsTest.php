@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use Lenorix\DatadisClient\ApiVersion;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
+use Lenorix\DatadisClient\Exceptions\UnsupportedOperationException;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Support\InMemoryCache;
@@ -205,4 +207,20 @@ it('remembers a query of a supply as listed', function (Closure $remember, Closu
     'consumption' => [fn ($c, $s, $at) => $c->rememberConsumptionDataOf($at, $s, Month::of(2026, 8)), fn ($c, $s) => $c->consumptionDataOfBlockedUntil($s, Month::of(2026, 8))],
     'max power, which keys reactive data too' => [fn ($c, $s, $at) => $c->rememberMaxPowerOf($at, $s, Month::of(2026, 8)), fn ($c, $s) => $c->reactiveDataOfBlockedUntil($s, Month::of(2026, 8))],
     'reactive, which keys maximum power too' => [fn ($c, $s, $at) => $c->rememberReactiveDataOf($at, $s, Month::of(2026, 8)), fn ($c, $s) => $c->maxPowerOfBlockedUntil($s, Month::of(2026, 8))],
+]);
+
+it('refuses reactive data on a v1 client to remember or look up, as it refuses to send it', function (Closure $call) {
+    $http = new FakeHttpClient;
+    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, version: ApiVersion::V1, clock: $clock, ledger: $ledger);
+
+    expect(fn () => $call($client, $clock->now()))->toThrow(UnsupportedOperationException::class)
+        ->and($client->maxPowerBlockedUntil(cups(), '2', Month::of(2026, 8)))->toBeNull()
+        ->and($http->requests())->toBe([]);
+})->with([
+    'remember' => [fn ($c, $now) => $c->rememberReactiveData($now->modify('-1 hour'), cups(), '2', Month::of(2026, 8))],
+    'remember a supply' => [fn ($c, $now) => $c->rememberReactiveDataOf($now->modify('-1 hour'), DatadisWithTheRule::supply(), Month::of(2026, 8))],
+    'look up' => [fn ($c) => $c->reactiveDataBlockedUntil(cups(), '2', Month::of(2026, 8))],
+    'look up a supply' => [fn ($c) => $c->reactiveDataOfBlockedUntil(DatadisWithTheRule::supply(), Month::of(2026, 8))],
 ]);

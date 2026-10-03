@@ -327,9 +327,7 @@ final class DatadisClient
      */
     public function getReactiveData(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
-        if ($this->version !== ApiVersion::V2) {
-            throw new UnsupportedOperationException('Reactive data exists only in API v2.');
-        }
+        $this->assertReactive();
 
         $decoded = $this->fetch(Endpoint::Reactive, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
 
@@ -391,6 +389,8 @@ final class DatadisClient
      */
     public function rememberReactiveData(DateTimeInterface $sentAt, Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): bool
     {
+        $this->assertReactive();
+
         return $this->remember(Endpoint::Reactive, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif, served: false), $sentAt);
     }
 
@@ -482,6 +482,8 @@ final class DatadisClient
      */
     public function reactiveDataBlockedUntil(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
     {
+        $this->assertReactive();
+
         return $this->guard->blockedUntil(Endpoint::Reactive, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
     }
 
@@ -945,6 +947,17 @@ final class DatadisClient
             'startDate' => $startDate->format(),
             'endDate' => $endDate->format(),
         ];
+    }
+
+    /**
+     * Reactive data exists only in v2. Its 24 hour key is the maximum power one, so remembering or
+     * looking it up on v1 would block or report a maximum power query instead.
+     */
+    private function assertReactive(): void
+    {
+        if ($this->version !== ApiVersion::V2) {
+            throw new UnsupportedOperationException('Reactive data exists only in API v2.');
+        }
     }
 
     private function assertDistributorCode(string $code): void

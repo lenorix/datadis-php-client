@@ -56,7 +56,9 @@ it('lists the periods of a span and the last ended one', function () use ($span,
     expect(array_map($span, $cycle->periodsBetween(new DateTimeImmutable('2026-07-20'), new DateTimeImmutable('2026-09-15'))))
         ->toBe(['2026-07-15..2026-08-14', '2026-08-15..2026-09-14', '2026-09-15..2026-10-14'])
         ->and($span($cycle->lastEndedPeriod(new DateTimeImmutable('2026-09-20', $madrid))))->toBe('2026-08-15..2026-09-14')
-        ->and(fn () => $cycle->periodsBetween(new DateTimeImmutable('2026-09-15'), new DateTimeImmutable('2026-09-01')))->toThrow(InvalidArgumentException::class);
+        ->and(fn () => $cycle->periodsBetween(new DateTimeImmutable('2026-09-15'), new DateTimeImmutable('2026-09-01')))->toThrow(InvalidArgumentException::class)
+        ->and(fn () => $cycle->periodsBetween(new DateTimeImmutable('2026-03-20'), new DateTimeImmutable('2026-03-16')))->toThrow(InvalidArgumentException::class)
+        ->and(array_map($span, $cycle->periodsBetween(new DateTimeImmutable('2026-03-16'), new DateTimeImmutable('2026-03-16'))))->toBe(['2026-03-15..2026-04-14']);
 });
 
 it('refuses a day that no month has', function (int $day) {

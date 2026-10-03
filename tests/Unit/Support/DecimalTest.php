@@ -53,3 +53,7 @@ it('writes the same digits whatever the serialize_precision setting', function (
         ini_set('serialize_precision', (string) $previous);
     }
 });
+
+it('reads an exponent written with leading zeros', function () {
+    expect(Decimal::of('1.5E+0010', 3))->toBe('15000000000.000')->and(Decimal::of('2.5e-0001', 3))->toBe('0.250');
+});

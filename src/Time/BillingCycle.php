@@ -63,13 +63,14 @@ final readonly class BillingCycle
      */
     public function periodsBetween(DateTimeInterface $firstDay, DateTimeInterface $lastDay): array
     {
+        $first = new DateTimeImmutable($firstDay->format('Y-m-d'), $this->zone);
         $last = new DateTimeImmutable($lastDay->format('Y-m-d'), $this->zone);
-        $period = $this->periodContaining(new DateTimeImmutable($firstDay->format('Y-m-d'), $this->zone));
 
-        if ($last < $period->start) {
+        if ($last < $first) {
             throw new InvalidArgumentException('The span of a billing cycle must not end before it starts.');
         }
 
+        $period = $this->periodContaining($first);
         $periods = [$period];
 
         while ($period->end <= $last) {

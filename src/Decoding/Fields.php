@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Decoding;
 
+use Brick\Math\BigDecimal;
+use Brick\Math\Exception\MathException;
 use DateTimeImmutable;
 use DateTimeZone;
 use Lenorix\DatadisClient\Support\Decimal;
@@ -105,16 +107,28 @@ final class Fields
         return null;
     }
 
-    /** An integer written as text, also with a zero fraction (`5.0`), as a decimal JSON number now arrives. */
+    /**
+     * An integer written as text, also as a decimal JSON number arrives: with a zero fraction (`5.0`)
+     * or an exponent (`1e2`), as long as the value is whole and fits an int.
+     */
     private static function integerText(#[SensitiveParameter] string $text): ?int
     {
-        if (preg_match('/^(-?\d+)\.0+$/D', $text, $match) === 1) {
-            $text = $match[1];
-        }
-
         $int = filter_var($text, FILTER_VALIDATE_INT);
 
-        return $int === false ? null : $int;
+        if ($int !== false) {
+            return $int;
+        }
+
+        if (! Decimal::isNumeric($text)) {
+            return null;
+        }
+
+        try {
+            // Throws when the value has a fraction or does not fit an int.
+            return BigDecimal::of($text)->toBigInteger()->toInt();
+        } catch (MathException) {
+            return null;
+        }
     }
 
     /**

@@ -349,7 +349,7 @@ it('removes a poisoned token from the store even if saving the new one fails', f
 });
 
 it('removes the password a login error echoes in any of the forms a server writes a form field in', function (Closure $echo) {
-    $password = 'review only-secret/ñ"&<1>';
+    $password = 'review only-secret/ñ"\'&<1>';
     $stack = new Stack(config: new DatadisConfig('A00000000', $password, baseUrl: 'https://datadis.test'));
     $stack->http->queue(Responses::text('bad login: '.$echo($password), 401));
 
@@ -371,6 +371,8 @@ it('removes the password a login error echoes in any of the forms a server write
     'in JSON' => [fn (string $p) => json_encode(['password' => $p])],
     'in JSON, unicode escaped' => [fn (string $p) => json_encode(['password' => $p], JSON_UNESCAPED_SLASHES)],
     'in HTML' => [fn (string $p) => '<td>'.htmlspecialchars($p).'</td>'],
+    'in HTML with &#39;' => [fn (string $p) => '<td>'.str_replace('&#039;', '&#39;', htmlspecialchars($p, ENT_QUOTES)).'</td>'],
+    'in HTML with &apos;' => [fn (string $p) => '<td>'.htmlspecialchars($p, ENT_QUOTES | ENT_HTML5).'</td>'],
 ]);
 
 it('scrubs an echoed username, also one whose control character was not checked', function () {

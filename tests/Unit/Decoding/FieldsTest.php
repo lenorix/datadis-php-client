@@ -38,3 +38,7 @@ it('reads dates with surrounding spaces and ignores empty ones', function () {
     expect(Fields::date(['k' => ' 2026/01/02 '], $zone, 'k')?->format('Y-m-d'))->toBe('2026-01-02')
         ->and(Fields::date(['k' => ''], $zone, 'k'))->toBeNull();
 });
+
+it('reads a whole number sent with an exponent, as a decimal JSON number may arrive', function (string $value, ?int $expected) {
+    expect(Fields::integer(['k' => $value], 'k'))->toBe($expected);
+})->with([['1e2', 100], ['1.5E+0001', 15], ['-2.00e1', -20], ['1.5e0', null], ['1e30', null], ['9223372036854775807', PHP_INT_MAX], ['9223372036854775808', null]]);

@@ -155,7 +155,9 @@ final class TokenProvider
         $forms = [];
 
         foreach ([$this->config->password(), $this->config->username()] as $secret) {
-            $forms = [...$forms, $secret, urlencode($secret), rawurlencode($secret), htmlspecialchars($secret, ENT_QUOTES | ENT_HTML5)];
+            $html = htmlspecialchars($secret, ENT_QUOTES | ENT_HTML401);
+            // HTML escapes a quote as &apos; (HTML5), &#039; (PHP's default) or &#39;.
+            $forms = [...$forms, $secret, urlencode($secret), rawurlencode($secret), htmlspecialchars($secret, ENT_QUOTES | ENT_HTML5), $html, str_replace('&#039;', '&#39;', $html)];
 
             // JSON, with and without escaped slashes and non-ASCII characters.
             foreach ([0, JSON_UNESCAPED_SLASHES, JSON_UNESCAPED_UNICODE, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE] as $flags) {

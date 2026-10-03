@@ -84,8 +84,8 @@ final class Decimal
         }
 
         // Bounded on purpose: an exponent like 1e300000000 would need gigabytes of digits. Three
-        // exponent digits cover every float, and no real value needs more than 64 characters.
-        if (is_string($value) && strlen($value) <= self::MAX_LENGTH && preg_match('/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d{1,3})?$/D', $value) === 1) {
+        // exponent digits (leading zeros aside) cover every float, and no real value needs more than 64 characters.
+        if (is_string($value) && strlen($value) <= self::MAX_LENGTH && preg_match('/^-?\d+(?:\.\d+)?(?:[eE][+-]?0*\d{1,3})?$/D', $value) === 1) {
             return $value;
         }
 
