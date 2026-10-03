@@ -59,7 +59,7 @@ final readonly class RepetitionGuard
         }
 
         if ($last !== null) {
-            $availableAt = $last->modify('+'.$this->ledger->windowSeconds().' seconds');
+            $availableAt = $this->availableAfter($last);
 
             throw new RepetitionWindowException(
                 "{$name}: the same query was already sent at {$last->format(DATE_ATOM)}; Datadis refuses repeating it within 24 hours, so it is allowed again from {$availableAt->format(DATE_ATOM)}.",
@@ -103,6 +103,16 @@ final readonly class RepetitionGuard
         }
     }
 
+    /**
+     * When an attempt stops blocking its query: a window of elapsed seconds, counted on the
+     * timestamp. modify('+N seconds') counts on the wall clock of the zone, an hour off across a
+     * change of the clocks.
+     */
+    private function availableAfter(DateTimeImmutable $last): DateTimeImmutable
+    {
+        return $last->setTimestamp($last->getTimestamp() + $this->ledger->windowSeconds());
+    }
+
     /** @param  array<string, string|int|list<string>|null>  $query */
     private static function month(#[SensitiveParameter] array $query, string $name): ?Month
     {
@@ -122,8 +132,9 @@ final readonly class RepetitionGuard
      */
     public function blockedUntil(Endpoint $endpoint, #[SensitiveParameter] array $query): ?DateTimeImmutable
     {
-        return $this->ledger->lastAttempt(($this->account)(), self::repetitionKey($endpoint, $query))
-            ?->modify('+'.$this->ledger->windowSeconds().' seconds');
+        $last = $this->ledger->lastAttempt(($this->account)(), self::repetitionKey($endpoint, $query));
+
+        return $last === null ? null : $this->availableAfter($last);
     }
 
     /**

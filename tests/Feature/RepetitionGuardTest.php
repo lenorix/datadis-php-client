@@ -388,3 +388,35 @@ it('says which months a refused query asked for, and keeps Datadis\'s own 429 as
 
     throw new LogicException('Expected a RepetitionWindowException.');
 });
+
+it('counts the window in elapsed seconds across a change of the clocks, whatever the default zone', function (string $sentAt) {
+    $previous = date_default_timezone_get();
+    date_default_timezone_set('Europe/Madrid');
+
+    try {
+        $http = new FakeHttpClient;
+        $clock = new FrozenClock(new DateTimeImmutable($sentAt));
+        $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+        $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+        $http->queue(login($clock), Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+        $client->getConsumptionData(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 3), Month::of(2026, 3));
+        $clock->advance(3600);
+
+        try {
+            $client->getConsumptionData(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 3), Month::of(2026, 3));
+        } catch (RepetitionWindowException $e) {
+            expect($e->availableAt?->getTimestamp() - $e->lastAttemptAt?->getTimestamp())->toBe(RequestLedger::WINDOW_SECONDS)
+                ->and($client->consumptionDataBlockedUntil(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 3))?->getTimestamp())
+                ->toBe($e->availableAt?->getTimestamp());
+
+            return;
+        }
+
+        throw new LogicException('Expected a RepetitionWindowException.');
+    } finally {
+        date_default_timezone_set($previous);
+    }
+})->with([
+    'the night the clocks go back' => ['2026-10-24 23:30 UTC'],
+    'the night the clocks go forward' => ['2026-03-28 23:30 UTC'],
+]);
