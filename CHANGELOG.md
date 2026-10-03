@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-03
+
 ### Added
 
 - `TariffResolver`, to read the tariff of a contract your own way: `ContractDetail::tariff($resolver)`. `StandardTariffResolver` is the package's reading, with a table of `codeFare` codes you can extend or replace; `PatternTariffResolver` applies regular expressions of your own to the fields you choose; `ChainTariffResolver` asks several in order. `accessFare` and `codeFare` always keep the text as received.
@@ -204,7 +206,8 @@ First public release.
 - Daylight saving change days placed on the right hours, in Madrid and the Canary Islands.
 - Helpers: month planning within the served window, access tariff recognition, the 2.0TD schedule, national holidays, territories, CUPS and NIF values (NIF control letter checked), personal data redaction.
 
-[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/lenorix/datadis-php-client/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/lenorix/datadis-php-client/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/lenorix/datadis-php-client/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/lenorix/datadis-php-client/compare/v0.5.0...v0.6.0
