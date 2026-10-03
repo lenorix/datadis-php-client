@@ -16,49 +16,79 @@ use Lenorix\DatadisClient\Data\ContractDetail;
  */
 final readonly class PatternTariffResolver implements TariffResolver
 {
+    /** The contract's text fields a pattern can be tried on. */
+    public const array FIELDS = ['accessFare', 'codeFare', 'timeDiscrimination', 'tension'];
+
+    /** @var array<string, AccessTariff> */
+    private array $patterns;
+
+    /** @var list<'accessFare'|'codeFare'|'timeDiscrimination'|'tension'> */
+    private array $fields;
+
     /**
-     * @param  array<string, AccessTariff>  $patterns  regular expression => tariff, in order
-     * @param  list<'accessFare'|'codeFare'|'timeDiscrimination'|'tension'>  $fields  the fields to try them on, in order
+     * @param  array<string, AccessTariff|string>  $patterns  regular expression => tariff (or its name, `3.0TD`, as a configuration file has it), in order
+     * @param  list<string>  $fields  the fields to try them on, in order: any of FIELDS
      *
-     * @throws InvalidArgumentException when a pattern is not a valid regular expression
+     * @throws InvalidArgumentException when a pattern does not compile, a tariff or a field is unknown
      */
-    public function __construct(
-        private array $patterns,
-        private array $fields = ['accessFare', 'codeFare'],
-    ) {
-        foreach (array_keys($patterns) as $pattern) {
-            // preg_match warns about a broken pattern before it returns false: the warning is
-            // turned into this exception instead.
-            set_error_handler(static fn (): bool => true);
+    public function __construct(array $patterns, array $fields = ['accessFare', 'codeFare'])
+    {
+        $checked = [];
 
-            try {
-                $valid = preg_match($pattern, '') !== false;
-            } finally {
-                restore_error_handler();
-            }
-
-            if (! $valid) {
-                throw new InvalidArgumentException("Not a valid regular expression: {$pattern}");
-            }
+        foreach ($patterns as $pattern => $tariff) {
+            $pattern = (string) $pattern;
+            self::compiles($pattern) || throw new InvalidArgumentException("Not a valid regular expression: {$pattern}");
+            $checked[$pattern] = $tariff instanceof AccessTariff ? $tariff
+                : (AccessTariff::tryFrom($tariff) ?? throw new InvalidArgumentException("Not an access tariff: {$tariff}"));
         }
+
+        foreach ($fields as $field) {
+            in_array($field, self::FIELDS, true) || throw new InvalidArgumentException("Not a text field of a contract: {$field}; use one of ".implode(', ', self::FIELDS).'.');
+        }
+
+        $this->patterns = $checked;
+        /** @var list<'accessFare'|'codeFare'|'timeDiscrimination'|'tension'> $fields */
+        $this->fields = $fields;
     }
 
+    /**
+     * @throws InvalidArgumentException when a pattern fails on a text (too much backtracking, an
+     *                                  invalid UTF-8 text for a /u pattern): a silent null would hide it
+     */
     public function resolve(ContractDetail $contract): ?AccessTariff
     {
         foreach ($this->fields as $field) {
             $text = $contract->{$field};
 
-            if (! is_string($text) || $text === '') {
+            if ($text === null || $text === '') {
                 continue;
             }
 
             foreach ($this->patterns as $pattern => $tariff) {
-                if (preg_match($pattern, $text) === 1) {
+                $matched = preg_match($pattern, $text);
+
+                if ($matched === false) {
+                    throw new InvalidArgumentException("The pattern {$pattern} failed on the {$field} of a contract: ".preg_last_error_msg().'.');
+                }
+
+                if ($matched === 1) {
                     return $tariff;
                 }
             }
         }
 
         return null;
+    }
+
+    /** preg_match warns about a broken pattern before it returns false: the warning is not let out. */
+    private static function compiles(string $pattern): bool
+    {
+        set_error_handler(static fn (): bool => true);
+
+        try {
+            return preg_match($pattern, '') !== false;
+        } finally {
+            restore_error_handler();
+        }
     }
 }

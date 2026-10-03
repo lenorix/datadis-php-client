@@ -19,6 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A quarter-hourly answer with only whole hours (an hourly answer to a quarter-hourly query) was read as quarters, putting an hour of energy on 15 minutes; its rows get no interval.
+- `StandardTariffResolver` failed with a `TypeError` on a numeric code added to its table (`'62'`, an integer key in PHP).
+- `PatternTariffResolver` took an unknown tariff, an unknown field or a misspelt one, and failed later or answered null; it refuses them at once, takes tariffs by name (`'3.0TD'`) from a configuration file, and says so when a pattern fails on a text instead of answering null.
+- Two clients sharing a token cache: the 401 of one deleted the token the other had just stored, and made it log in again. Only the rejected token is dropped, and a newer one in the cache is used.
+- A distributor code with an invisible, format or control character (a zero-width space, a bidi override) passed the check.
+
 - A new login that handed back the token the client had dropped (Datadis may return the same token while it is valid) was still treated as dropped, so the client logged in again on every call. Forcing a login and remembering a rejected token are now apart: a login that succeeds with the dropped token makes it good again.
 
 ### Changed

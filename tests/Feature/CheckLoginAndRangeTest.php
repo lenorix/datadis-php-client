@@ -166,3 +166,32 @@ it('takes the same token back from a new login without logging in on every call'
         $client->checkLogin(fresh: true);
     }],
 ]);
+
+it('takes the token another client sharing the cache stored after a 401, without logging in again', function () {
+    $clock = Scenario::clock();
+    $cache = new QuirkyCache;
+    [$httpA, $httpB] = [new FakeHttpClient, new FakeHttpClient];
+    $a = Scenario::client($httpA, $clock, tokenCache: $cache);
+    $b = Scenario::client($httpB, $clock, tokenCache: $cache);
+    $first = Tokens::datadis($clock->now()->getTimestamp());
+    $httpA->queue(Responses::text($first));
+    $a->checkLogin();
+    $clock->advance(60);
+    $second = Tokens::datadis($clock->now()->getTimestamp());
+    $supplies = fn () => Responses::datadis('{"supplies":[],"distributorError":[]}');
+
+    // While A's request with the first token is on its way, B is refused it, logs in and stores the second.
+    $httpB->queue(Scenario::refusedToken(), Responses::text($second), $supplies());
+    $httpA->queue(function () use ($b) {
+        $b->getSupplies();
+
+        return Scenario::refusedToken();
+    }, $supplies());
+
+    $a->getSupplies();
+
+    $sentByA = array_map(fn ($r) => $r->getMethod() === 'POST' ? 'login' : $r->getHeaderLine('Authorization'), $httpA->requests());
+
+    expect($sentByA)->toBe(['login', 'Bearer '.$first, 'Bearer '.$second])
+        ->and(array_values($cache->items))->toBe([$second]);
+});

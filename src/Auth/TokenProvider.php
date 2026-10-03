@@ -130,10 +130,12 @@ final class TokenProvider
     }
 
     /**
-     * Drops the cached token, so the next token() logs in. The token is also remembered as
-     * dropped: a store that fails to delete it would otherwise hand it back.
+     * Drops a token, so it is not used again: the one Datadis rejected, or the cached one. It is
+     * remembered as dropped, since a store that fails to delete it would hand it back. The cache
+     * is cleared only while it still holds that token: another client sharing it may already have
+     * logged in and stored a new one, which stays for every client to use.
      */
-    public function invalidate(): void
+    public function invalidate(#[SensitiveParameter] ?string $rejected = null): void
     {
         try {
             $cached = ($this->cache)()->get($this->cacheKey);
@@ -141,8 +143,14 @@ final class TokenProvider
             $cached = null;
         }
 
-        if (is_string($cached)) {
-            $this->dropped = hash('sha256', $cached);
+        $rejected ??= is_string($cached) ? $cached : null;
+
+        if ($rejected !== null) {
+            $this->dropped = hash('sha256', $rejected);
+        }
+
+        if ($cached === null || (is_string($cached) && $rejected !== null && ! hash_equals($rejected, $cached))) {
+            return;
         }
 
         try {

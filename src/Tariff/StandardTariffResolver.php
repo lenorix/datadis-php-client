@@ -33,8 +33,23 @@ final readonly class StandardTariffResolver implements TariffResolver
         '023' => AccessTariff::T64TD,
     ];
 
-    /** @param  array<string, AccessTariff>  $codes  codeFare (trimmed, any case) => tariff */
-    public function __construct(private array $codes = self::CODES) {}
+    /** @var array<string, AccessTariff> codeFare, trimmed and in capitals => tariff */
+    private array $codes;
+
+    /**
+     * @param  array<array-key, AccessTariff>  $codes  codeFare (any case) => tariff; a numeric code such
+     *                                                 as `62` becomes an integer key in PHP, and is fine
+     */
+    public function __construct(array $codes = self::CODES)
+    {
+        $normalised = [];
+
+        foreach ($codes as $code => $tariff) {
+            $normalised[strtoupper(trim((string) $code))] = $tariff;
+        }
+
+        $this->codes = $normalised;
+    }
 
     public function resolve(ContractDetail $contract): ?AccessTariff
     {
@@ -57,13 +72,7 @@ final readonly class StandardTariffResolver implements TariffResolver
     {
         $key = strtoupper(trim($code));
 
-        foreach ($this->codes as $known => $tariff) {
-            if (strtoupper(trim($known)) === $key) {
-                return $tariff;
-            }
-        }
-
         // Some companies write the tariff itself as its code (`2.0TD`).
-        return $key === '' ? null : AccessFareParser::parse($code);
+        return $this->codes[$key] ?? ($key === '' ? null : AccessFareParser::parse($code));
     }
 }

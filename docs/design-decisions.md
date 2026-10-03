@@ -97,7 +97,7 @@ A data request that got a 401 was sent. For a guarded query the client drops the
 Every row keeps the raw `time` string. Parsing depends on what was requested:
 
 - Hourly consumption (`measurementType=0`): strict `HourLabel` (`01:00`..`24:00`, end of interval, 1 h wide).
-- Quarter-hourly consumption (`measurementType=1`): 15 minutes wide, `HH:MM` on a quarter, in one of two conventions detected per answer (`QuarterHourConvention`): the end of each quarter (`00:15`..`24:00`) or the hour that ends plus the minute the quarter starts (`01:00`..`24:45`). An answer that shows neither gets no intervals (UNVERIFIED, no source documents the format).
+- Quarter-hourly consumption (`measurementType=1`): 15 minutes wide, `HH:MM` on a quarter, in one of two conventions detected per answer (`QuarterHourConvention`): the end of each quarter (`00:15`..`24:00`) or the hour that ends plus the minute the quarter starts (`01:00`..`24:45`). An answer that shows neither is read as the end of each quarter, as Datadis's own portal reads it; one with the markers of both, or with no quarter at all (only whole hours, an hourly answer), gets no intervals. Not verified against a real quarter-hourly answer. A partial day in the other convention that never reaches `24:15` cannot be told apart and is read as the end of each quarter: the accepted risk of following the portal.
 - Max power: `date` + `time` is an **instant** (for example `09:45`), parsed by a separate instant parser that still understands `24:00`.
 - An unrecognised shape yields a null index/instant and a flag on that row (for example the `00:00` glitch). It never fails the whole response.
 

@@ -278,12 +278,14 @@ it('drops a cached value that is not a usable token and logs in again', function
     expect($token)->toMatch('/^[A-Za-z0-9._~+\/=-]+$/')->and($stack->http->requests())->toHaveCount(2);
 })->with([['Bearer abc'], ["abc\r\nX: y"], [''], [123], [['x']]]);
 
-it('ignores a token store that fails to forget', function () {
+it('ignores a token store that fails to forget, and does not use the token again', function () {
     $stack = new Stack(cache: new QuirkyCache(throwOnDelete: true));
+    $stack->http->queue($stack->loginOk(), $stack->loginOk(7200));
+    $first = $stack->tokens->token();
 
     $stack->tokens->invalidate();
 
-    expect($stack->http->requests())->toBe([]);
+    expect($stack->tokens->token())->not->toBe($first)->and($stack->http->requests())->toHaveCount(2);
 });
 
 it('reports any other refused login as a rejected request that was not sent', function () {

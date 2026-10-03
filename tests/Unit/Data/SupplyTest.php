@@ -56,3 +56,18 @@ it('turns unparseable dates into null while keeping the raw row', function () us
 it('needs both codes to be queryable', function (array $row) use ($zone) {
     expect(Supply::fromRow(['cups' => 'ES0000000000000000AA'] + $row, $zone)->isQueryable())->toBeFalse();
 })->with([[['distributorCode' => '2']], [['pointType' => 5]]]);
+
+it('takes any short opaque distributor code, and refuses invisible or control characters', function (string $code, bool $valid) {
+    expect(Supply::isValidDistributorCode($code))->toBe($valid);
+})->with([
+    'a digit' => ['2', true],
+    'letters and symbols' => ['E-D_1.x', true],
+    'twenty characters' => [str_repeat('9', 20), true],
+    'twenty-one' => [str_repeat('9', 21), false],
+    'a space' => ['1 2', false],
+    'a newline' => ["2\n", false],
+    'a C1 control' => ["\u{0080}1", false],
+    'a zero-width space' => ["1\u{200B}", false],
+    'a bidi override' => ["1\u{202E}", false],
+    'invalid UTF-8' => ["\xC3", false],
+]);

@@ -92,11 +92,11 @@ final readonly class Supply
 
     /**
      * Datadis codes are opaque short strings (`"1"`..`"8"` today): any text without spaces or
-     * control characters, up to 20 characters, so a new code still goes through.
+     * control, format or invisible characters (Unicode `\p{C}`), up to 20 characters, so a new code still goes through.
      */
     public static function isValidDistributorCode(?string $code): bool
     {
-        return $code !== null && preg_match('/^[^\s\x00-\x1F\x7F]{1,20}$/Du', $code) === 1;
+        return $code !== null && preg_match('/^[^\s\p{C}]{1,20}$/Du', $code) === 1;
     }
 
     /** Metering point types 1 to 5 (RD 1110/2007). */

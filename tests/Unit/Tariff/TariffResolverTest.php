@@ -78,3 +78,36 @@ it('asks resolvers in order and takes the first answer', function () {
         ->and(contractOf(['codeFare' => '2T'], 2)->tariff($chain))->toBe(AccessTariff::T20TD)
         ->and(contractOf([], 6)->tariff(new ChainTariffResolver))->toBeNull();
 });
+
+it('takes codes that PHP keeps as integer keys, such as 62', function () {
+    $resolver = new StandardTariffResolver(['62' => AccessTariff::T62TD] + StandardTariffResolver::CODES);
+
+    expect(contractOf(['codeFare' => '62'], 6)->tariff($resolver))->toBe(AccessTariff::T62TD)
+        ->and(contractOf(['codeFare' => 'ZZ'], 6)->tariff($resolver))->toBeNull();
+});
+
+it('takes the tariffs of a configuration file by name', function () {
+    $resolver = new PatternTariffResolver(['/peaje\s*tres/i' => '3.0TD']);
+
+    expect(contractOf(['accessFare' => 'Peaje tres periodos'], 6)->tariff($resolver))->toBe(AccessTariff::T30TD);
+});
+
+it('refuses a configuration it could only fail on later', function (Closure $build, string $message) {
+    expect($build)->toThrow(InvalidArgumentException::class, $message);
+})->with([
+    'a tariff that does not exist' => [fn () => new PatternTariffResolver(['/x/' => '9.9TD']), 'Not an access tariff'],
+    'a field that is not a text field' => [fn () => new PatternTariffResolver(['/x/' => AccessTariff::T20TD], ['openEnded']), 'Not a text field'],
+    'a misspelt field' => [fn () => new PatternTariffResolver(['/x/' => AccessTariff::T20TD], ['acessFare']), 'Not a text field'],
+]);
+
+it('says so when a pattern fails on a text instead of answering null', function () {
+    $resolver = new PatternTariffResolver(['/(a+)+$/' => AccessTariff::T20TD]);
+    $contract = contractOf(['accessFare' => str_repeat('a', 5000).'b'], 2);
+    $limit = ini_set('pcre.backtrack_limit', '1000');
+
+    try {
+        expect(fn () => $contract->tariff($resolver))->toThrow(InvalidArgumentException::class, 'failed on the accessFare');
+    } finally {
+        ini_set('pcre.backtrack_limit', (string) $limit);
+    }
+});

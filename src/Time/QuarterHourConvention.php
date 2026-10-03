@@ -25,8 +25,9 @@ enum QuarterHourConvention
     /**
      * The convention of an answer, from the labels only one of them has: hour `00` (`00:15` to
      * `00:45`) only at the end of a quarter, and `24:15` to `24:45` only in the other. With neither,
-     * the end of the quarter, as Datadis's portal reads them. Null only when the labels have both,
-     * which no single convention explains.
+     * the end of the quarter, as Datadis's portal reads them. Null when the labels have both, which
+     * no single convention explains, or no quarter at all (only whole hours): an hourly answer read
+     * as quarters would put an hour of energy on 15 minutes.
      *
      * @param  iterable<string>  $labels
      */
@@ -34,13 +35,17 @@ enum QuarterHourConvention
     {
         $quarterEnd = false;
         $hourEnding = false;
+        $quarters = false;
 
         foreach ($labels as $label) {
             $quarterEnd = $quarterEnd || preg_match('/^00:(15|30|45)$/D', $label) === 1;
             $hourEnding = $hourEnding || preg_match('/^24:(15|30|45)$/D', $label) === 1;
+            $quarters = $quarters || preg_match('/^\d{2}:(15|30|45)$/D', $label) === 1;
         }
 
         return match (true) {
+            // Only whole hours (an hourly answer to a quarter-hourly query): no quarter to place.
+            ! $quarters => null,
             $quarterEnd && ! $hourEnding => self::QuarterEnd,
             $hourEnding && ! $quarterEnd => self::HourEndingWithStartMinute,
             $quarterEnd => null,

@@ -91,13 +91,15 @@ final class ApiCaller
     /** @param  array<string, string|int|list<string>|null>  $query */
     private function send(string $path, #[SensitiveParameter] array $query, string $endpoint, bool $sendAgainAfter401): ResponseInterface
     {
-        $response = $this->transport->send($this->requests->get($path, $query, $this->tokens->token()), $endpoint);
+        $sent = $this->tokens->token();
+        $response = $this->transport->send($this->requests->get($path, $query, $sent), $endpoint);
 
         if ($response->getStatusCode() !== 401) {
             return $response;
         }
 
-        $this->tokens->invalidate();
+        // Only the token that was rejected: another client may have stored a newer one meanwhile.
+        $this->tokens->invalidate($sent);
 
         if (! $sendAgainAfter401) {
             // The 401 itself as an AuthenticationException, sent; the next call logs in again.
@@ -105,7 +107,8 @@ final class ApiCaller
         }
 
         try {
-            $token = $this->tokens->token(fresh: true);
+            // A newer token another client stored is taken as it is; otherwise this logs in.
+            $token = $this->tokens->token();
         } catch (DatadisException $e) {
             // The data request already went out once, so whatever happens now it counts as sent.
             throw new AuthenticationException(
