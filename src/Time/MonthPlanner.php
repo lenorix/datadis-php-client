@@ -38,7 +38,10 @@ final class MonthPlanner
         // No range is longer than the history Datadis serves, so a larger number means one request.
         $monthsPerRequest = min($monthsPerRequest, Month::HISTORY_MONTHS);
         $current = Month::current($now);
-        $first = self::later($from, $current->addMonths(-(Month::HISTORY_MONTHS - 1)));
+        // The first month there is, when the history would start before it.
+        $earliest = Month::of(1, 1);
+        $historyStart = $current->diffInMonths($earliest) >= Month::HISTORY_MONTHS - 1 ? $current->addMonths(-(Month::HISTORY_MONTHS - 1)) : $earliest;
+        $first = self::later($from, $historyStart);
         $last = self::earliest($to, $current);
 
         if ($supply?->validDateFrom !== null) {
@@ -83,7 +86,8 @@ final class MonthPlanner
     public static function latest(DateTimeInterface $now, #[SensitiveParameter] ?Supply $supply = null): array
     {
         $current = Month::current($now);
-        $previous = $current->addMonths(-1);
+        // January of year 1 has no month before it.
+        $previous = $current->diffInMonths(Month::of(1, 1)) > 0 ? $current->addMonths(-1) : $current;
         $ended = $supply?->validDateTo !== null && Month::fromDate($supply->validDateTo)->isBefore($current);
         $notStarted = $supply?->validDateFrom !== null && Month::fromDate($supply->validDateFrom)->isAfter($current);
 

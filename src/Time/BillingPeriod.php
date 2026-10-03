@@ -44,7 +44,10 @@ final readonly class BillingPeriod
     {
         $zone ??= new DateTimeZone(Month::SERVICE_TIME_ZONE);
         $start = new DateTimeImmutable($firstDay->format('Y-m-d'), $zone);
-        $end = (new DateTimeImmutable($lastDay->format('Y-m-d'), $zone))->modify('+1 day');
+        // The next calendar day, read in the zone: where a change of the clocks skips midnight, the
+        // first day starts at 01:00, and adding a day to that would end the period an hour late.
+        $nextDay = (new DateTimeImmutable($lastDay->format('Y-m-d'), new DateTimeZone('UTC')))->modify('+1 day')->format('Y-m-d');
+        $end = new DateTimeImmutable($nextDay, $zone);
 
         if ($end <= $start) {
             throw new InvalidArgumentException('The last day of a billing period must not be before the first.');
@@ -84,8 +87,10 @@ final readonly class BillingPeriod
     }
 
     /**
-     * The readings of the period: by the start of their interval, or by their date when the time
-     * could not be placed.
+     * The readings of the period, by the start of their interval. A reading whose time could not
+     * be placed (an extra `00:00` row, labels of no known convention) is left out: its energy may
+     * belong to another hour or repeat one, so it is not added to a total. It stays in the result
+     * for whoever wants to look at it.
      *
      * @param  iterable<ConsumptionReading>  $readings
      * @return list<ConsumptionReading>
@@ -95,7 +100,7 @@ final readonly class BillingPeriod
         $in = [];
 
         foreach ($readings as $reading) {
-            if ($reading->start !== null ? $this->contains($reading->start) : $this->containsDate($reading->day)) {
+            if ($reading->start !== null && $this->contains($reading->start)) {
                 $in[] = $reading;
             }
         }
@@ -104,7 +109,8 @@ final readonly class BillingPeriod
     }
 
     /**
-     * The consumption of the readings of the period, in kWh, exact.
+     * The consumption of the readings of the period, in kWh, exact: only readings placed in time,
+     * as readingsOf() takes them.
      *
      * @param  iterable<ConsumptionReading>  $readings
      */
@@ -134,12 +140,5 @@ final readonly class BillingPeriod
         }
 
         return false;
-    }
-
-    private function containsDate(DateTimeInterface $day): bool
-    {
-        $date = $day->format('Y-m-d');
-
-        return $date >= $this->start->format('Y-m-d') && $date <= $this->lastDay()->format('Y-m-d');
     }
 }

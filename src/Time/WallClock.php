@@ -29,9 +29,9 @@ final class WallClock
     public static function instants(DateTimeImmutable $day, int $minutes, bool $asIntervalEnd): array
     {
         $zone = $day->getTimezone();
-        [$year, $month, $date] = array_map('intval', explode('-', $day->format('Y-m-d')));
         // The reading as if it were UTC; subtracting each candidate offset gives a real instant.
-        $wall = gmmktime(0, 0, 0, $month, $date, $year) + $minutes * 60;
+        // gmmktime() would read the years 0 to 100 as 1970 to 2069.
+        $wall = (new DateTimeImmutable($day->format('Y-m-d'), new DateTimeZone('UTC')))->getTimestamp() + $minutes * 60;
 
         $instants = [];
         foreach (self::offsets($zone, $wall) as $offset) {

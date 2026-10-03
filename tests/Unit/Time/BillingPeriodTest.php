@@ -81,8 +81,29 @@ it('picks the readings of the period by when their hour starts, and adds them up
         ->and($period->totalKWh([]))->toBe('0.000');
 });
 
-it('places a reading whose hour could not be read by its date', function () use ($reading) {
+it('leaves out a reading whose hour could not be read, even on a day of the period', function () use ($reading) {
     $period = BillingPeriod::between(new DateTimeImmutable('2026-09-15'), new DateTimeImmutable('2026-10-14'));
 
-    expect($period->readingsOf([$reading('2026/09/15', '99:99', 1.0), $reading('2026/09/14', '99:99', 1.0)]))->toHaveCount(1);
+    expect($period->readingsOf([$reading('2026/09/15', '99:99', 1.0), $reading('2026/09/14', '99:99', 1.0)]))->toBe([]);
+});
+
+it('leaves out of the total a reading whose time could not be placed, such as an extra 00:00', function () {
+    $zone = new DateTimeZone('Europe/Madrid');
+    $rows = array_map(fn (int $h) => ['date' => '2026/01/15', 'time' => sprintf('%02d:00', $h), 'consumptionKWh' => 1], range(1, 24));
+    $rows[] = ['date' => '2026/01/15', 'time' => '00:00', 'consumptionKWh' => 1];
+    $readings = array_map(fn (array $r) => ConsumptionReading::fromRow($r, $zone, MeasurementType::Hourly), $rows);
+    $period = BillingPeriod::between(new DateTimeImmutable('2026-01-15'), new DateTimeImmutable('2026-01-15'));
+
+    expect($period->readingsOf($readings))->toHaveCount(24)
+        ->and($period->totalKWh($readings))->toBe('24.000')
+        ->and($period->isCoveredBy($readings))->toBeTrue();
+});
+
+it('ends a period at the next midnight where a change of the clocks skips midnight', function () {
+    $zone = new DateTimeZone('America/Santiago');
+    $day = BillingPeriod::between(new DateTimeImmutable('2026-09-06'), new DateTimeImmutable('2026-09-06'), $zone);
+    $next = BillingPeriod::between(new DateTimeImmutable('2026-09-07'), new DateTimeImmutable('2026-09-07'), $zone);
+
+    expect($day->end->format('Y-m-d H:i'))->toBe('2026-09-07 00:00')
+        ->and($day->end->getTimestamp())->toBe($next->start->getTimestamp());
 });

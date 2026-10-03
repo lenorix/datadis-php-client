@@ -51,6 +51,7 @@ final readonly class Month implements Stringable
         return self::of((int) $matches[1], (int) $matches[2]);
     }
 
+    /** The month of the date in its own time zone; for "now", current() reads it in Madrid. */
     public static function fromDate(DateTimeInterface $date): self
     {
         return self::of((int) $date->format('Y'), (int) $date->format('n'));

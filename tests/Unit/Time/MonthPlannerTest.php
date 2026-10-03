@@ -81,3 +81,8 @@ it('keeps the plan inside the contract of the supply', function (array $contract
     'ended last month: nothing' => [['validDateFrom' => '2020/01/01', 'validDateTo' => '2026/08/31'], []],
     'starts next month: nothing' => [['validDateFrom' => '2026/10/01'], []],
 ]);
+
+it('plans from the first month there is, without failing on the years before it', function () {
+    expect(MonthPlanner::ranges(Month::of(1, 1), Month::of(1, 1), new DateTimeImmutable('0001-05-15', new DateTimeZone('UTC'))))->toHaveCount(1)
+        ->and(MonthPlanner::latest(new DateTimeImmutable('0001-01-15 12:00', new DateTimeZone('Europe/Madrid'))))->toHaveCount(1);
+});

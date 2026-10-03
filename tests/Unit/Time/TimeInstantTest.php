@@ -36,3 +36,7 @@ it('reads a maximum power instant at any minute of the hour', function () use ($
     expect(TimeInstant::tryParse('2025/01/01', '23:59', $madrid)?->format('H:i'))->toBe('23:59')
         ->and(TimeInstant::tryParse('2025/01/01', '23:60', $madrid))->toBeNull();
 });
+
+it('keeps the year of a date before year 100 as it is', function () {
+    expect(TimeInstant::tryParse('0099/06/01', '10:00', new DateTimeZone('UTC'))?->format('Y-m-d H:i'))->toBe('0099-06-01 10:00');
+});
