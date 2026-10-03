@@ -17,7 +17,8 @@ use SensitiveParameter;
 use Throwable;
 
 /**
- * Remembers which guarded queries were attempted in the last 24 hours, in any PSR-16 store.
+ * Remembers which guarded queries were attempted in the last 24 hours, in one LedgerStore (any PSR-16
+ * cache works as one).
  *
  * Datadis counts calls MADE, not calls that succeeded, so an attempt is recorded before the request
  * leaves and is only forgotten when the request provably never left (a failure before sending).

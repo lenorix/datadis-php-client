@@ -354,7 +354,7 @@ The ledger takes one store for everything it reads and writes: any PSR-16 cache,
 
 ### Moving from a record of your own
 
-An application that already keeps the queries it sent, and checks that record before each call, should let the ledger be the only one that decides whether a query may go. The ledger builds its key from exactly what the client sends, so no code outside it has to rebuild the parameters of Datadis, and checking and recording are one step with an `AtomicLedgerStore`. Its idea of "the same query" is also the one Datadis showed: maximum power and reactive data with the same parameters are the same query, `authorizedNif` does not count for either, and the endpoint itself is not part of the key. A record keyed on the endpoint, or on `authorizedNif` for maximum power, decides differently.
+An application that already keeps the queries it sent, and checks that record before each call, should let the ledger be the only one that decides whether a query may go. The ledger builds its key from exactly what the client sends, so no code outside it has to rebuild the parameters of Datadis, and checking and recording are one step with an `AtomicLedgerStore`. Its idea of "the same query" follows Datadis: the endpoint is not part of the key, so maximum power and reactive data with the same parameters are the same query (verified), and `authorizedNif` does not count for either (the official manual's key, not verified: the stricter reading). A record keyed on the endpoint, or on `authorizedNif` for maximum power, decides differently.
 
 Check-then-call becomes call-and-catch. A local refusal sends nothing:
 

@@ -4,7 +4,7 @@
 
 Datadis refuses an identical query made within 24 hours with **HTTP 429** ("Consulta ya realizada en las últimas 24 horas").
 
-- The key is the user plus the query parameters. The official manual lists `cups, distributorCode, startDate, endDate, measurementType, pointType, authorizedNif` for consumption but only `cups, distributorCode, startDate, endDate` for maximum power (no `authorizedNif`). One implementation reports that the key **ignores the endpoint**, so max power and reactive with the same window collide. The guard takes the stricter reading of both: endpoint ignored, and `authorizedNif` ignored for maximum power and reactive.
+- The key is the user plus the query parameters. The official manual lists `cups, distributorCode, startDate, endDate, measurementType, pointType, authorizedNif` for consumption but only `cups, distributorCode, startDate, endDate` for maximum power (no `authorizedNif`). The key **ignores the endpoint**: max power and reactive with the same window collide (reported by one implementation, then VERIFIED, October 2026). The guard takes the stricter reading of both: endpoint ignored, and `authorizedNif` ignored for maximum power and reactive.
 - It counts calls **made**, not calls that succeeded. A response caused by a user error (bad parameters, missing authorization) also burns the tuple.
 - It applies to consumption, max power and reactive. It does not apply to supplies, contract detail or distributors (VERIFIED for supplies/contract in practice).
 - Two ranges inside the same month are the same query, because the wire only carries `YYYY/MM`.
@@ -13,8 +13,8 @@ Datadis refuses an identical query made within 24 hours with **HTTP 429** ("Cons
 - PSR-18 cannot distinguish "never sent" from "sent but no answer": a read timeout is reported as a network exception (Guzzle: curl error 28 as `ConnectException`). Short timeouts caused curl 28 on every call in production, so this is common. **A network exception on a guarded endpoint means the outcome is unknown: treat it as possibly sent, do not retry, keep the tuple.**
 - The only provably unsent failures are pre-flight ones: configuration or parameter validation, and a login failure before the data request.
 - A 5xx or a timeout **after** the request was sent may have consumed the tuple. Do not blindly retry guarded endpoints.
-- Cache even empty results and 429 outcomes for 24 h on the consumer side. The package offers a fingerprint builder and an optional PSR-16 guard, never mandatory.
-- Whether a 429 is what an actual repeat returns has been reported by several sources but never captured by the reference consumer. Treat the mapping as SPEC/REPORTED.
+- Cache even empty results and 429 outcomes for 24 h on the consumer side. The client always guards (in memory by default; a shared `LedgerStore` or PSR-16 cache covers several processes).
+- A repeat is answered with a 429 (VERIFIED, October 2026: see the table below).
 
 ## Real answers (VERIFIED, September 2026, v1 paths)
 

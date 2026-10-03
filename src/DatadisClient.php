@@ -61,8 +61,14 @@ use SensitiveParameter;
  *
  * Read docs/quirks-and-rules.md before building anything that repeats calls: Datadis refuses an
  * identical consumption, max power or reactive query for 24 hours, and a rejected request counts.
- * The only repeat is one new login and one new call after a 401 (the token was refused, so the
- * request was not served); nothing else that may have been sent is retried.
+ * The only repeat is one new login and one new call after a 401, and only for a call that is safe
+ * to repeat (the lists and the reads): a guarded query or a change (an authorization, unlinking a
+ * user) is never sent twice, since Datadis may have acted on the rejected one. Nothing else that
+ * may have been sent is retried.
+ *
+ * Every call that takes `$authorizedNif` refuses, before sending, one that differs from the
+ * holder of a client made with forHolder() (InvalidRequestException). Reactive data and groups
+ * exist only in API v2 (UnsupportedOperationException on v1).
  *
  * Every list method returns an ApiResult. An empty result is a normal answer, never zero
  * consumption, and `distributorErrors` carries partial failures reported inside a 200.
@@ -196,6 +202,9 @@ final class DatadisClient
      * Not subject to the 24 hour repetition rule.
      *
      * @return ApiResult<Supply>
+     *
+     * @throws InvalidRequestException when the distributor code or the holder is refused before sending
+     * @throws DatadisException for a failure while talking to Datadis; check `requestSent`
      */
     public function getSupplies(?Nif $authorizedNif = null, ?string $distributorCode = null): ApiResult
     {
@@ -211,6 +220,8 @@ final class DatadisClient
     /**
      * The supply of a CUPS, resolved from the supplies list (see SupplyMatcher). Null when the
      * account has no such supply. Check isQueryable() before using its codes.
+     *
+     * @throws DatadisException as getSupplies()
      */
     public function findSupply(Cups $cups, ?Nif $authorizedNif = null): ?Supply
     {
@@ -232,6 +243,9 @@ final class DatadisClient
      * The codes of the distributors that have supplies for the account. Codes are opaque strings.
      *
      * @return ApiResult<string>
+     *
+     * @throws InvalidRequestException when the holder is refused before sending
+     * @throws DatadisException for a failure while talking to Datadis
      */
     public function getDistributorsWithSupplies(?Nif $authorizedNif = null): ApiResult
     {
@@ -244,6 +258,9 @@ final class DatadisClient
      * Contract detail of one supply. Not subject to the 24 hour repetition rule.
      *
      * @return ApiResult<ContractDetail>
+     *
+     * @throws InvalidRequestException when the distributor code or the holder is refused before sending
+     * @throws DatadisException for a failure while talking to Datadis
      */
     public function getContractDetail(Cups $cups, string $distributorCode, ?Nif $authorizedNif = null): ApiResult
     {
@@ -324,6 +341,7 @@ final class DatadisClient
      * @throws RepetitionWindowException when the same query was attempted in the last 24 hours (`httpStatus` null: refused here, nothing sent)
      * @throws LedgerUnavailableException when the ledger's store fails (nothing sent)
      * @throws DatadisException for any other failure; check `requestSent`
+     * @throws UnsupportedOperationException on API v1 (nothing sent)
      */
     public function getReactiveData(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
@@ -546,6 +564,9 @@ final class DatadisClient
      * getContractDetail() for a supply as listed by getSupplies().
      *
      * @return ApiResult<ContractDetail>
+     *
+     * @throws InvalidRequestException when the supply was listed without a usable CUPS or distributor code
+     * @throws DatadisException as getContractDetail()
      */
     public function getContractDetailOf(#[SensitiveParameter] Supply $supply, ?Nif $authorizedNif = null): ApiResult
     {
@@ -558,6 +579,10 @@ final class DatadisClient
      * getConsumptionData() for a supply as listed by getSupplies().
      *
      * @return ApiResult<ConsumptionReading>
+     *
+     * @throws OutOfContractRangeException when the range falls outside the supply's contract (nothing sent)
+     * @throws InvalidRequestException when the supply cannot be queried (nothing sent)
+     * @throws DatadisException as getConsumptionData()
      */
     public function getConsumptionDataOf(
         #[SensitiveParameter] Supply $supply,
@@ -576,6 +601,10 @@ final class DatadisClient
      * getMaxPower() for a supply as listed by getSupplies().
      *
      * @return ApiResult<MaxPowerReading>
+     *
+     * @throws OutOfContractRangeException when the range falls outside the supply's contract (nothing sent)
+     * @throws InvalidRequestException when the supply cannot be queried (nothing sent)
+     * @throws DatadisException as getMaxPower()
      */
     public function getMaxPowerOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
@@ -588,6 +617,10 @@ final class DatadisClient
      * getReactiveData() for a supply as listed by getSupplies().
      *
      * @return ApiResult<ReactiveEnergy>
+     *
+     * @throws OutOfContractRangeException when the range falls outside the supply's contract (nothing sent)
+     * @throws InvalidRequestException when the supply cannot be queried (nothing sent)
+     * @throws DatadisException as getReactiveData()
      */
     public function getReactiveDataOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
@@ -607,6 +640,8 @@ final class DatadisClient
      * @return ApiResult<ConsumptionReading>
      *
      * @throws NothingToRefreshException when the supply's contract has nothing to refresh this month
+     * @throws RepetitionWindowException when today's range was asked in the last 24 hours (its months in `startDate`, `endDate`)
+     * @throws DatadisException as getConsumptionDataOf()
      */
     public function getLatestConsumptionDataOf(
         #[SensitiveParameter] Supply $supply,
@@ -626,6 +661,8 @@ final class DatadisClient
      * @return ApiResult<MaxPowerReading>
      *
      * @throws NothingToRefreshException when the supply's contract has nothing to refresh this month
+     * @throws RepetitionWindowException when today's range was asked in the last 24 hours (its months in `startDate`, `endDate`)
+     * @throws DatadisException as getMaxPowerOf()
      */
     public function getLatestMaxPowerOf(#[SensitiveParameter] Supply $supply, ?Nif $authorizedNif = null): ApiResult
     {
@@ -647,6 +684,9 @@ final class DatadisClient
      * This endpoint exists only in v1 and is used whatever the configured version. UNVERIFIED: it
      * comes from the manual only; the date format (assumed `YYYY/MM/DD`) and the way the list of
      * CUPS is sent (the key repeated per CUPS) are not documented. Returns the raw answer text.
+     *
+     * @throws InvalidRequestException for the account itself, a reversed period or a CUPS listed twice (nothing sent)
+     * @throws DatadisException for a failure while talking to Datadis; check `requestSent` before making it again
      */
     public function newAuthorization(
         Nif $authorizedNif,
@@ -671,6 +711,9 @@ final class DatadisClient
     /**
      * Cancels a third party's authorization (for every supply when no CUPS is given).
      * v1 only and UNVERIFIED, like newAuthorization(). Returns the raw answer text.
+     *
+     * @throws InvalidRequestException for the account itself or a CUPS listed twice (nothing sent)
+     * @throws DatadisException for a failure while talking to Datadis; check `requestSent` before making it again
      */
     public function cancelAuthorization(Nif $authorizedNif, Cups ...$cups): string
     {
@@ -699,6 +742,9 @@ final class DatadisClient
      * `No groups`, labelled JSON (verified), which is an empty result.
      *
      * @return ApiResult<Group>
+     *
+     * @throws UnsupportedOperationException on API v1 (nothing sent)
+     * @throws DatadisException for a failure while talking to Datadis
      */
     public function getGroups(): ApiResult
     {

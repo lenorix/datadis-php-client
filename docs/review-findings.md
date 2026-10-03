@@ -20,7 +20,7 @@ Found by an independent review in M6 (all confirmed by running code unless noted
 - ~~Coverage target~~ done: 100 % lines, enforced at 100 % by `composer test-coverage` and in CI (pcov). PHPStan runs at level max in CI through `phpstan.neon.dist`.
 - Mutation testing: the first parallel run reported 100 %, which was false. A full run (`--mutate --parallel --everything --clear-cache`) found 335 surviving mutants; tests were added for every one that exposed untested behaviour (validation of every endpoint, authorizedNif on every endpoint, status boundaries, PSR-16 key validity, token lifetime edges, jitter, paging, fingerprint stability). The plugin's test selection proved unreliable here: some mutants it reports as surviving are killed by existing tests when applied by hand, so the survivors that matter were checked by applying each mutation and running the whole suite. What remains is equivalent: redundant literals (JSON depth, the two day window around transitions, PSR-16 key lengths below 64), casts of values that already have the type, `http_errors`/`allow_redirects` (Guzzle's PSR-18 `sendRequest` forces both), `floor` versus `ceil` to detect whole floats, the maximum page default, and constant table items reported as uncovered because constants are not executable lines.
 - ~~README and CHANGELOG~~ done; the README examples were run against the fake HTTP client.
-- Lowest dependencies (`composer update --prefer-lowest`: Pest 4.0.0, PHPUnit 12.3, Guzzle 8.2.0, brick/math 1.0.0) pass the whole suite.
+- Lowest dependencies (`composer update --prefer-lowest`, run by CI on every push) pass the whole suite.
 
 ## Second review
 
