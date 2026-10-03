@@ -60,15 +60,11 @@ final class ApiCaller
 
     /**
      * Logs in, or takes the cached token, and tells when that token expires: null when it says
-     * nothing about it. `fresh` drops the cached token first, so the credentials are tried now.
+     * nothing about it. `fresh` logs in now, whatever the cache holds, so the credentials are tried.
      */
     public function tokenExpiry(bool $fresh = false): ?DateTimeImmutable
     {
-        if ($fresh) {
-            $this->tokens->invalidate();
-        }
-
-        $expiry = JwtExpiry::read($this->tokens->token());
+        $expiry = JwtExpiry::read($this->tokens->token(fresh: $fresh));
 
         return $expiry === null ? null : (new DateTimeImmutable)->setTimestamp($expiry);
     }
@@ -109,7 +105,7 @@ final class ApiCaller
         }
 
         try {
-            $token = $this->tokens->token();
+            $token = $this->tokens->token(fresh: true);
         } catch (DatadisException $e) {
             // The data request already went out once, so whatever happens now it counts as sent.
             throw new AuthenticationException(

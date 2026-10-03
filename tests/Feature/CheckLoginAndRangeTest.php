@@ -85,17 +85,17 @@ it('hands the token of a fresh check to every client sharing the token cache, wi
         ->and($http->requests()[2]->getHeaderLine('Authorization'))->toBe('Bearer '.$fresh);
 });
 
-it('leaves the shared token cache empty when a fresh check fails, so the next call logs in', function () {
+it('leaves the cached token in place when a fresh check fails, so the next call uses it', function () {
     $s = Scenario::make();
     $s->client->checkLogin();
-    $s->http->queue(Responses::datadisError('bad credentials', 401), Responses::text(Tokens::datadis($s->clock->now()->getTimestamp())), Responses::datadis('{"supplies":[],"distributorError":[]}'));
+    $s->http->queue(Responses::datadisError('bad credentials', 401), Responses::datadis('{"supplies":[],"distributorError":[]}'));
 
     expect(fn () => $s->client->checkLogin(fresh: true))->toThrow(AuthenticationException::class);
 
     $s->client->getSupplies();
 
     expect(array_map(fn ($r) => $r->getUri()->getPath(), array_slice($s->http->requests(), 2)))
-        ->toBe(['/nikola-auth/tokens/login', '/api-private/api/get-supplies-v2']);
+        ->toBe(['/api-private/api/get-supplies-v2']);
 });
 
 it('never uses again a token it dropped, even when the token cache cannot delete it', function (Closure $call, int $logins) {
@@ -130,4 +130,41 @@ it('never uses again a token it dropped, even when the token cache cannot delete
         $client->getSupplies();
         $client->getSupplies();
     }, 2],
+]);
+
+it('takes the same token back from a new login without logging in on every call', function (bool $deleteFails, Closure $renew) {
+    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $http = new FakeHttpClient;
+    $client = new DatadisClient(
+        new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'),
+        http: $http,
+        tokenCache: new QuirkyCache(failDelete: $deleteFails),
+        clock: $clock,
+    );
+    // Datadis hands back the token it was asked to replace, still valid.
+    $same = Tokens::datadis($clock->now()->getTimestamp());
+    $http->queue(Responses::text($same));
+    $client->checkLogin();
+
+    $renew($client, $http, $same);
+    $http->queue(Responses::datadis('{"supplies":[],"distributorError":[]}'), Responses::datadis('{"supplies":[],"distributorError":[]}'));
+    $client->getSupplies();
+    $client->getSupplies();
+
+    $logins = array_filter($http->requests(), fn ($r) => $r->getMethod() === 'POST');
+    $last = $http->requests()[count($http->requests()) - 1];
+
+    expect($logins)->toHaveCount(2)->and($last->getHeaderLine('Authorization'))->toBe('Bearer '.$same);
+})->with([
+    'a plain cache' => [false],
+    'a cache whose delete() fails' => [true],
+])->with([
+    'after a 401' => [function ($client, $http, $same) {
+        $http->queue(Responses::datadisError('{"status":401}', 401), Responses::text($same), Responses::datadis('{"supplies":[],"distributorError":[]}'));
+        $client->getSupplies();
+    }],
+    'after a fresh check' => [function ($client, $http, $same) {
+        $http->queue(Responses::text($same));
+        $client->checkLogin(fresh: true);
+    }],
 ]);

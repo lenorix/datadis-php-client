@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- A new login that handed back the token the client had dropped (Datadis may return the same token while it is valid) was still treated as dropped, so the client logged in again on every call. Forcing a login and remembering a rejected token are now apart: a login that succeeds with the dropped token makes it good again.
+
+### Changed
+
+- `checkLogin(fresh: true)` logs in without dropping the cached token first: a check that fails leaves it in place, and the other clients keep using it until it expires or Datadis rejects it. Before, a failed check left the cache empty.
+
 ## [0.6.2] - 2026-10-03
 
 ### Fixed

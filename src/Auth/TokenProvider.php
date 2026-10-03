@@ -78,11 +78,13 @@ final class TokenProvider
     /**
      * The cache is only an optimisation: a store that fails or holds something that is not a
      * usable token never breaks a call, it just means logging in again.
+     *
+     * @param  bool  $fresh  log in now, whatever the cache holds; the new token replaces the cached one
      */
-    public function token(): string
+    public function token(bool $fresh = false): string
     {
         try {
-            $cached = ($this->cache)()->get($this->cacheKey);
+            $cached = $fresh ? null : ($this->cache)()->get($this->cacheKey);
         } catch (Throwable) {
             $cached = null;
         }
@@ -98,6 +100,12 @@ final class TokenProvider
         }
 
         $token = $this->login();
+
+        // Datadis may hand back the very token it was asked to replace: a login that succeeds with
+        // it shows it is good, so it is no longer treated as dropped, or every call would log in.
+        if ($this->dropped === hash('sha256', $token)) {
+            $this->dropped = null;
+        }
 
         $expiry = JwtExpiry::read($token) ?? $this->clock->now()->getTimestamp() + self::FALLBACK_TTL_SECONDS;
         $ttl = $expiry - $this->clock->now()->getTimestamp() - self::SKEW_SECONDS;
