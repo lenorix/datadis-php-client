@@ -30,7 +30,9 @@ final class ConsumptionAnswer
         // Rows keep their order, so the n-th row with the same date and time is its n-th occurrence.
         $seen = [];
         $decode = static function (#[SensitiveParameter] array $row) use (&$seen, $zone, $measurementType, $quarters): ?ConsumptionReading {
-            $key = json_encode([$row['date'] ?? null, $row['time'] ?? null]);
+            // Keyed on the day and the label as they are read, not as they are written.
+            $day = Fields::date($row, $zone, 'date');
+            $key = json_encode([$day?->format('Y-m-d') ?? ($row['date'] ?? null), is_string($row['time'] ?? null) ? trim($row['time']) : ($row['time'] ?? null)]);
             $occurrence = $seen[$key] = ($seen[$key] ?? -1) + 1;
 
             return ConsumptionReading::fromRow($row, $zone, $measurementType, $occurrence, $quarters);
@@ -38,7 +40,22 @@ final class ConsumptionAnswer
 
         // A row without consumption is a month not read yet, not a broken answer: a month of them
         // is an empty result, so the caller can tell it from one Datadis broke.
-        return Envelope::build($decoded, 'timeCurve', $endpoint, $decode, ConsumptionReading::lacksReading(...));
+        return Envelope::build($decoded, 'timeCurve', $endpoint, $decode, static fn (#[SensitiveParameter] array $row): bool => self::lacksReading($row, $zone));
+    }
+
+    /**
+     * Whether the row holds no reading: a readable date and an hour label with the consumption
+     * absent or null, as Datadis sends a month the distributor has not read yet. That is not a
+     * fault. A value that is there but cannot be read is, and so is a row whose date or time
+     * cannot be read: those make the row unusable.
+     *
+     * @param  array<array-key, mixed>  $row
+     */
+    private static function lacksReading(#[SensitiveParameter] array $row, DateTimeZone $zone): bool
+    {
+        return ($row['consumptionKWh'] ?? null) === null
+            && Fields::date($row, $zone, 'date') !== null
+            && preg_match('/^\s*\d{1,2}:\d{2}\s*$/D', Fields::text($row, 'time') ?? '') === 1;
     }
 
     /**

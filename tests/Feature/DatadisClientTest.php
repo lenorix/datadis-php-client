@@ -80,7 +80,7 @@ it('reports a distributor failure hidden inside a 200 as data, not as an excepti
 
 it('returns an empty result for an empty reactive answer', function () {
     [$client, $http] = Scenario::parts();
-    $http->queue(Responses::datadis('{"reactiveEnergy":{},"distributorError":[]}'));
+    $http->queue(Responses::datadis('{"reactiveEnergy":{"cups":null,"energy":[],"code":null,"codeDescription":null},"distributorError":[]}'));
 
     expect($client->getReactiveData(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1))->isEmpty())->toBeTrue();
 });
@@ -232,7 +232,8 @@ it('reads reactive energy tolerantly but never turns an unknown answer into an e
     'reactive energy as a list' => ['{"reactiveEnergy":[{"cups":"x","energy":[{"date":"2026/01","energy_p1":1}]},{"cups":"y"}]}', 2],
     'empty list of reactive energy' => ['{"reactiveEnergy":[]}', 0],
     'only distributor errors' => ['{"distributorError":[{"errorCode":"1"}]}', 0],
-    'empty answer' => ['[]', 0],
+    // Reactive data exists only in v2, whose answer is an object: a bare list is not one of its answers.
+    'empty answer' => ['[]', null],
     'absurd number' => ['{"reactiveEnergy":{"cups":"x","energy":[{"date":"2026/01","energy_p1":"1e99999999999999999999"}]}}', 1],
 ]);
 

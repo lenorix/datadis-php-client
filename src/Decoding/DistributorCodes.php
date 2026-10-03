@@ -30,7 +30,7 @@ final class DistributorCodes
             array_key_exists('distExistenceUser', $decoded) => [self::codesOf($decoded['distExistenceUser'], $endpoint)],
             array_key_exists('distributorCodes', $decoded) => [$decoded['distributorCodes'] ?? []],
             // Only failed distributors may leave the codes out; without errors it is another answer.
-            Envelope::distributorErrors($decoded) !== [] => [],
+            Envelope::reportsFailure(Envelope::distributorErrors($decoded)) => [],
             default => throw new UninterpretableResponseException("{$endpoint}: the answer has no distributor codes.", endpoint: $endpoint),
         };
 
@@ -39,7 +39,7 @@ final class DistributorCodes
         $skipped = 0;
 
         foreach ($lists as $list) {
-            if (! is_array($list)) {
+            if (! is_array($list) || ! array_is_list($list)) {
                 throw new UninterpretableResponseException("{$endpoint}: \"distributorCodes\" is not a list.", endpoint: $endpoint);
             }
 
@@ -75,7 +75,10 @@ final class DistributorCodes
         $scalars = [];
 
         foreach ($items as $item) {
-            if (is_array($item)) {
+            if ($item === []) {
+                // An empty object or list where a code or an object of codes belongs: unreadable.
+                $scalars[] = null;
+            } elseif (is_array($item)) {
                 $lists[] = self::codesOf($item, $endpoint);
             } else {
                 $scalars[] = $item;

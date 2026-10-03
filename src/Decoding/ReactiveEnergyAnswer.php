@@ -24,13 +24,9 @@ final class ReactiveEnergyAnswer
      */
     public static function result(#[SensitiveParameter] array $decoded, string $endpoint): ApiResult
     {
-        if ($decoded === []) {
-            return new ApiResult([]);
-        }
-
         // A bare list has neither key either. Only failed distributors may leave the object out:
         // without errors, an answer missing it is another endpoint's, not "no data".
-        if (! array_key_exists('reactiveEnergy', $decoded) && Envelope::distributorErrors($decoded) === []) {
+        if (! array_key_exists('reactiveEnergy', $decoded) && ! Envelope::reportsFailure(Envelope::distributorErrors($decoded))) {
             throw new UninterpretableResponseException("{$endpoint}: the answer has no \"reactiveEnergy\".", endpoint: $endpoint);
         }
 

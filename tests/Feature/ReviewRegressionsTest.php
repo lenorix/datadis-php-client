@@ -16,6 +16,7 @@ use Lenorix\DatadisClient\Tests\Support\Tokens;
 use Lenorix\DatadisClient\Time\BillingPeriod;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Time\MonthPlanner;
+use Lenorix\DatadisClient\Values\Nif;
 use Psr\Http\Client\NetworkExceptionInterface;
 use Psr\Http\Message\RequestInterface;
 
@@ -30,7 +31,16 @@ it('raises any other 404 of the account lists, so a broken path or a changed API
     $s = Scenario::make();
     $s->http->queue(Responses::text($body, 404, ['Content-Type' => 'application/json']));
 
-    expect(fn () => $s->client->{$call}())->toThrow(NoDataException::class);
+    try {
+        $s->client->{$call}();
+    } catch (UninterpretableResponseException $e) {
+        // Not a NoDataException, which an application treats as an empty result.
+        expect($e->httpStatus)->toBe(404)->and($e->getPrevious())->toBeInstanceOf(NoDataException::class);
+
+        return;
+    }
+
+    throw new LogicException('Expected an UninterpretableResponseException.');
 })->with(['getSupplies', 'getDistributorsWithSupplies'])->with(['Unknown endpoint', '', 'No supplies for you', '{"status":404,"error":"Not Found"}']);
 
 it('keeps the token the request carried out of a transport failure, whatever its shape', function (string $token) {
@@ -213,3 +223,131 @@ it('keeps a token whose header is not the usual one out of a transport failure i
     'percent encoded' => [fn (string $t) => 'sent '.rawurlencode("Bearer {$t}")],
     'form encoded' => [fn (string $t) => 'sent token='.urlencode($t)],
 ]);
+
+it('does not read another endpoint\'s answer as no data because a distributor only said it has none', function (string $body, Closure $call) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis($body));
+
+    expect(fn () => $call($s->client))->toThrow(UninterpretableResponseException::class);
+})->with([
+    'the reactive no-data answer for max power' => [(string) file_get_contents(__DIR__.'/../Fixtures/v2/reactive-no-data.json'), fn ($c) => $c->getMaxPower(Scenario::cups(), '2', Month::of(2026, 1))],
+    'a consumption answer with a code 8 for max power' => ['{"timeCurve":[{"date":"2026/01/01","time":"01:00","consumptionKWh":1}],"distributorError":[{"errorCode":"8","errorDescription":"No existen datos en el periodo"}]}', fn ($c) => $c->getMaxPower(Scenario::cups(), '2', Month::of(2026, 1))],
+    'supplies with a code 8 for distributors' => ['{"supplies":[],"distributorError":[{"errorCode":"8","errorDescription":"No existen datos"}]}', fn ($c) => $c->getDistributorsWithSupplies()],
+    'only a code 8 for reactive' => ['{"distributorError":[{"errorCode":"8","errorDescription":"No existen datos"}]}', fn ($c) => $c->getReactiveData(Scenario::cups(), '2', Month::of(2026, 1))],
+]);
+
+it('does not read an empty object where a list or an object belongs as no data', function (string $body, Closure $call) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis($body));
+
+    expect(fn () => $call($s->client))->toThrow(UninterpretableResponseException::class);
+})->with([
+    'supplies' => ['{"supplies":{},"distributorError":[]}', fn ($c) => $c->getSupplies()],
+    'contract' => ['{"contract":{},"distributorError":[]}', fn ($c) => $c->getContractDetail(Scenario::cups(), '2')],
+    'consumption' => ['{"timeCurve":{},"distributorError":[]}', fn ($c) => $c->getConsumptionData(Scenario::cups(), '2', 5, Month::of(2026, 1))],
+    'max power' => ['{"maxPower": { },"distributorError":[]}', fn ($c) => $c->getMaxPower(Scenario::cups(), '2', Month::of(2026, 1))],
+    'reactive' => ['{"reactiveEnergy":{},"distributorError":[]}', fn ($c) => $c->getReactiveData(Scenario::cups(), '2', Month::of(2026, 1))],
+    'distributor codes' => ['{"distributorCodes":{}}', fn ($c) => $c->getDistributorsWithSupplies()],
+    'distributors of a user' => ['{"distExistenceUser":{},"distributorError":[]}', fn ($c) => $c->getDistributorsWithSupplies()],
+]);
+
+it('does not take a reactive object without its fields, or with entries that are not entries, as a record', function (string $body) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis($body));
+
+    expect(fn () => $s->client->getReactiveData(Scenario::cups(), '2', Month::of(2026, 1)))->toThrow(UninterpretableResponseException::class);
+})->with([
+    'an error object' => ['{"reactiveEnergy":{"message":"Error interno"},"distributorError":[]}'],
+    'entries that are not objects' => ['{"reactiveEnergy":{"cups":"'.Scenario::CUPS.'","energy":[7,"x"]},"distributorError":[]}'],
+    'an entry with no date and no period' => ['{"reactiveEnergy":{"cups":"'.Scenario::CUPS.'","energy":[{"foo":1}]},"distributorError":[]}'],
+    'a single entry that is not one' => ['{"reactiveEnergy":[7],"distributorError":[]}'],
+    'a bare empty list' => ['[]'],
+]);
+
+it('does not take empty items or an object of codes as distributor codes', function (string $body) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis($body));
+
+    expect(fn () => $s->client->getDistributorsWithSupplies())->toThrow(UninterpretableResponseException::class);
+})->with([
+    'a list of an empty object' => ['[{}]'],
+    'a list of an empty list' => ['[[]]'],
+    'codes as an object' => ['{"distributorCodes":{"a":"2"}}'],
+]);
+
+it('reads only the verified shape of a partner agreement date', function (string $body, ?string $date) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis($body));
+
+    if ($date === 'throws') {
+        expect(fn () => $s->client->partnerAgreementDate())->toThrow(UninterpretableResponseException::class);
+
+        return;
+    }
+
+    expect($s->client->partnerAgreementDate())->toBe($date);
+})->with([
+    'no agreement, as captured' => ['{"partnerAgreementDate":null}', null],
+    'a date' => ['{"partnerAgreementDate":"2024/01/15"}', '2024/01/15'],
+    'an empty list' => ['[]', 'throws'],
+    'another endpoint\'s answer' => ['{"supplies":[]}', 'throws'],
+    'a value in a list' => ['[{"partnerAgreementDate":"2020"}]', 'throws'],
+    'an object for a date' => ['{"partnerAgreementDate":{"a":1}}', 'throws'],
+    'true for a date' => ['{"partnerAgreementDate":true}', 'throws'],
+]);
+
+it('does not take a maintenance page for the answer of a call that changes data', function (Closure $call) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::text('<!DOCTYPE html><html><body>Servicio en mantenimiento</body></html>', 200, ['Content-Type' => 'text/html']));
+
+    try {
+        $call($s->client);
+    } catch (UninterpretableResponseException $e) {
+        expect($e->requestSent)->toBeTrue()->and($e->detail)->not->toContain('mantenimiento');
+
+        return;
+    }
+
+    throw new LogicException('Expected an UninterpretableResponseException.');
+})->with([
+    'a new authorization' => [fn ($c) => $c->newAuthorization(Nif::fromString('00000001R'), new DateTimeImmutable('2026-10-01'), new DateTimeImmutable('2026-12-31'), Scenario::cups())],
+    'a cancellation' => [fn ($c) => $c->cancelAuthorization(Nif::fromString('00000001R'), Scenario::cups())],
+    'a partner deleting a user' => [fn ($c) => $c->partnerDeleteUser(Nif::fromString('00000001R'))],
+]);
+
+it('does not read rows whose date or time cannot be read as a month not read yet', function (array $row) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis(Payloads::envelope('timeCurve', [$row])));
+
+    expect(fn () => $s->client->getConsumptionData(Scenario::cups(), '2', 5, Month::of(2026, 1)))
+        ->toThrow(UninterpretableResponseException::class, 'none of the 1 rows could be used');
+})->with([
+    'a date that is not one' => [['date' => 'x', 'time' => '01:00', 'consumptionKWh' => null]],
+    'an impossible date' => [['date' => '2024/13/45', 'time' => '01:00', 'consumptionKWh' => null]],
+    'a time that is not one' => [['date' => '2026/01/01', 'time' => 'zz', 'consumptionKWh' => null]],
+    'a time as a number' => [['date' => '2026/01/01', 'time' => 5, 'consumptionKWh' => null]],
+    'empty date and time beside a CUPS' => [['cups' => Scenario::CUPS, 'date' => '', 'time' => '', 'consumptionKWh' => null, 'obtainMethod' => '']],
+]);
+
+it('counts every row it could not use in the message', function () {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis(Payloads::envelope('timeCurve', [
+        ['date' => '2026/01/01', 'time' => '01:00', 'consumptionKWh' => 'broken'],
+        ['date' => '2026/01/01', 'time' => '02:00', 'consumptionKWh' => null],
+    ])));
+
+    expect(fn () => $s->client->getConsumptionData(Scenario::cups(), '2', 5, Month::of(2026, 1)))
+        ->toThrow(UninterpretableResponseException::class, 'none of the 2 rows could be used');
+});
+
+it('places the second 03:00 of the autumn change day even when the two are written differently', function (string $second) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis(Payloads::envelope('timeCurve', [
+        ['date' => '2025/10/26', 'time' => '03:00', 'consumptionKWh' => 1],
+        ['date' => $second, 'time' => '03:00', 'consumptionKWh' => 2],
+    ])));
+
+    $records = $s->client->getConsumptionData(Scenario::cups(), '2', 5, Month::of(2025, 10))->records;
+
+    expect($records[1]->start?->getTimestamp())->toBe($records[0]->end?->getTimestamp());
+})->with(['2025/10/26 ', '2025-10-26']);

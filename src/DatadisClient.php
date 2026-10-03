@@ -785,6 +785,13 @@ final class DatadisClient
     public function partnerAgreementDate(#[SensitiveParameter] ?Nif $nif = null): ?string
     {
         $decoded = $this->fetch(Endpoint::PartnerAgreementDate, ['nif' => $nif?->value()]);
+        // Only the verified shape: an object with the key, null or a date. Anything else (a list,
+        // another endpoint's answer, an object for a date) is not "no agreement".
+        $value = $decoded['partnerAgreementDate'] ?? null;
+
+        if (array_is_list($decoded) || ! array_key_exists('partnerAgreementDate', $decoded) || ! ($value === null || is_string($value) || is_int($value))) {
+            throw new UninterpretableResponseException($this->name(Endpoint::PartnerAgreementDate).': the answer has no "partnerAgreementDate".', endpoint: $this->name(Endpoint::PartnerAgreementDate));
+        }
 
         return Fields::nonEmptyText($decoded, 'partnerAgreementDate');
     }
@@ -804,6 +811,12 @@ final class DatadisClient
         } catch (NoDataException $e) {
             if ($e->httpStatus === 404 && strcasecmp(trim($e->detail ?? ''), 'No supplies') === 0) {
                 return [];
+            }
+
+            // Any other 404 is not Datadis saying the account has no supplies: an unknown path or
+            // a changed API, which must not be read as an empty list.
+            if ($e->httpStatus === 404) {
+                throw new UninterpretableResponseException($this->name($endpoint).': Datadis answered 404 without "No supplies".', 404, $e->detail, $this->name($endpoint), previous: $e);
             }
 
             throw $e;
@@ -826,7 +839,14 @@ final class DatadisClient
     private function fetchText(Endpoint $endpoint, #[SensitiveParameter] array $query): string
     {
         // A call that changes data is never sent twice, not even after a rejected token.
-        return $this->caller->getText($endpoint->path($this->version), $query, $this->name($endpoint), sendAgainAfter401: $endpoint->isSafeToRepeat());
+        $text = $this->caller->getText($endpoint->path($this->version), $query, $this->name($endpoint), sendAgainAfter401: $endpoint->isSafeToRepeat());
+
+        // A maintenance or firewall page answered with 200 (seen) is not what was asked for.
+        if (str_starts_with(ltrim($text), '<')) {
+            throw new UninterpretableResponseException($this->name($endpoint).': the answer is an HTML page.', 200, '[an HTML page, not quoted]', $this->name($endpoint));
+        }
+
+        return $text;
     }
 
     /** The endpoint as it appears in the path and in exceptions. */

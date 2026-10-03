@@ -27,7 +27,7 @@ $calls = [
     'contract detail' => [fn ($c, $nif) => $c->getContractDetail(Cups::fromString(Scenario::CUPS), '2', $nif), '{"contract":[]}'],
     'consumption' => [fn ($c, $nif) => $c->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: $nif), '{"timeCurve":[]}'],
     'max power' => [fn ($c, $nif) => $c->getMaxPower(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1), $nif), '{"maxPower":[]}'],
-    'reactive' => [fn ($c, $nif) => $c->getReactiveData(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1), $nif), '{"reactiveEnergy":{}}'],
+    'reactive' => [fn ($c, $nif) => $c->getReactiveData(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 1), Month::of(2026, 1), $nif), '{"reactiveEnergy":{"cups":null,"energy":[],"code":null,"codeDescription":null}}'],
 ];
 
 foreach ($calls as $name => [$call, $body]) {

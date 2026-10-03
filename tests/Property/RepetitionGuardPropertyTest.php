@@ -35,7 +35,7 @@ it('sends a guarded query only when the model says the window is free', function
             $client = new DatadisClient(Scenario::config(), http: $http, clock: $clock, ledger: $ledger);
             $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 365 * 86400])));
 
-            $success = ['{"timeCurve":[],"distributorError":[]}', '{"maxPower":[],"distributorError":[]}', '{"reactiveEnergy":{},"distributorError":[]}', '{"maxPower":[],"distributorError":[]}'];
+            $success = ['{"timeCurve":[],"distributorError":[]}', '{"maxPower":[],"distributorError":[]}', '{"reactiveEnergy":{"cups":null,"energy":[],"code":null,"codeDescription":null},"distributorError":[]}', '{"maxPower":[],"distributorError":[]}'];
             $answers = [
                 fn (int $call) => Responses::datadis($success[$call]),
                 fn () => Responses::empty(500),
@@ -146,7 +146,7 @@ it('refuses exactly the query that was remembered, built the same way as the cal
             };
 
             [$start2, $end2, $nif2, $type2] = $args($called);
-            $http->queue(Responses::text(Tokens::datadis($clock->now()->getTimestamp())), Responses::datadis('{"timeCurve":[],"maxPower":[],"reactiveEnergy":{},"distributorError":[]}'));
+            $http->queue(Responses::text(Tokens::datadis($clock->now()->getTimestamp())), Responses::datadis('{"timeCurve":[],"maxPower":[],"reactiveEnergy":{"cups":null,"energy":[],"code":null,"codeDescription":null},"distributorError":[]}'));
 
             // The key Datadis uses: consumption counts the measurement type and the holder (the account's
             // own NIF is never sent); maximum power and reactive data share theirs, without the holder.

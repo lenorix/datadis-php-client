@@ -35,23 +35,30 @@ final readonly class ReactiveEnergy
 
     /**
      * @param  array<array-key, mixed>  $row  the `reactiveEnergy` object
-     * @return self|null null when the object is empty
+     * @return self|null null when the object has none of its fields, or an entry that is not one
+     *                   (no date and no period): an answer that cannot be read, never a record
      */
     public static function fromRow(#[SensitiveParameter] array $row): ?self
     {
-        if ($row === []) {
+        if (array_intersect(['cups', 'energy', 'code', 'codeDescription', 'code_desc'], array_keys($row)) === []) {
             return null;
         }
 
         $energy = [];
-        $items = $row['energy'] ?? null;
+        $items = $row['energy'] ?? [];
 
-        if (is_array($items)) {
-            foreach ($items as $item) {
-                if (is_array($item)) {
-                    $energy[] = ReactiveEnergyEntry::fromRow($item);
-                }
+        if (! is_array($items) || ! array_is_list($items)) {
+            return null;
+        }
+
+        foreach ($items as $item) {
+            $entry = is_array($item) ? ReactiveEnergyEntry::fromRow($item) : null;
+
+            if ($entry === null || ($entry->date === null && $entry->periods === [])) {
+                return null;
             }
+
+            $energy[] = $entry;
         }
 
         return new self(

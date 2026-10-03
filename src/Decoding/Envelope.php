@@ -68,7 +68,9 @@ final class Envelope
         }
 
         if ($skipped > 0 && $records === []) {
-            throw new UninterpretableResponseException("{$endpoint}: none of the {$skipped} rows could be used.", endpoint: $endpoint);
+            $rows = $skipped + $blank;
+
+            throw new UninterpretableResponseException("{$endpoint}: none of the {$rows} rows could be used.", endpoint: $endpoint);
         }
 
         return new ApiResult($records, $errors, $skipped + $blank, $decoded);
@@ -108,13 +110,30 @@ final class Envelope
             return [self::listAt($decoded, $key, $endpoint), $errors];
         }
 
-        // A distributor that failed may leave the list out: the errors are the answer. Without
-        // errors, an answer missing its list is another endpoint's or a changed one, not "no data".
-        if ($errors !== []) {
+        // A distributor that failed may leave the list out: the errors are the answer. Without a
+        // failure (none, or only "no data"), an answer missing its list is another endpoint's or a
+        // changed one, not "no data".
+        if (self::reportsFailure($errors)) {
             return [[], $errors];
         }
 
         throw new UninterpretableResponseException("{$endpoint}: the answer has no \"{$key}\" list.", endpoint: $endpoint);
+    }
+
+    /**
+     * Whether a distributor reported a failure, not only that it has no data for the period.
+     *
+     * @param  list<DistributorError>  $errors
+     */
+    public static function reportsFailure(array $errors): bool
+    {
+        foreach ($errors as $error) {
+            if (! $error->isNoData()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

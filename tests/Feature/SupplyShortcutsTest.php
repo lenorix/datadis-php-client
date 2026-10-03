@@ -47,7 +47,7 @@ it('queries a supply with the codes it was listed with, one month when no end is
         fn (DatadisClient $c, Supply $s) => $c->getReactiveDataOf($s, Month::of(2026, 7)),
         'get-reactive-data',
         ['cups' => Scenario::CUPS, 'distributorCode' => '2', 'startDate' => '2026/07', 'endDate' => '2026/07'],
-        '{"reactiveEnergy":{},"distributorError":[]}',
+        '{"reactiveEnergy":{"cups":null,"energy":[],"code":null,"codeDescription":null},"distributorError":[]}',
     ],
     'contract detail' => [
         fn (DatadisClient $c, Supply $s) => $c->getContractDetailOf($s),
@@ -108,7 +108,7 @@ it('queries the contract, maximum power and reactive data of a supply listed wit
 })->with([
     'contract detail' => [fn (DatadisClient $c, Supply $s) => $c->getContractDetailOf($s), 'get-contract-detail', '{"contract":[],"distributorError":[]}'],
     'max power' => [fn (DatadisClient $c, Supply $s) => $c->getMaxPowerOf($s, Month::of(2026, 7)), 'get-max-power', '{"maxPower":[],"distributorError":[]}'],
-    'reactive' => [fn (DatadisClient $c, Supply $s) => $c->getReactiveDataOf($s, Month::of(2026, 7)), 'get-reactive-data', '{"reactiveEnergy":{},"distributorError":[]}'],
+    'reactive' => [fn (DatadisClient $c, Supply $s) => $c->getReactiveDataOf($s, Month::of(2026, 7)), 'get-reactive-data', '{"reactiveEnergy":{"cups":null,"energy":[],"code":null,"codeDescription":null},"distributorError":[]}'],
 ]);
 
 it('refuses the consumption of a supply listed without a point type, naming it', function () {
@@ -141,7 +141,7 @@ it('sends a range that ends in the month the contract ends', function () {
 
 it('says which months a data query asked for, and leaves the lists without them', function () {
     $s = Scenario::make();
-    $s->http->queue(Responses::datadis('{"reactiveEnergy":{},"distributorError":[]}'), Responses::datadis('{"supplies":[],"distributorError":[]}'));
+    $s->http->queue(Responses::datadis('{"reactiveEnergy":{"cups":null,"energy":[],"code":null,"codeDescription":null},"distributorError":[]}'), Responses::datadis('{"supplies":[],"distributorError":[]}'));
 
     $reactive = $s->client->getReactiveDataOf(supplyAsListed(), Month::of(2026, 5), Month::of(2026, 7));
 

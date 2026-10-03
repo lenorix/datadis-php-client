@@ -17,6 +17,7 @@ use Lenorix\DatadisClient\Support\ExactJson;
 use Lenorix\DatadisClient\Support\PersonalDataRedactor;
 use Psr\Http\Message\ResponseInterface;
 use SensitiveParameter;
+use stdClass;
 
 /**
  * Turns a PSR-7 response into decoded JSON or the exception that describes the failure.
@@ -73,6 +74,19 @@ final class ResponseClassifier
                 self::kindOf($body),
                 $endpoint,
             );
+        }
+
+        // Read as arrays, {} and [] are alike: an empty object where a list or an object of the
+        // envelope belongs ({"supplies":{}}) would pass as "no data". It is kept as an empty
+        // object, which no decoder takes for a list or a record.
+        if (! array_is_list($decoded) && preg_match('/\{\s*\}/', $body) === 1) {
+            $objects = json_decode(trim($body), false, 512);
+
+            foreach (is_object($objects) ? get_object_vars($objects) : [] as $key => $value) {
+                if ($value instanceof stdClass && get_object_vars($value) === [] && array_key_exists($key, $decoded)) {
+                    $decoded[$key] = $value;
+                }
+            }
         }
 
         return $decoded;
