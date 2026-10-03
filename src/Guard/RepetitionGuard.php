@@ -12,6 +12,7 @@ use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Http\Endpoint;
+use Lenorix\DatadisClient\Time\Month;
 use SensitiveParameter;
 use Throwable;
 
@@ -66,6 +67,8 @@ final readonly class RepetitionGuard
                 requestSent: false,
                 lastAttemptAt: $last,
                 availableAt: $availableAt,
+                startDate: self::month($query, 'startDate'),
+                endDate: self::month($query, 'endDate'),
             );
         }
 
@@ -80,8 +83,32 @@ final readonly class RepetitionGuard
                 }
             }
 
+            // Datadis's own 429 says nothing of the query: give it the months it asked for.
+            if ($e instanceof RepetitionWindowException && $e->startDate === null) {
+                throw new RepetitionWindowException(
+                    $e->getMessage(),
+                    $e->httpStatus,
+                    $e->detail,
+                    $e->endpoint,
+                    $e->requestSent,
+                    $e,
+                    $e->lastAttemptAt,
+                    $e->availableAt,
+                    self::month($query, 'startDate'),
+                    self::month($query, 'endDate'),
+                );
+            }
+
             throw $e;
         }
+    }
+
+    /** @param  array<string, string|int|list<string>|null>  $query */
+    private static function month(#[SensitiveParameter] array $query, string $name): ?Month
+    {
+        $value = $query[$name] ?? null;
+
+        return is_string($value) ? Month::fromString($value) : null;
     }
 
     /**

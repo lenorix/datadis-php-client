@@ -357,3 +357,34 @@ it('cannot say either for the 429 of Datadis itself', function () use ($consumpt
 
     throw new LogicException('Expected a RepetitionWindowException.');
 });
+
+it('says which months a refused query asked for, and keeps Datadis\'s own 429 as the cause', function () use ($consumption) {
+    [$client, $http] = guarded();
+    $http->queue(login(new FrozenClock), Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+    $consumption($client);
+
+    try {
+        $consumption($client);
+        throw new LogicException('Expected a RepetitionWindowException.');
+    } catch (RepetitionWindowException $local) {
+        expect($local->startDate?->format())->toBe('2026/01')->and($local->endDate?->format())->toBe('2026/01');
+    }
+
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadisError('Consulta ya realizada en las últimas 24 horas. ', 429));
+
+    try {
+        $s->client->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '2', Month::of(2026, 5), Month::of(2026, 7));
+    } catch (RepetitionWindowException $e) {
+        expect($e->httpStatus)->toBe(429)
+            ->and($e->requestSent)->toBeTrue()
+            ->and($e->startDate?->format())->toBe('2026/05')->and($e->endDate?->format())->toBe('2026/07')
+            ->and($e->lastAttemptAt)->toBeNull()
+            ->and($e->detail)->toBe($e->getPrevious()?->detail)
+            ->and($e->getMessage())->toBe($e->getPrevious()?->getMessage());
+
+        return;
+    }
+
+    throw new LogicException('Expected a RepetitionWindowException.');
+});

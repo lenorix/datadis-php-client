@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `RepetitionWindowException::$startDate` and `$endDate`: the months the refused query asked for, refused by the ledger or by Datadis's own 429. A caller of `getLatest...Of()`, whose range the client picks, knows every month it did not get, not only the current one.
+
+### Added
+
 - `PublicApiClient` takes a `clock:` like `DatadisClient`, used to judge the expiry of the token it logs in with: it read the system clock only, so an application that moves its own time (a test, a simulation) saw the public API disagree with the private one about a token the two share.
 
 ## [0.5.0] - 2026-10-02

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Exceptions;
 
 use DateTimeImmutable;
+use Lenorix\DatadisClient\Time\Month;
 use Throwable;
 
 /**
@@ -14,6 +15,9 @@ use Throwable;
  * A local refusal says when the query was last attempted and from when the guard lets it through
  * again, so a job can skip it and a command can report it without sending anything. Datadis's
  * own 429 tells neither, so both are null then.
+ *
+ * Both kinds say which months the refused query asked for (`startDate`, `endDate`, both included),
+ * so a caller of getLatest...Of(), whose range the client picks, knows every month it did not get.
  */
 final class RepetitionWindowException extends DatadisException
 {
@@ -26,6 +30,8 @@ final class RepetitionWindowException extends DatadisException
         ?Throwable $previous = null,
         public readonly ?DateTimeImmutable $lastAttemptAt = null,
         public readonly ?DateTimeImmutable $availableAt = null,
+        public readonly ?Month $startDate = null,
+        public readonly ?Month $endDate = null,
     ) {
         parent::__construct($message, $httpStatus, $detail, $endpoint, $requestSent, $previous);
     }

@@ -60,7 +60,8 @@ jobs:
         run: composer show -D
 
       - name: Execute tests with the coverage threshold
-        run: vendor/bin/pest --ci --fail-on-warning --fail-on-risky --fail-on-deprecation --coverage --min=100
+        # Merging the coverage of the whole suite needs more than the default 128 MB.
+        run: php -d memory_limit=1G vendor/bin/pest --ci --fail-on-warning --fail-on-risky --fail-on-deprecation --coverage --min=100
 
       - name: Static analysis
         run: composer phpstan

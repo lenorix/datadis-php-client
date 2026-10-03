@@ -341,7 +341,7 @@ $ledger = new RequestLedger($psr16Cache, new RequestFingerprinter($aSecretOfAtLe
 $client = new DatadisClient($config, ledger: $ledger);
 ```
 
-A repeat fails with a `RepetitionWindowException` whose `requestSent` is `false`, before anything is sent, and which says when the query was last attempted (`lastAttemptAt`) and from when it is allowed again (`availableAt`). Datadis's own 429 tells neither, so both are null then. Only a keyed hash of each query is stored, never the CUPS.
+A repeat fails with a `RepetitionWindowException` whose `requestSent` is `false`, before anything is sent, and which says when the query was last attempted (`lastAttemptAt`) and from when it is allowed again (`availableAt`). Datadis's own 429 tells neither, so both are null then. Either way it says which months the refused query asked for (`startDate`, `endDate`): after a refused `getLatest...Of()`, those are the months that did not come, the previous one included on the days the range spans two. Only a keyed hash of each query is stored, never the CUPS.
 
 The ledger remembers each query for 24 hours and 10 minutes, a margin for the clocks of your servers and of Datadis. Pass `windowSeconds:` to change it, never below 24 hours. A job that runs every day should not shorten it to fit: use [the daily calls](#keep-the-current-month-up-to-date-every-day), which never repeat a query from one day to the next. If your application keeps a record of its own of what it asked, let the ledger decide alone: two records with different windows refuse different calls (see [moving from a record of your own](#moving-from-a-record-of-your-own)).
 

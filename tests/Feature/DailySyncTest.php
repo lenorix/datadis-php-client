@@ -70,3 +70,30 @@ it('says which months the daily call asked for, also when they came back empty',
     'an odd day: the previous and the current month' => ['2026-09-15 06:00', '2026/08'],
     'an even day: the current month' => ['2026-09-16 06:00', '2026/09'],
 ]);
+
+it('says which months a refused daily call asked for, refused by the ledger or by Datadis', function (string $at, string $from, bool $byDatadis) {
+    $clock = new FrozenClock(new DateTimeImmutable($at, new DateTimeZone('Europe/Madrid')));
+    $datadis = new DatadisWithTheRule($clock);
+    $first = $datadis->client();
+    $first->getLatestConsumptionDataOf(DatadisWithTheRule::supply());
+    $clock->advance(3600);
+    // The same client refuses it itself; a new process without a shared ledger sends it, and Datadis refuses it.
+    $again = $byDatadis ? $datadis->client() : $first;
+
+    try {
+        $again->getLatestConsumptionDataOf(DatadisWithTheRule::supply());
+    } catch (RepetitionWindowException $e) {
+        expect($e->startDate?->format())->toBe($from)
+            ->and($e->endDate?->format())->toBe('2026/09')
+            ->and($e->httpStatus)->toBe($byDatadis ? 429 : null);
+
+        return;
+    }
+
+    throw new LogicException('Expected a RepetitionWindowException.');
+})->with([
+    'an odd day, by the ledger' => ['2026-09-15 06:00', '2026/08', false],
+    'an even day, by the ledger' => ['2026-09-16 06:00', '2026/09', false],
+    'an odd day, by Datadis' => ['2026-09-15 06:00', '2026/08', true],
+    'an even day, by Datadis' => ['2026-09-16 06:00', '2026/09', true],
+]);
