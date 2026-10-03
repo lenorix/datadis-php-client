@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-10-03
+
 ### Fixed
 
 - A token the client dropped (rejected with a 401, or ignored by `checkLogin(fresh: true)`) was used again when the token cache could not delete it: the fresh check did not log in, and the rejected token was sent again. The client never uses a dropped token again.
@@ -169,7 +171,8 @@ First public release.
 - Daylight saving change days placed on the right hours, in Madrid and the Canary Islands.
 - Helpers: month planning within the served window, access tariff recognition, the 2.0TD schedule, national holidays, territories, CUPS and NIF values (NIF control letter checked), personal data redaction.
 
-[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/lenorix/datadis-php-client/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/lenorix/datadis-php-client/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/lenorix/datadis-php-client/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/lenorix/datadis-php-client/compare/v0.4.0...v0.5.0
