@@ -113,6 +113,13 @@ Dates and hours are local Spanish civil time with no offset.
 - Consequences: never key readings by `(date, hour)`, never assert 24 rows per day, never add a unique constraint on that pair. Keep source order so duplicates stay distinguishable. Sum both duplicates for energy totals.
 - Zone: Peninsula, Baleares, Ceuta and Melilla use Europe/Madrid. Canarias uses Atlantic/Canary (Datadis' semantics there are unverified). Compute with an explicit zone, never the host default.
 
+## Login and `checkLogin()`
+
+- The login is `POST /nikola-auth/tokens/login` with the credentials as a form, answered with the bare JWT as `text/plain` (VERIFIED). The token lasts 24 hours: `exp` minus `iat` is 86400 (VERIFIED, September 2026).
+- A login is not a data query: the 24 hour rule keys consumption, maximum power and reactive data only, so logging in again never costs a query.
+- `checkLogin()` is that login and nothing else: it takes the cached token when one is still valid (no request), or logs in once, and returns the token's `exp`. `checkLogin(fresh: true)` drops the cached token first, so it always sends exactly one login, and its timing is the login's. Derived from the verified login, not timed apart.
+- A fresh check replaces the token in the store every worker shares, so they all use the new one from then on; it does not make them log in again. Wrong credentials answer 401 or 403 and fail as an `AuthenticationException` with `requestSent = false`.
+
 ## Transport
 
 - Mislabelled gzip: send `Accept-Encoding: identity`. With Guzzle, mislabelled gzip makes curl fail before the body is seen.
