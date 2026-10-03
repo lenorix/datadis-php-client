@@ -20,6 +20,7 @@ use Lenorix\DatadisClient\Tests\Support\Stack;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
+use Psr\SimpleCache\CacheInterface;
 
 it('logs in once and reuses the cached token', function () {
     $stack = new Stack;
@@ -469,3 +470,67 @@ it('takes only a JWT from a login, never a word a 200 may carry', function (stri
 
     expect(fn () => $stack->tokens->token())->toThrow(UninterpretableResponseException::class, 'not a token');
 })->with(['null', 'OK', 'false', 'Unauthorized', 'two.parts', 'a.b.c.d', 'a.b/c.d']);
+
+it('does not drop a newer token another worker stored while it found its own expired', function () {
+    $clock = new FrozenClock;
+    $expired = Tokens::datadis($clock->now()->getTimestamp() - 2 * 86400);
+    $fresh = Tokens::datadis($clock->now()->getTimestamp());
+    $cache = new class($expired, $fresh) implements CacheInterface
+    {
+        public int $reads = 0;
+
+        /** @var list<string> */
+        public array $deletes = [];
+
+        public function __construct(private string $first, private string $then) {}
+
+        public function get(string $key, mixed $default = null): mixed
+        {
+            // The worker reads its expired token; by its next read another worker has stored a new one.
+            return $this->reads++ === 0 ? $this->first : $this->then;
+        }
+
+        public function set(string $key, mixed $value, DateInterval|int|null $ttl = null): bool
+        {
+            return true;
+        }
+
+        public function delete(string $key): bool
+        {
+            $this->deletes[] = $key;
+
+            return true;
+        }
+
+        public function clear(): bool
+        {
+            return true;
+        }
+
+        public function getMultiple(iterable $keys, mixed $default = null): iterable
+        {
+            return [];
+        }
+
+        public function setMultiple(iterable $values, DateInterval|int|null $ttl = null): bool
+        {
+            return true;
+        }
+
+        public function deleteMultiple(iterable $keys): bool
+        {
+            return true;
+        }
+
+        public function has(string $key): bool
+        {
+            return false;
+        }
+    };
+    $stack = new Stack(clock: $clock, cache: $cache);
+    $stack->http->queue($stack->loginOk());
+
+    $stack->tokens->token();
+
+    expect($cache->deletes)->toBe([]);
+});

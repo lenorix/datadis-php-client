@@ -97,8 +97,9 @@ final class TokenProvider
             return $usable;
         }
 
+        // Only what was read is dropped: another worker may have stored a newer token meanwhile.
         if ($cached !== null) {
-            $this->invalidate();
+            $this->invalidate($usable ?? (is_string($cached) ? $cached : null));
         }
 
         $token = $this->login();

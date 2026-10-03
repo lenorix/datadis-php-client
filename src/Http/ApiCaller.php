@@ -11,6 +11,9 @@ use Lenorix\DatadisClient\Auth\TokenProvider;
 use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
+use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
+use Lenorix\DatadisClient\Exceptions\TransportException;
+use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -111,16 +114,25 @@ final class ApiCaller
             $token = $this->tokens->token();
         } catch (DatadisException $e) {
             // The data request already went out once, so whatever happens now it counts as sent.
-            throw new AuthenticationException(
-                "{$endpoint}: the token was rejected and logging in again failed.",
-                401,
-                $e->detail,
-                $endpoint,
-                requestSent: true,
-                previous: $e,
-            );
+            // A login refused is an authentication failure; a service down or a network failure
+            // stays what it is, so an application waits for the service instead of checking the
+            // credentials.
+            $message = "{$endpoint}: the token was rejected and logging in again failed.";
+            $class = $e instanceof ServiceUnavailableException || $e instanceof TransportException || $e instanceof UninterpretableResponseException
+                ? $e::class
+                : AuthenticationException::class;
+
+            throw new $class($message, $e->httpStatus ?? 401, $e->detail, $endpoint, requestSent: true, previous: $e);
         }
 
-        return $this->transport->send($this->requests->get($path, $query, $token), $endpoint);
+        $response = $this->transport->send($this->requests->get($path, $query, $token), $endpoint);
+
+        // Rejected again: that token must not be used either, or the next call (a guarded one
+        // among them) would go out with a token Datadis has just refused.
+        if ($response->getStatusCode() === 401) {
+            $this->tokens->invalidate($token);
+        }
+
+        return $response;
     }
 }

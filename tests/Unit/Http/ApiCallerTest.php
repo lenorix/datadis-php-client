@@ -8,6 +8,7 @@ use GuzzleHttp\Psr7\Request;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
+use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\TransportException;
 use Lenorix\DatadisClient\Http\Transport;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
@@ -194,3 +195,40 @@ it('wraps whatever a misbehaving HTTP client throws', function (bool $preflight)
 
     throw new LogicException('Expected a TransportException.');
 })->with([true, false]);
+
+it('does not keep a token Datadis rejected on the second try, so the next call does not go out with it', function () {
+    $stack = new Stack;
+    $stack->http->queue($stack->loginOk(), Scenario::refusedToken(), $stack->loginOk(subject: 'second'), Scenario::refusedToken());
+
+    try {
+        $stack->caller->get(CALLER_SUPPLIES_PATH, [], 'get-supplies-v2', sendAgainAfter401: true);
+    } catch (AuthenticationException) {
+    }
+
+    $stack->http->queue($stack->loginOk(subject: 'third'), Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+    $stack->caller->get(CALLER_CONSUMPTION_PATH, [], 'get-consumption-data-v2', sendAgainAfter401: false);
+    $requests = $stack->http->requests();
+
+    expect($requests)->toHaveCount(6)
+        ->and($requests[4]->getMethod())->toBe('POST')
+        ->and($requests[5]->getHeaderLine('Authorization'))->not->toBe($requests[3]->getHeaderLine('Authorization'));
+});
+
+it('reports a failure while logging in again as what it is, sent', function (mixed $loginAnswer, string $class) {
+    $stack = new Stack;
+    $stack->http->queue($stack->loginOk(), Scenario::refusedToken(), $loginAnswer);
+
+    try {
+        $stack->caller->get(CALLER_SUPPLIES_PATH, [], 'get-supplies-v2', sendAgainAfter401: true);
+    } catch (DatadisException $e) {
+        expect($e)->toBeInstanceOf($class)->and($e->requestSent)->toBeTrue();
+
+        return;
+    }
+
+    throw new LogicException('Expected a DatadisException.');
+})->with([
+    'the service is down' => [fn () => Responses::text('', 503), ServiceUnavailableException::class],
+    'the network failed' => [fn () => new ConnectException('down', new Request('POST', 'https://datadis.test')), TransportException::class],
+    'the credentials were refused' => [fn () => Responses::text('bad credentials', 401), AuthenticationException::class],
+]);
