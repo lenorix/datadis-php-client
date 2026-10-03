@@ -18,6 +18,7 @@ use Lenorix\DatadisClient\Data\PartnerUser;
 use Lenorix\DatadisClient\Data\ReactiveEnergy;
 use Lenorix\DatadisClient\Data\Supply;
 use Lenorix\DatadisClient\Data\SupplyMatcher;
+use Lenorix\DatadisClient\Decoding\ConsumptionAnswer;
 use Lenorix\DatadisClient\Decoding\DistributorCodes;
 use Lenorix\DatadisClient\Decoding\Envelope;
 use Lenorix\DatadisClient\Decoding\Fields;
@@ -30,7 +31,6 @@ use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
 use Lenorix\DatadisClient\Exceptions\NothingToRefreshException;
 use Lenorix\DatadisClient\Exceptions\OutOfContractRangeException;
-use Lenorix\DatadisClient\Exceptions\OutOfServedRangeException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
@@ -39,13 +39,13 @@ use Lenorix\DatadisClient\Guard\RepetitionGuard;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Http\ApiCaller;
+use Lenorix\DatadisClient\Http\DataQueries;
 use Lenorix\DatadisClient\Http\Endpoint;
 use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Support\PersonalDataRedactor;
 use Lenorix\DatadisClient\Support\SystemClock;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Time\MonthPlanner;
-use Lenorix\DatadisClient\Time\QuarterHourConvention;
 use Lenorix\DatadisClient\Values\Cups;
 use Lenorix\DatadisClient\Values\MeasurementType;
 use Lenorix\DatadisClient\Values\Nif;
@@ -86,8 +86,8 @@ final class DatadisClient
 
     private readonly DateTimeZone $timeZone;
 
-    /** The holder whose supplies this client reads (see forHolder()); null for the account's own. */
-    private ?Nif $holder = null;
+    /** Builds and checks every data query; it carries the holder of a client from forHolder(). */
+    private DataQueries $queries;
 
     /**
      * @param  ClientInterface|null  $http  any PSR-18 client; Guzzle is used when omitted
@@ -116,6 +116,7 @@ final class DatadisClient
         $this->ledgerInMemory = $ledger === null;
         $ledger ??= new RequestLedger(new InMemoryCache($this->clock), new RequestFingerprinter(random_bytes(32)), $this->clock);
         $this->guard = new RepetitionGuard($ledger, $config->username());
+        $this->queries = new DataQueries($config, $this->clock, $version);
     }
 
     /**
@@ -181,7 +182,7 @@ final class DatadisClient
      */
     public function assertServedRange(Month $startDate, ?Month $endDate = null): void
     {
-        $this->assertRange($startDate, $endDate ?? $startDate);
+        $this->queries->assertRange($startDate, $endDate ?? $startDate);
     }
 
     /**
@@ -192,7 +193,7 @@ final class DatadisClient
     public function forHolder(Nif $holder): self
     {
         $client = clone $this;
-        $client->holder = $holder;
+        $client->queries = $this->queries->withHolder($holder);
 
         return $client;
     }
@@ -209,10 +210,10 @@ final class DatadisClient
     public function getSupplies(?Nif $authorizedNif = null, ?string $distributorCode = null): ApiResult
     {
         if ($distributorCode !== null) {
-            $this->assertDistributorCode($distributorCode);
+            $this->queries->assertDistributorCode($distributorCode);
         }
 
-        $decoded = $this->fetchList(Endpoint::Supplies, ['authorizedNif' => $this->authorized($authorizedNif), 'distributorCode' => $distributorCode]);
+        $decoded = $this->fetchList(Endpoint::Supplies, ['authorizedNif' => $this->queries->authorized($authorizedNif), 'distributorCode' => $distributorCode]);
 
         return Envelope::build($decoded, 'supplies', $this->name(Endpoint::Supplies), fn (array $row) => Supply::fromRow($row, $this->timeZone));
     }
@@ -249,7 +250,7 @@ final class DatadisClient
      */
     public function getDistributorsWithSupplies(?Nif $authorizedNif = null): ApiResult
     {
-        $decoded = $this->fetchList(Endpoint::Distributors, ['authorizedNif' => $this->authorized($authorizedNif)]);
+        $decoded = $this->fetchList(Endpoint::Distributors, ['authorizedNif' => $this->queries->authorized($authorizedNif)]);
 
         return DistributorCodes::result($decoded, $this->name(Endpoint::Distributors));
     }
@@ -264,12 +265,12 @@ final class DatadisClient
      */
     public function getContractDetail(Cups $cups, string $distributorCode, ?Nif $authorizedNif = null): ApiResult
     {
-        $this->assertDistributorCode($distributorCode);
+        $this->queries->assertDistributorCode($distributorCode);
 
         $decoded = $this->fetch(Endpoint::ContractDetail, [
             'cups' => $cups->value(),
             'distributorCode' => $distributorCode,
-            'authorizedNif' => $this->authorized($authorizedNif),
+            'authorizedNif' => $this->queries->authorized($authorizedNif),
         ]);
 
         return Envelope::build($decoded, 'contract', $this->name(Endpoint::ContractDetail), fn (array $row) => ContractDetail::fromRow($row, $this->timeZone));
@@ -297,21 +298,9 @@ final class DatadisClient
         MeasurementType $measurementType = MeasurementType::Hourly,
         ?Nif $authorizedNif = null,
     ): ApiResult {
-        $decoded = $this->fetch(Endpoint::Consumption, $this->consumptionQuery($cups, $distributorCode, $pointType, $startDate, $endDate, $measurementType, $authorizedNif));
+        $decoded = $this->fetch(Endpoint::Consumption, $this->queries->consumption($cups, $distributorCode, $pointType, $startDate, $endDate, $measurementType, $authorizedNif));
 
-        // Two quarter-hourly conventions are possible (unverified); the labels of the answer tell which.
-        $quarters = $measurementType === MeasurementType::QuarterHourly ? QuarterHourConvention::detect(self::labels($decoded)) : null;
-
-        // Rows keep their order, so the n-th row with the same date and time is its n-th occurrence.
-        $seen = [];
-        $decode = function (array $row) use (&$seen, $measurementType, $quarters): ?ConsumptionReading {
-            $key = json_encode([$row['date'] ?? null, $row['time'] ?? null]);
-            $occurrence = $seen[$key] = ($seen[$key] ?? -1) + 1;
-
-            return ConsumptionReading::fromRow($row, $this->timeZone, $measurementType, $occurrence, $quarters);
-        };
-
-        return Envelope::build($decoded, 'timeCurve', $this->name(Endpoint::Consumption), $decode)->forMonths($startDate, $endDate ?? $startDate);
+        return ConsumptionAnswer::result($decoded, $this->name(Endpoint::Consumption), $this->timeZone, $measurementType)->forMonths($startDate, $endDate ?? $startDate);
     }
 
     /**
@@ -326,7 +315,7 @@ final class DatadisClient
      */
     public function getMaxPower(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
-        $decoded = $this->fetch(Endpoint::MaxPower, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
+        $decoded = $this->fetch(Endpoint::MaxPower, $this->queries->power($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
 
         return Envelope::build($decoded, 'maxPower', $this->name(Endpoint::MaxPower), fn (array $row) => MaxPowerReading::fromRow($row, $this->timeZone))->forMonths($startDate, $endDate ?? $startDate);
     }
@@ -345,9 +334,9 @@ final class DatadisClient
      */
     public function getReactiveData(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
-        $this->assertReactive();
+        $this->queries->assertReactive();
 
-        $decoded = $this->fetch(Endpoint::Reactive, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
+        $decoded = $this->fetch(Endpoint::Reactive, $this->queries->power($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
 
         return ReactiveEnergyAnswer::result($decoded, $this->name(Endpoint::Reactive))->forMonths($startDate, $endDate ?? $startDate);
     }
@@ -377,7 +366,7 @@ final class DatadisClient
         MeasurementType $measurementType = MeasurementType::Hourly,
         ?Nif $authorizedNif = null,
     ): bool {
-        return $this->remember(Endpoint::Consumption, $this->consumptionQuery($cups, $distributorCode, $pointType, $startDate, $endDate, $measurementType, $authorizedNif, served: false), $sentAt);
+        return $this->remember(Endpoint::Consumption, $this->queries->consumption($cups, $distributorCode, $pointType, $startDate, $endDate, $measurementType, $authorizedNif, served: false), $sentAt);
     }
 
     /**
@@ -392,7 +381,7 @@ final class DatadisClient
      */
     public function rememberMaxPower(DateTimeInterface $sentAt, Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): bool
     {
-        return $this->remember(Endpoint::MaxPower, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif, served: false), $sentAt);
+        return $this->remember(Endpoint::MaxPower, $this->queries->power($cups, $distributorCode, $startDate, $endDate, $authorizedNif, served: false), $sentAt);
     }
 
     /**
@@ -407,9 +396,9 @@ final class DatadisClient
      */
     public function rememberReactiveData(DateTimeInterface $sentAt, Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): bool
     {
-        $this->assertReactive();
+        $this->queries->assertReactive();
 
-        return $this->remember(Endpoint::Reactive, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif, served: false), $sentAt);
+        return $this->remember(Endpoint::Reactive, $this->queries->power($cups, $distributorCode, $startDate, $endDate, $authorizedNif, served: false), $sentAt);
     }
 
     /**
@@ -427,9 +416,9 @@ final class DatadisClient
         MeasurementType $measurementType = MeasurementType::Hourly,
         ?Nif $authorizedNif = null,
     ): bool {
-        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+        [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
-        return $this->rememberConsumptionData($sentAt, $cups, $code, $this->pointTypeOf($supply), $startDate, $endDate, $measurementType, $authorizedNif);
+        return $this->rememberConsumptionData($sentAt, $cups, $code, $this->queries->pointTypeOf($supply), $startDate, $endDate, $measurementType, $authorizedNif);
     }
 
     /**
@@ -441,7 +430,7 @@ final class DatadisClient
      */
     public function rememberMaxPowerOf(DateTimeInterface $sentAt, #[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): bool
     {
-        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+        [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
         return $this->rememberMaxPower($sentAt, $cups, $code, $startDate, $endDate, $authorizedNif);
     }
@@ -455,7 +444,7 @@ final class DatadisClient
      */
     public function rememberReactiveDataOf(DateTimeInterface $sentAt, #[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): bool
     {
-        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+        [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
         return $this->rememberReactiveData($sentAt, $cups, $code, $startDate, $endDate, $authorizedNif);
     }
@@ -477,7 +466,7 @@ final class DatadisClient
         MeasurementType $measurementType = MeasurementType::Hourly,
         ?Nif $authorizedNif = null,
     ): ?DateTimeImmutable {
-        return $this->guard->blockedUntil(Endpoint::Consumption, $this->consumptionQuery($cups, $distributorCode, $pointType, $startDate, $endDate, $measurementType, $authorizedNif));
+        return $this->guard->blockedUntil(Endpoint::Consumption, $this->queries->consumption($cups, $distributorCode, $pointType, $startDate, $endDate, $measurementType, $authorizedNif));
     }
 
     /**
@@ -488,7 +477,7 @@ final class DatadisClient
      */
     public function maxPowerBlockedUntil(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
     {
-        return $this->guard->blockedUntil(Endpoint::MaxPower, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
+        return $this->guard->blockedUntil(Endpoint::MaxPower, $this->queries->power($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
     }
 
     /**
@@ -500,9 +489,9 @@ final class DatadisClient
      */
     public function reactiveDataBlockedUntil(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
     {
-        $this->assertReactive();
+        $this->queries->assertReactive();
 
-        return $this->guard->blockedUntil(Endpoint::Reactive, $this->powerQuery($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
+        return $this->guard->blockedUntil(Endpoint::Reactive, $this->queries->power($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
     }
 
     /**
@@ -511,16 +500,16 @@ final class DatadisClient
      * @throws InvalidRequestException when the supply or the range cannot be queried
      * @throws LedgerUnavailableException when the ledger's store cannot be read
      */
-    public function consumptionDataOfBlockedUntil(
+    public function consumptionDataBlockedUntilOf(
         #[SensitiveParameter] Supply $supply,
         Month $startDate,
         ?Month $endDate = null,
         MeasurementType $measurementType = MeasurementType::Hourly,
         ?Nif $authorizedNif = null,
     ): ?DateTimeImmutable {
-        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+        [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
-        return $this->consumptionDataBlockedUntil($cups, $code, $this->pointTypeOf($supply), $startDate, $endDate, $measurementType, $authorizedNif);
+        return $this->consumptionDataBlockedUntil($cups, $code, $this->queries->pointTypeOf($supply), $startDate, $endDate, $measurementType, $authorizedNif);
     }
 
     /**
@@ -529,9 +518,9 @@ final class DatadisClient
      * @throws InvalidRequestException when the supply or the range cannot be queried
      * @throws LedgerUnavailableException when the ledger's store cannot be read
      */
-    public function maxPowerOfBlockedUntil(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
+    public function maxPowerBlockedUntilOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
     {
-        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+        [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
         return $this->maxPowerBlockedUntil($cups, $code, $startDate, $endDate, $authorizedNif);
     }
@@ -542,9 +531,9 @@ final class DatadisClient
      * @throws InvalidRequestException when the supply or the range cannot be queried
      * @throws LedgerUnavailableException when the ledger's store cannot be read
      */
-    public function reactiveDataOfBlockedUntil(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
+    public function reactiveDataBlockedUntilOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
     {
-        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+        [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
         return $this->reactiveDataBlockedUntil($cups, $code, $startDate, $endDate, $authorizedNif);
     }
@@ -570,7 +559,7 @@ final class DatadisClient
      */
     public function getContractDetailOf(#[SensitiveParameter] Supply $supply, ?Nif $authorizedNif = null): ApiResult
     {
-        [$cups, $code] = $this->queryable($supply);
+        [$cups, $code] = $this->queries->queryable($supply);
 
         return $this->getContractDetail($cups, $code, $authorizedNif);
     }
@@ -591,8 +580,8 @@ final class DatadisClient
         MeasurementType $measurementType = MeasurementType::Hourly,
         ?Nif $authorizedNif = null,
     ): ApiResult {
-        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
-        $pointType = $this->pointTypeOf($supply);
+        [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
+        $pointType = $this->queries->pointTypeOf($supply);
 
         return $this->getConsumptionData($cups, $code, $pointType, $startDate, $endDate, $measurementType, $authorizedNif);
     }
@@ -608,7 +597,7 @@ final class DatadisClient
      */
     public function getMaxPowerOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
-        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+        [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
         return $this->getMaxPower($cups, $code, $startDate, $endDate, $authorizedNif);
     }
@@ -624,7 +613,7 @@ final class DatadisClient
      */
     public function getReactiveDataOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
     {
-        [$cups, $code] = $this->queryable($supply, $startDate, $endDate);
+        [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
         return $this->getReactiveData($cups, $code, $startDate, $endDate, $authorizedNif);
     }
@@ -694,7 +683,7 @@ final class DatadisClient
         ?DateTimeInterface $endDate = null,
         Cups ...$cups,
     ): string {
-        $this->assertThirdParty($authorizedNif);
+        $this->queries->assertThirdParty($authorizedNif);
 
         if ($startDate !== null && $endDate !== null && $startDate->format('Y-m-d') > $endDate->format('Y-m-d')) {
             throw new InvalidRequestException('The authorization must not end before it starts.');
@@ -704,7 +693,7 @@ final class DatadisClient
             'authorizedNif' => $authorizedNif->value(),
             'startDate' => $startDate?->format('Y/m/d'),
             'endDate' => $endDate?->format('Y/m/d'),
-            'cups' => $this->cupsList($cups),
+            'cups' => $this->queries->cupsList($cups),
         ]);
     }
 
@@ -717,11 +706,11 @@ final class DatadisClient
      */
     public function cancelAuthorization(Nif $authorizedNif, Cups ...$cups): string
     {
-        $this->assertThirdParty($authorizedNif);
+        $this->queries->assertThirdParty($authorizedNif);
 
         return $this->fetchText(Endpoint::CancelAuthorization, [
             'authorizedNif' => $authorizedNif->value(),
-            'cups' => $this->cupsList($cups),
+            'cups' => $this->queries->cupsList($cups),
         ]);
     }
 
@@ -842,213 +831,5 @@ final class DatadisClient
     private function name(Endpoint $endpoint): string
     {
         return $endpoint->name($this->version);
-    }
-
-    /** authorizedNif is only for a third party's supplies: for the account itself it must be omitted. */
-    private function authorized(?Nif $nif): ?string
-    {
-        if ($nif !== null && $this->holder !== null && ! $nif->equals($this->holder)) {
-            throw new InvalidRequestException('This client reads the supplies of one holder; use forHolder() for another one.');
-        }
-
-        $nif ??= $this->holder;
-
-        return $nif === null || $nif->value() === $this->config->username() ? null : $nif->value();
-    }
-
-    private function assertThirdParty(Nif $nif): void
-    {
-        if ($nif->value() === $this->config->username()) {
-            throw new InvalidRequestException('An authorization is for a third party, not for the account itself.');
-        }
-    }
-
-    /**
-     * @param  array<Cups>  $cups
-     * @return list<string>
-     */
-    private function cupsList(array $cups): array
-    {
-        $values = array_values(array_map(static fn (Cups $c): string => $c->value(), $cups));
-
-        if (count(array_unique($values)) !== count($values)) {
-            throw new InvalidRequestException('The same CUPS is listed more than once.');
-        }
-
-        return $values;
-    }
-
-    /**
-     * The CUPS and distributor code every call of a supply needs. Datadis refuses with a 400 a range
-     * that starts before the month the contract starts (verified), and the refusal still counts for
-     * 24 hours, so it is refused here first.
-     *
-     * @return array{Cups, string}
-     */
-    private function queryable(#[SensitiveParameter] Supply $supply, ?Month $startDate = null, ?Month $endDate = null): array
-    {
-        if (! Cups::isValid($supply->cups) || ! Supply::isValidDistributorCode($supply->distributorCode) || $supply->distributorCode === null) {
-            throw new InvalidRequestException('The supply was listed without a usable CUPS or distributor code; list the supplies again.');
-        }
-
-        if ($startDate !== null && $supply->validDateFrom !== null && $startDate->isBefore(Month::fromDate($supply->validDateFrom))) {
-            throw new OutOfContractRangeException(
-                'The range starts before the contract of the supply ('.Month::fromDate($supply->validDateFrom)->format().'); Datadis refuses it, and the refusal counts for 24 hours. MonthPlanner::ranges() keeps to the contract.',
-                contractStart: Month::fromDate($supply->validDateFrom),
-            );
-        }
-
-        // REPORTED by a production consumer: a month after the contract ended is refused like one before it.
-        $last = $endDate ?? $startDate;
-
-        if ($last !== null && $supply->validDateTo !== null && $last->isAfter(Month::fromDate($supply->validDateTo))) {
-            throw new OutOfContractRangeException(
-                'The range ends after the contract of the supply ('.Month::fromDate($supply->validDateTo)->format().'); Datadis refuses it, and the refusal counts for 24 hours. MonthPlanner::ranges() keeps to the contract.',
-                contractEnd: Month::fromDate($supply->validDateTo),
-            );
-        }
-
-        return [Cups::fromString($supply->cups), $supply->distributorCode];
-    }
-
-    /** Only consumption takes the point type. */
-    private function pointTypeOf(#[SensitiveParameter] Supply $supply): int
-    {
-        if ($supply->pointType === null || ! Supply::isValidPointType($supply->pointType)) {
-            throw new InvalidRequestException('The supply was listed without a usable point type, which consumption needs; list the supplies again.');
-        }
-
-        return $supply->pointType;
-    }
-
-    /**
-     * The time labels of a consumption answer, in either version's shape.
-     *
-     * @param  array<array-key, mixed>  $decoded
-     * @return list<string>
-     */
-    private static function labels(#[SensitiveParameter] array $decoded): array
-    {
-        $rows = array_is_list($decoded) ? $decoded : ($decoded['timeCurve'] ?? []);
-        $labels = [];
-
-        foreach (is_array($rows) ? $rows : [] as $row) {
-            if (is_array($row) && is_string($row['time'] ?? null)) {
-                $labels[] = $row['time'];
-            }
-        }
-
-        return $labels;
-    }
-
-    /**
-     * The consumption query exactly as it is sent, and remembered: one place, so both agree.
-     *
-     * @return array<string, string|int|null>
-     */
-    private function consumptionQuery(
-        Cups $cups,
-        string $distributorCode,
-        int $pointType,
-        Month $startDate,
-        ?Month $endDate,
-        MeasurementType $measurementType,
-        ?Nif $authorizedNif,
-        bool $served = true,
-    ): array {
-        $query = $this->monthQuery($cups, $distributorCode, $startDate, $endDate, $served);
-        $this->assertPointType($pointType);
-
-        return $query + [
-            'measurementType' => $measurementType->value,
-            'pointType' => $pointType,
-            'authorizedNif' => $this->authorized($authorizedNif),
-        ];
-    }
-
-    /**
-     * The maximum power or reactive query exactly as it is sent, and remembered.
-     *
-     * @return array<string, string|null>
-     */
-    private function powerQuery(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate, ?Nif $authorizedNif, bool $served = true): array
-    {
-        return $this->monthQuery($cups, $distributorCode, $startDate, $endDate, $served) + ['authorizedNif' => $this->authorized($authorizedNif)];
-    }
-
-    /**
-     * The part every month-range data call shares, after checking it: one month when there is no end.
-     *
-     * @return array{cups: string, distributorCode: string, startDate: string, endDate: string}
-     */
-    private function monthQuery(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate, bool $served = true): array
-    {
-        $endDate ??= $startDate;
-        $this->assertDistributorCode($distributorCode);
-        $this->assertRange($startDate, $endDate, $served);
-
-        return [
-            'cups' => $cups->value(),
-            'distributorCode' => $distributorCode,
-            'startDate' => $startDate->format(),
-            'endDate' => $endDate->format(),
-        ];
-    }
-
-    /**
-     * Reactive data exists only in v2. Its 24 hour key is the maximum power one, so remembering or
-     * looking it up on v1 would block or report a maximum power query instead.
-     */
-    private function assertReactive(): void
-    {
-        if ($this->version !== ApiVersion::V2) {
-            throw new UnsupportedOperationException('Reactive data exists only in API v2.');
-        }
-    }
-
-    private function assertDistributorCode(string $code): void
-    {
-        if (! Supply::isValidDistributorCode($code)) {
-            throw new InvalidRequestException('The distributor code must be 1 to 20 characters, without spaces or control characters.');
-        }
-    }
-
-    private function assertPointType(int $pointType): void
-    {
-        if (! Supply::isValidPointType($pointType)) {
-            throw new InvalidRequestException("The point type must be between 1 and 5, {$pointType} given.");
-        }
-    }
-
-    /**
-     * Datadis serves the last 24 months (the boundary month is refused) and no future month. A query
-     * remembered from the past is not checked against them: it may have left the window since.
-     */
-    private function assertRange(Month $startDate, Month $endDate, bool $served = true): void
-    {
-        if ($startDate->isAfter($endDate)) {
-            throw new InvalidRequestException('The first month must not be after the last one.');
-        }
-
-        if (! $served) {
-            return;
-        }
-
-        $now = $this->now();
-
-        foreach ([$startDate, $endDate] as $month) {
-            if (! $month->isWithinHistory($now)) {
-                throw new OutOfServedRangeException('Datadis only serves the last '.Month::HISTORY_MONTHS." months up to the current one; {$month->format()} is outside that window.", $month);
-            }
-        }
-    }
-
-    /**
-     * The current moment on the Madrid calendar. Datadis is a Spanish service and is assumed to
-     * judge its month window by the Madrid calendar even for Canary Islands data (UNVERIFIED).
-     */
-    private function now(): DateTimeImmutable
-    {
-        return $this->clock->now()->setTimezone(new DateTimeZone(Month::SERVICE_TIME_ZONE));
     }
 }

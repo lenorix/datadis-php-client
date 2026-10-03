@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Eris\Generators;
-use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\PageLimitReachedException;
@@ -15,6 +14,7 @@ use Lenorix\DatadisClient\Tests\Support\AnswersLogin;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\Gen;
 use Lenorix\DatadisClient\Tests\Support\Responses;
+use Lenorix\DatadisClient\Tests\Support\Scenario;
 
 it('accepts every valid combination and sends exactly what it validated', function () {
     $community = Community::cases();
@@ -37,7 +37,7 @@ it('accepts every valid combination and sends exactly what it validated', functi
 
             $query = new PublicSearchQuery($from, $to, $picked, array_values($types), $page, $size, economicSector: array_values($sectors), tension: array_values($tension));
             $http = (new FakeHttpClient)->queue(Responses::json('[]'));
-            (new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), new AnswersLogin($http)))->apiSearch($query);
+            (new PublicApiClient(Scenario::config(), new AnswersLogin($http)))->apiSearch($query);
             parse_str($http->lastRequest()->getUri()->getQuery(), $sent);
 
             expect($sent['community'])->toBe(implode(',', array_map(fn ($c) => $c->value, $picked)))
@@ -78,7 +78,7 @@ it('reads any JSON answer as records or a DatadisException', function () {
             $query = new PublicSearchQuery(new DateTimeImmutable('2025-01-01'), new DateTimeImmutable('2025-01-02'), [Community::Madrid], ['05']);
 
             try {
-                $result = (new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), new AnswersLogin($http)))->apiSearch($query);
+                $result = (new PublicApiClient(Scenario::config(), new AnswersLogin($http)))->apiSearch($query);
 
                 foreach ($result->records as $record) {
                     // Whatever arrived, the energy is either unknown or an exact decimal, never a float.
@@ -106,7 +106,7 @@ it('walks pages until a short one, reports what it left out, and says so when th
                 return Responses::json((string) json_encode($page($served++)));
             }));
             $query = new PublicSearchQuery(new DateTimeImmutable('2025-01-01'), new DateTimeImmutable('2025-01-02'), [Community::Madrid], ['05'], pageSize: $pageSize);
-            $walk = (new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), new AnswersLogin($http)))->apiSearchAll($query, $maxPages);
+            $walk = (new PublicApiClient(Scenario::config(), new AnswersLogin($http)))->apiSearchAll($query, $maxPages);
 
             $records = 0;
             $stopped = null;

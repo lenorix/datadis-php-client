@@ -21,7 +21,7 @@ function retrying(int $maxRetries = 2, int $baseDelayMs = 1000, int $maxDelayMs 
     return [$client, $http, $sleeps];
 }
 
-function get(string $path): Request
+function getRequest(string $path): Request
 {
     return new Request('GET', 'https://datadis.test'.$path);
 }
@@ -31,13 +31,13 @@ function networkFailure(): ConnectException
     return new ConnectException('cURL error 7', new Request('GET', 'https://datadis.test'));
 }
 
-const SAFE = '/api-private/api/get-supplies-v2';
+const RETRY_SAFE_PATH = '/api-private/api/get-supplies-v2';
 
 it('passes a successful answer through without waiting', function () {
     [$client, $http, $sleeps] = retrying();
     $http->queue(Responses::json('[]'));
 
-    expect($client->sendRequest(get(SAFE))->getStatusCode())->toBe(200)
+    expect($client->sendRequest(getRequest(RETRY_SAFE_PATH))->getStatusCode())->toBe(200)
         ->and($http->requests())->toHaveCount(1)
         ->and($sleeps->getArrayCopy())->toBe([]);
 });
@@ -46,7 +46,7 @@ it('retries network failures and gateway errors on unguarded endpoints with grow
     [$client, $http, $sleeps] = retrying();
     $http->queue(networkFailure(), Responses::empty(503), Responses::json('[]'));
 
-    expect($client->sendRequest(get(SAFE))->getStatusCode())->toBe(200)
+    expect($client->sendRequest(getRequest(RETRY_SAFE_PATH))->getStatusCode())->toBe(200)
         ->and($http->requests())->toHaveCount(3)
         ->and($sleeps->getArrayCopy())->toBe([1000, 2000]);
 });
@@ -55,12 +55,12 @@ it('gives up after the last retry with the last outcome', function () {
     [$client, $http] = retrying(maxRetries: 2);
     $http->queue(Responses::empty(502), Responses::empty(502), Responses::empty(504));
 
-    expect($client->sendRequest(get(SAFE))->getStatusCode())->toBe(504)->and($http->requests())->toHaveCount(3);
+    expect($client->sendRequest(getRequest(RETRY_SAFE_PATH))->getStatusCode())->toBe(504)->and($http->requests())->toHaveCount(3);
 
     [$client, $http] = retrying(maxRetries: 1);
     $http->queue(networkFailure(), networkFailure());
 
-    expect(fn () => $client->sendRequest(get(SAFE)))->toThrow(ConnectException::class);
+    expect(fn () => $client->sendRequest(getRequest(RETRY_SAFE_PATH)))->toThrow(ConnectException::class);
 });
 
 it('never retries a call that may count or change data, nor one it does not know', function (string $path, Closure $outcome) {
@@ -68,7 +68,7 @@ it('never retries a call that may count or change data, nor one it does not know
     $http->queue($outcome(), Responses::json('[]'));
 
     try {
-        $client->sendRequest(get($path));
+        $client->sendRequest(getRequest($path));
     } catch (ConnectException) {
     }
 
@@ -95,7 +95,7 @@ it('retries every call that is safe to repeat, in both versions and behind a bas
     [$client, $http] = retrying();
     $http->queue(Responses::empty(503), Responses::json('[]'));
 
-    expect($client->sendRequest(get($path))->getStatusCode())->toBe(200)->and($http->requests())->toHaveCount(2);
+    expect($client->sendRequest(getRequest($path))->getStatusCode())->toBe(200)->and($http->requests())->toHaveCount(2);
 })->with([
     '/api-private/api/get-supplies',
     '/api-private/api/get-distributors-with-supplies-v2',
@@ -114,34 +114,34 @@ it('never retries client errors, 429 or a plain 500', function (int $status) {
     [$client, $http] = retrying();
     $http->queue(Responses::empty($status), Responses::json('[]'));
 
-    expect($client->sendRequest(get(SAFE))->getStatusCode())->toBe($status)->and($http->requests())->toHaveCount(1);
+    expect($client->sendRequest(getRequest(RETRY_SAFE_PATH))->getStatusCode())->toBe($status)->and($http->requests())->toHaveCount(1);
 })->with([400, 401, 403, 404, 429, 500]);
 
 it('does not retry a request the client refused to build', function () {
     [$client, $http] = retrying();
-    $http->queue(new RequestException('malformed', get(SAFE)), Responses::json('[]'));
+    $http->queue(new RequestException('malformed', getRequest(RETRY_SAFE_PATH)), Responses::json('[]'));
 
-    expect(fn () => $client->sendRequest(get(SAFE)))->toThrow(RequestException::class)
+    expect(fn () => $client->sendRequest(getRequest(RETRY_SAFE_PATH)))->toThrow(RequestException::class)
         ->and($http->requests())->toHaveCount(1);
 });
 
 it('honours Retry-After in seconds and as a date, and gives up when it is too long', function () {
     [$client, $http, $sleeps] = retrying(maxDelayMs: 10000);
     $http->queue(Responses::text('', 503, ['Retry-After' => '3']), Responses::json('[]'));
-    $client->sendRequest(get(SAFE));
+    $client->sendRequest(getRequest(RETRY_SAFE_PATH));
 
     expect($sleeps->getArrayCopy())->toBe([3000]);
 
     [$client, $http] = retrying(maxDelayMs: 10000);
     $http->queue(Responses::text('', 503, ['Retry-After' => '120']), Responses::json('[]'));
 
-    expect($client->sendRequest(get(SAFE))->getStatusCode())->toBe(503)->and($http->requests())->toHaveCount(1);
+    expect($client->sendRequest(getRequest(RETRY_SAFE_PATH))->getStatusCode())->toBe(503)->and($http->requests())->toHaveCount(1);
 });
 
 it('ignores a Retry-After it cannot read', function (string $header) {
     [$client, $http, $sleeps] = retrying();
     $http->queue(Responses::text('', 503, ['Retry-After' => $header]), Responses::json('[]'));
-    $client->sendRequest(get(SAFE));
+    $client->sendRequest(getRequest(RETRY_SAFE_PATH));
 
     expect($sleeps->getArrayCopy())->toBe([1000]);
 })->with(['soon', '-5', '1e9', '']);
@@ -171,7 +171,7 @@ it('spreads the waits with jitter and caps them', function () {
     }, random: fn () => 0.0);
     $http->queue(...array_fill(0, 6, Responses::empty(503)));
 
-    $client->sendRequest(get(SAFE));
+    $client->sendRequest(getRequest(RETRY_SAFE_PATH));
 
     expect($sleeps)->toBe([500, 1000, 1500, 1500, 1500]);
 });
@@ -198,7 +198,7 @@ it('reads Retry-After as an HTTP date', function () {
         Responses::json('[]'),
     );
 
-    $client->sendRequest(get(SAFE));
+    $client->sendRequest(getRequest(RETRY_SAFE_PATH));
 
     expect($sleeps)->toBe([5000, 0]);
 });
@@ -216,7 +216,7 @@ it('reads a Retry-After date as GMT whatever the default time zone', function ()
         }, clock: $clock);
         $http->queue(Responses::text('', 503, ['Retry-After' => 'Tue, 15 Sep 2026 10:00:05 GMT']), Responses::json('[]'));
 
-        $client->sendRequest(get(SAFE));
+        $client->sendRequest(getRequest(RETRY_SAFE_PATH));
 
         expect($sleeps)->toBe([5000]);
     } finally {
@@ -231,14 +231,14 @@ it('uses two retries, one second and thirty seconds as defaults', function () {
         $sleeps[] = $ms;
     }, random: fn () => 1.0);
 
-    expect($client->sendRequest(get(SAFE))->getStatusCode())->toBe(503)
+    expect($client->sendRequest(getRequest(RETRY_SAFE_PATH))->getStatusCode())->toBe(503)
         ->and($sleeps)->toBe([1000, 2000]);
 
     $http = (new FakeHttpClient)->queue(Responses::text('', 503, ['Retry-After' => '30']), Responses::json('[]'));
     $sleeps = [];
     (new RetryingClient($http, sleep: function (int $ms) use (&$sleeps) {
         $sleeps[] = $ms;
-    }))->sendRequest(get(SAFE));
+    }))->sendRequest(getRequest(RETRY_SAFE_PATH));
 
     expect($sleeps)->toBe([30000]);
 });
@@ -247,12 +247,12 @@ it('retries when Retry-After asks for exactly the maximum wait, not a millisecon
     [$client, $http, $sleeps] = retrying(maxDelayMs: 5000);
     $http->queue(Responses::text('', 503, ['Retry-After' => '5']), Responses::json('[]'));
 
-    expect($client->sendRequest(get(SAFE))->getStatusCode())->toBe(200)->and($sleeps->getArrayCopy())->toBe([5000]);
+    expect($client->sendRequest(getRequest(RETRY_SAFE_PATH))->getStatusCode())->toBe(200)->and($sleeps->getArrayCopy())->toBe([5000]);
 
     [$client, $http] = retrying(maxDelayMs: 4999);
     $http->queue(Responses::text('', 503, ['Retry-After' => '5']), Responses::json('[]'));
 
-    expect($client->sendRequest(get(SAFE))->getStatusCode())->toBe(503);
+    expect($client->sendRequest(getRequest(RETRY_SAFE_PATH))->getStatusCode())->toBe(503);
 });
 
 it('accepts the extreme settings', function (array $arguments) {
@@ -263,7 +263,7 @@ it('never retries when no retries are allowed', function () {
     [$client, $http] = retrying(maxRetries: 0);
     $http->queue(Responses::empty(503), Responses::json('[]'));
 
-    expect($client->sendRequest(get(SAFE))->getStatusCode())->toBe(503)->and($http->requests())->toHaveCount(1);
+    expect($client->sendRequest(getRequest(RETRY_SAFE_PATH))->getStatusCode())->toBe(503)->and($http->requests())->toHaveCount(1);
 });
 
 it('retries a login behind a base path prefix', function () {
@@ -288,7 +288,7 @@ it('doubles the step on every attempt until the cap', function () {
     $sleeps = [];
     (new RetryingClient($http, 4, 100, 100000, sleep: function (int $ms) use (&$sleeps) {
         $sleeps[] = $ms;
-    }, random: fn () => 0.0))->sendRequest(get(SAFE));
+    }, random: fn () => 0.0))->sendRequest(getRequest(RETRY_SAFE_PATH));
 
     expect($sleeps)->toBe([50, 100, 200, 400]);
 });
@@ -299,7 +299,7 @@ it('keeps the jitter within half and all of the step whatever the random source 
     $sleep = function (int $ms) use (&$sleeps) {
         $sleeps[] = $ms;
     };
-    (new RetryingClient($http, 1, $base, 30000, sleep: $sleep, random: fn () => $random))->sendRequest(get(SAFE));
+    (new RetryingClient($http, 1, $base, 30000, sleep: $sleep, random: fn () => $random))->sendRequest(getRequest(RETRY_SAFE_PATH));
 
     expect($sleeps)->toBe([$expected]);
 })->with([
@@ -313,7 +313,7 @@ it('really sleeps with the default sleeper', function () {
     $http = (new FakeHttpClient)->queue(Responses::empty(503), Responses::json('[]'));
     $started = hrtime(true);
 
-    (new RetryingClient($http, 1, baseDelayMs: 20, maxDelayMs: 20))->sendRequest(get(SAFE));
+    (new RetryingClient($http, 1, baseDelayMs: 20, maxDelayMs: 20))->sendRequest(getRequest(RETRY_SAFE_PATH));
 
     expect((hrtime(true) - $started) / 1e6)->toBeGreaterThanOrEqual(9.0);
 });
@@ -325,7 +325,7 @@ it('spreads the waits with the default randomness', function () {
         $sleeps[] = $ms;
     };
 
-    (new RetryingClient($http, 10, 1000, 1_000_000, sleep: $sleep))->sendRequest(get(SAFE));
+    (new RetryingClient($http, 10, 1000, 1_000_000, sleep: $sleep))->sendRequest(getRequest(RETRY_SAFE_PATH));
 
     $steps = array_map(fn (int $attempt) => 1000 * 2 ** $attempt, array_keys($sleeps));
 

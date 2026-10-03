@@ -7,20 +7,20 @@ use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Http\RequestFactory;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
 
-function account(): DatadisConfig
+function factoryAccount(): DatadisConfig
 {
     return new DatadisConfig('A00000000', 'p&ss=w rd/é', baseUrl: 'https://datadis.test');
 }
 
-function requests(?DatadisConfig $config = null): RequestFactory
+function requestFactoryFor(?DatadisConfig $config = null): RequestFactory
 {
     $factory = new HttpFactory;
 
-    return new RequestFactory(($config ?? account())->connection(), $factory, $factory);
+    return new RequestFactory(($config ?? factoryAccount())->connection(), $factory, $factory);
 }
 
 it('builds the login request with credentials in a form body, never in the url', function () {
-    $request = requests()->login(account());
+    $request = requestFactoryFor()->login(factoryAccount());
     parse_str((string) $request->getBody(), $form);
 
     expect($request->getMethod())->toBe('POST')
@@ -31,7 +31,7 @@ it('builds the login request with credentials in a form body, never in the url',
 });
 
 it('sends the headers Datadis needs on every data call', function () {
-    $request = requests()->get('/api-private/api/get-supplies-v2', [], 'jwt-token');
+    $request = requestFactoryFor()->get('/api-private/api/get-supplies-v2', [], 'jwt-token');
 
     expect($request->getMethod())->toBe('GET')
         ->and($request->getHeaderLine('Accept'))->toBe('application/json')
@@ -41,7 +41,7 @@ it('sends the headers Datadis needs on every data call', function () {
 });
 
 it('sends the headers on the login request too', function () {
-    $request = requests()->login(account());
+    $request = requestFactoryFor()->login(factoryAccount());
 
     expect($request->getHeaderLine('Accept-Encoding'))->toBe('identity')
         ->and($request->getHeaderLine('User-Agent'))->toContain('lenorix-datadis-client')
@@ -49,7 +49,7 @@ it('sends the headers on the login request too', function () {
 });
 
 it('drops null query values and encodes the rest', function () {
-    $request = requests()->get('/api-private/api/get-max-power-v2', [
+    $request = requestFactoryFor()->get('/api-private/api/get-max-power-v2', [
         'cups' => 'ES0000000000000000AA0A',
         'startDate' => '2025/03',
         'authorizedNif' => null,
@@ -64,16 +64,16 @@ it('drops null query values and encodes the rest', function () {
 });
 
 it('omits the question mark when there is no query', function () {
-    expect((string) requests()->get('/api-private/api/get-supplies-v2', ['authorizedNif' => null], 't')->getUri())
+    expect((string) requestFactoryFor()->get('/api-private/api/get-supplies-v2', ['authorizedNif' => null], 't')->getUri())
         ->toBe('https://datadis.test/api-private/api/get-supplies-v2');
 });
 
 it('refuses a token that could inject headers', function (string $token) {
-    requests()->get('/x', [], $token);
+    requestFactoryFor()->get('/x', [], $token);
 })->with(["a\r\nX-Evil: 1", 'has space', '', "tab\tsep"])->throws(InvalidArgumentException::class);
 
 it('repeats the key for list values, which is how array parameters are bound', function () {
-    $request = requests()->get('/api-private/api/new-authorization', [
+    $request = requestFactoryFor()->get('/api-private/api/new-authorization', [
         'authorizedNif' => '00000000T',
         'cups' => ['ES0000000000000000AA0A', Scenario::otherCups()],
     ], 't');
@@ -82,13 +82,13 @@ it('repeats the key for list values, which is how array parameters are bound', f
 });
 
 it('drops an empty list', function () {
-    expect(requests()->get('/x', ['cups' => []], 't')->getUri()->getQuery())->toBe('');
+    expect(requestFactoryFor()->get('/x', ['cups' => []], 't')->getUri()->getQuery())->toBe('');
 });
 
 it('refuses list values that are not strings', function () {
-    requests()->get('/x', ['cups' => [1, null]], 't');
+    requestFactoryFor()->get('/x', ['cups' => [1, null]], 't');
 })->throws(InvalidArgumentException::class);
 
 it('refuses query values of other types and maps instead of lists', function (mixed $value) {
-    requests()->get('/x', ['v' => $value], 't');
+    requestFactoryFor()->get('/x', ['v' => $value], 't');
 })->with([[1.5], [true], [['a' => 'b']]])->throws(InvalidArgumentException::class);

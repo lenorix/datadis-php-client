@@ -38,6 +38,10 @@ jobs:
 
     name: P${{ matrix.php }} - ${{ matrix.stability }} - ${{ matrix.os }}
 
+    env:
+      # Coverage, the 100 % threshold and the style check run once, in one cell; the others run the tests.
+      FULL_CHECK: ${{ matrix.os == 'ubuntu-latest' && matrix.php == '8.4' && matrix.stability == 'prefer-stable' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,7 +50,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: mbstring, zlib, json, curl, dom
-          coverage: pcov
+          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.php == '8.4' && matrix.stability == 'prefer-stable' && 'pcov' || 'none' }}
 
       - name: Setup problem matchers
         run: |
@@ -60,8 +64,17 @@ jobs:
         run: composer show -D
 
       - name: Execute tests with the coverage threshold
+        if: env.FULL_CHECK == 'true'
         # Merging the coverage of the whole suite needs more than the default 128 MB.
         run: php -d memory_limit=1G vendor/bin/pest --ci --fail-on-warning --fail-on-risky --fail-on-deprecation --coverage --min=100
+
+      - name: Execute tests
+        if: env.FULL_CHECK != 'true'
+        run: vendor/bin/pest --ci --fail-on-warning --fail-on-risky --fail-on-deprecation
+
+      - name: Code style
+        if: env.FULL_CHECK == 'true'
+        run: composer lint
 
       - name: Static analysis
         run: composer phpstan

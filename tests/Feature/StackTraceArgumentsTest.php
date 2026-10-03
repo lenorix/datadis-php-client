@@ -167,7 +167,7 @@ it('never shows the token when the client or the public client is dumped with a 
     $token = Tokens::jwt(['exp' => time() + 3600]);
     $http->answers = [Responses::text($token), Responses::datadis($public ? '[]' : '{"supplies":[]}')];
     $config = new DatadisConfig('A00000000', 'never-dump-this', baseUrl: 'https://datadis.test');
-    $ledger = new RequestLedger($cache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'));
+    $ledger = new RequestLedger($cache, new RequestFingerprinter(Scenario::SECRET));
     $client = $public
         ? new PublicApiClient($config, $http, tokenCache: $cache)
         : new DatadisClient($config, http: $http, tokenCache: $cache, ledger: $ledger);
@@ -199,8 +199,8 @@ it('keeps the password out of stack trace arguments when a setting is wrong', fu
 });
 
 it('keeps the account NIF out of every dump of the client', function () {
-    $ledger = new RequestLedger(new QuirkyCache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'));
-    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), ledger: $ledger);
+    $ledger = new RequestLedger(new QuirkyCache, new RequestFingerprinter(Scenario::SECRET));
+    $client = new DatadisClient(Scenario::config(), ledger: $ledger);
 
     ob_start();
     var_dump($client);
@@ -245,8 +245,8 @@ it('keeps a body that is not valid JSON out of the traces, chained exceptions in
 });
 
 it('keeps the account NIF out of the traces when the ledger store fails', function (Closure $cache) {
-    $ledger = new RequestLedger($cache(), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'));
-    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: new FakeHttpClient, ledger: $ledger);
+    $ledger = new RequestLedger($cache(), new RequestFingerprinter(Scenario::SECRET));
+    $client = new DatadisClient(Scenario::config(), http: new FakeHttpClient, ledger: $ledger);
 
     expect(tracesOf(fn () => $client->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '2', Month::of(2026, 1))))
         ->not->toContain('A00000000')->not->toContain('ES0000000000000000AA0A');

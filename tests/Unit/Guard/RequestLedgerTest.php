@@ -11,17 +11,13 @@ use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Tests\Support\AtomicCache;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 use Lenorix\DatadisClient\Tests\Support\QuirkyCache;
+use Lenorix\DatadisClient\Tests\Support\Scenario;
 
 $query = ['cups' => 'ES0000000000000000AA0A', 'distributorCode' => '2', 'startDate' => '2026/01', 'endDate' => '2026/01'];
 
-function ledger(FrozenClock $clock): RequestLedger
-{
-    return new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
-}
-
 it('remembers an attempt for 24 hours and a margin for clock differences with Datadis', function () use ($query) {
     $clock = new FrozenClock;
-    $ledger = ledger($clock);
+    $ledger = Scenario::ledger($clock);
 
     expect($ledger->lastAttempt('A00000000', $query))->toBeNull();
 
@@ -39,7 +35,7 @@ it('remembers an attempt for 24 hours and a margin for clock differences with Da
 });
 
 it('forgets an attempt on demand', function () use ($query) {
-    $ledger = ledger(new FrozenClock);
+    $ledger = Scenario::ledger(new FrozenClock);
     $ledger->record('A00000000', $query);
     $ledger->forget('A00000000', $query);
 
@@ -47,7 +43,7 @@ it('forgets an attempt on demand', function () use ($query) {
 });
 
 it('keeps accounts apart', function () use ($query) {
-    $ledger = ledger(new FrozenClock);
+    $ledger = Scenario::ledger(new FrozenClock);
     $ledger->record('A00000000', $query);
 
     expect($ledger->lastAttempt('00000000T', $query))->toBeNull();
@@ -56,14 +52,14 @@ it('keeps accounts apart', function () use ($query) {
 it('stores only a hash, never the CUPS', function () use ($query) {
     $clock = new FrozenClock;
     $cache = new InMemoryCache($clock);
-    (new RequestLedger($cache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock))->record('A00000000', $query);
+    (new RequestLedger($cache, new RequestFingerprinter(Scenario::SECRET), $clock))->record('A00000000', $query);
 
     expect(print_r($cache, true))->not->toContain('ES0000000000000000AA0A')->not->toContain('A00000000');
 });
 
 it('reads a timestamp that the store gives back as a string', function () use ($query) {
     $clock = new FrozenClock;
-    $ledger = new RequestLedger(new QuirkyCache(stringify: true), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger = new RequestLedger(new QuirkyCache(stringify: true), new RequestFingerprinter(Scenario::SECRET), $clock);
     $ledger->record('A00000000', $query);
 
     expect($ledger->lastAttempt('A00000000', $query)?->getTimestamp())->toBe($clock->now()->getTimestamp());
@@ -71,7 +67,7 @@ it('reads a timestamp that the store gives back as a string', function () use ($
 
 it('does not block forever when the store ignores the TTL', function () use ($query) {
     $clock = new FrozenClock;
-    $ledger = new RequestLedger(new QuirkyCache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger = new RequestLedger(new QuirkyCache, new RequestFingerprinter(Scenario::SECRET), $clock);
     $ledger->record('A00000000', $query);
 
     $clock->advance(RequestLedger::WINDOW_SECONDS);
@@ -81,7 +77,7 @@ it('does not block forever when the store ignores the TTL', function () use ($qu
 
 it('ignores values it did not write', function (mixed $value) use ($query) {
     $cache = new QuirkyCache;
-    $ledger = new RequestLedger($cache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), new FrozenClock);
+    $ledger = new RequestLedger($cache, new RequestFingerprinter(Scenario::SECRET), new FrozenClock);
     $ledger->record('A00000000', $query);
     foreach (array_keys($cache->items) as $key) {
         $cache->items[$key] = $value;
@@ -91,7 +87,7 @@ it('ignores values it did not write', function (mixed $value) use ($query) {
 })->with([['yesterday'], [null], [['x']], ['-5'], [1.5]]);
 
 it('fails loudly when the store cannot be read or written', function (QuirkyCache $cache, Closure $use) use ($query) {
-    $ledger = new RequestLedger($cache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), new FrozenClock);
+    $ledger = new RequestLedger($cache, new RequestFingerprinter(Scenario::SECRET), new FrozenClock);
 
     try {
         $use($ledger, $query);
@@ -111,7 +107,7 @@ it('fails loudly when the store cannot be read or written', function (QuirkyCach
 
 it('stores attempts under valid PSR-16 keys', function () use ($query) {
     $cache = new QuirkyCache;
-    (new RequestLedger($cache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), new FrozenClock))->record('A00000000', $query);
+    (new RequestLedger($cache, new RequestFingerprinter(Scenario::SECRET), new FrozenClock))->record('A00000000', $query);
 
     expect(array_keys($cache->items)[0])->toMatch('/^[A-Za-z0-9_.]{1,64}$/');
 });
@@ -119,7 +115,7 @@ it('stores attempts under valid PSR-16 keys', function () use ($query) {
 it('takes a time a little ahead as a recent attempt, but one far in the future as a value it did not write', function (int $ahead, bool $blocks) use ($query) {
     $clock = new FrozenClock;
     $cache = new QuirkyCache;
-    $ledger = new RequestLedger($cache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger = new RequestLedger($cache, new RequestFingerprinter(Scenario::SECRET), $clock);
     $ledger->record('A00000000', $query);
     foreach (array_keys($cache->items) as $key) {
         $cache->items[$key] = $clock->now()->getTimestamp() + $ahead;
@@ -136,7 +132,7 @@ it('takes a time a little ahead as a recent attempt, but one far in the future a
 it('counts a key an atomic store holds even when its value does not, so no two workers can both take it', function (Closure $stored) use ($query) {
     $clock = new FrozenClock;
     $store = new AtomicCache;
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger = new RequestLedger($store, new RequestFingerprinter(Scenario::SECRET), $clock);
     $ledger->record('A00000000', $query);
     foreach (array_keys($store->items) as $key) {
         $store->items[$key] = $stored($clock->now()->getTimestamp());
@@ -152,7 +148,7 @@ it('counts a key an atomic store holds even when its value does not, so no two w
 it('answers a lost atomic claim with the time the other worker sent the query', function () use ($query) {
     $clock = new FrozenClock;
     $store = new AtomicCache;
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger = new RequestLedger($store, new RequestFingerprinter(Scenario::SECRET), $clock);
     $sent = $clock->now()->getTimestamp();
     $ledger->claim('A00000000', $query);
 
@@ -164,8 +160,8 @@ it('answers a lost atomic claim with the time the other worker sent the query', 
 it('takes a window of its own, never shorter than the 24 hours of Datadis', function () use ($query) {
     $clock = new FrozenClock;
     $atomic = new AtomicCache;
-    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, windowSeconds: 86400);
-    $withAtomic = new RequestLedger($atomic, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, 2 * 86400);
+    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter(Scenario::SECRET), $clock, windowSeconds: 86400);
+    $withAtomic = new RequestLedger($atomic, new RequestFingerprinter(Scenario::SECRET), $clock, 2 * 86400);
 
     $ledger->record('A00000000', $query);
     $withAtomic->claim('A00000000', $query);
@@ -177,14 +173,14 @@ it('takes a window of its own, never shorter than the 24 hours of Datadis', func
         ->and($withAtomic->claim('A00000000', $query))->not->toBeNull()
         ->and($atomic->ttls)->toBe([2 * 86400, 2 * 86400]);
 
-    expect(fn () => new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), windowSeconds: 86399))
+    expect(fn () => new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter(Scenario::SECRET), windowSeconds: 86399))
         ->toThrow(ConfigurationException::class, 'at least 86400');
 });
 
 it('remembers an earlier attempt for what is left of its window, in a plain or an atomic store', function (bool $atomic) use ($query) {
     $clock = new FrozenClock;
     $store = $atomic ? new AtomicCache : new InMemoryCache($clock);
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger = new RequestLedger($store, new RequestFingerprinter(Scenario::SECRET), $clock);
     $sentAt = $clock->now()->modify('-23 hours');
 
     expect($ledger->rememberAt('A00000000', $query, $sentAt))->toBeTrue()
@@ -203,7 +199,7 @@ it('remembers an earlier attempt for what is left of its window, in a plain or a
 it('replaces only an older attempt, also one held in an atomic store', function () use ($query) {
     $clock = new FrozenClock;
     $store = new AtomicCache;
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger = new RequestLedger($store, new RequestFingerprinter(Scenario::SECRET), $clock);
 
     $ledger->claim('A00000000', $query);
     $clock->advance(3600);
@@ -216,7 +212,7 @@ it('replaces only an older attempt, also one held in an atomic store', function 
 it('replaces a held key whose time cannot be read, since nothing newer is known', function () use ($query) {
     $clock = new FrozenClock;
     $store = new AtomicCache(staleReads: true);
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger = new RequestLedger($store, new RequestFingerprinter(Scenario::SECRET), $clock);
     $ledger->claim('A00000000', $query);
 
     expect($ledger->rememberAt('A00000000', $query, $clock->now()->modify('-1 hour')))->toBeTrue();
@@ -224,7 +220,7 @@ it('replaces a held key whose time cannot be read, since nothing newer is known'
 
 it('refuses an attempt further in the future than the clock tolerance, and takes one within it', function () use ($query) {
     $clock = new FrozenClock;
-    $ledger = ledger($clock);
+    $ledger = Scenario::ledger($clock);
 
     expect(fn () => $ledger->rememberAt('A00000000', $query, $clock->now()->modify('+'.(RequestLedger::CLOCK_TOLERANCE_SECONDS + 1).' seconds')))->toThrow(InvalidRequestException::class)
         ->and($ledger->rememberAt('A00000000', $query, $clock->now()->modify('+'.RequestLedger::CLOCK_TOLERANCE_SECONDS.' seconds')))->toBeTrue();
@@ -232,7 +228,7 @@ it('refuses an attempt further in the future than the clock tolerance, and takes
 
 it('reports a store that refuses to keep a remembered attempt', function () use ($query) {
     $clock = new FrozenClock;
-    $ledger = new RequestLedger(new QuirkyCache(failSet: true), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger = new RequestLedger(new QuirkyCache(failSet: true), new RequestFingerprinter(Scenario::SECRET), $clock);
 
     $ledger->rememberAt('A00000000', $query, $clock->now()->modify('-1 hour'));
 })->throws(LedgerUnavailableException::class);
@@ -240,7 +236,7 @@ it('reports a store that refuses to keep a remembered attempt', function () use 
 it('leaves alone a query a worker sent while the earlier attempt was being remembered', function () use ($query) {
     $clock = new FrozenClock;
     $store = new AtomicCache;
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger = new RequestLedger($store, new RequestFingerprinter(Scenario::SECRET), $clock);
     // Between the import's read and its add, a worker sends the query now.
     $store->beforeAdd = function (AtomicCache $cache) use ($ledger, $query): void {
         $cache->beforeAdd = null;
@@ -253,7 +249,7 @@ it('leaves alone a query a worker sent while the earlier attempt was being remem
 
 it('frees a query whose key the store could not delete, by an attempt already outside the window', function () use ($query) {
     $clock = new FrozenClock;
-    $ledger = new RequestLedger(new QuirkyCache(failDelete: true), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger = new RequestLedger(new QuirkyCache(failDelete: true), new RequestFingerprinter(Scenario::SECRET), $clock);
 
     $ledger->record('A00000000', $query);
     $ledger->forget('A00000000', $query);
@@ -265,7 +261,7 @@ it('frees a query whose key the store could not delete, by an attempt already ou
 it('reports a store that can neither delete nor overwrite the key', function () use ($query) {
     $clock = new FrozenClock;
     $cache = new QuirkyCache(failDelete: true);
-    $ledger = new RequestLedger($cache, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $ledger = new RequestLedger($cache, new RequestFingerprinter(Scenario::SECRET), $clock);
     $ledger->record('A00000000', $query);
     $cache->failSet = true;
 

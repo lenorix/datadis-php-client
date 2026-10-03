@@ -6,7 +6,6 @@ use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\HttpFactory;
 use GuzzleHttp\Psr7\Request;
 use Lenorix\DatadisClient\DatadisClient;
-use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
@@ -21,28 +20,18 @@ use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 use Lenorix\DatadisClient\Tests\Support\QuirkyCache;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
-use Lenorix\DatadisClient\Tests\Support\Tokens;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
 use Lenorix\DatadisClient\Values\Nif;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
 
-/** @return array{DatadisClient, FakeHttpClient, FrozenClock} */
+/** @return array{DatadisClient, FakeHttpClient, FrozenClock} a client with a ledger of its own, before its login */
 function guarded(): array
 {
-    $http = new FakeHttpClient;
-    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
-    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
-    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+    $s = Scenario::make(ledger: fn (FrozenClock $clock) => Scenario::ledger($clock), login: false);
 
-    return [$client, $http, $clock];
-}
-
-function login(FrozenClock $clock): ResponseInterface
-{
-    return Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 7 * 86400]));
+    return [$s->client, $s->http, $s->clock];
 }
 
 $consumption = fn (DatadisClient $c) => $c->getConsumptionData(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
@@ -51,7 +40,7 @@ $reactive = fn (DatadisClient $c) => $c->getReactiveData(Cups::fromString('ES000
 
 it('refuses locally to repeat a guarded query within the window', function () use ($consumption) {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+    $http->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
 
     $consumption($client);
 
@@ -71,7 +60,7 @@ it('refuses locally to repeat a guarded query within the window', function () us
 
 it('allows the query again once the window is over', function () use ($consumption) {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::datadis('{"timeCurve":[]}'), Responses::datadis('{"timeCurve":[]}'));
+    $http->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"timeCurve":[]}'), Responses::datadis('{"timeCurve":[]}'));
 
     $consumption($client);
     $clock->advance(RequestLedger::WINDOW_SECONDS);
@@ -82,7 +71,7 @@ it('allows the query again once the window is over', function () use ($consumpti
 
 it('treats max power and reactive with the same window as the same query', function () use ($maxPower, $reactive) {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::datadis('{"maxPower":[]}'));
+    $http->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"maxPower":[]}'));
 
     $maxPower($client);
 
@@ -92,7 +81,7 @@ it('treats max power and reactive with the same window as the same query', funct
 
 it('keeps the attempt after failures that may have reached Datadis', function (Closure $failure) use ($consumption) {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), $failure());
+    $http->queue(Scenario::login($clock, 7 * 86400), $failure());
 
     try {
         $consumption($client);
@@ -112,7 +101,7 @@ it('keeps the attempt after failures that may have reached Datadis', function (C
 
 it('forgets the attempt when nothing was sent because login failed', function () use ($consumption) {
     [$client, $http, $clock] = guarded();
-    $http->queue(Responses::text('bad credentials', 401), login($clock), Responses::datadis('{"timeCurve":[]}'));
+    $http->queue(Responses::text('bad credentials', 401), Scenario::login($clock, 7 * 86400), Responses::datadis('{"timeCurve":[]}'));
 
     expect(fn () => $consumption($client))->toThrow(DatadisException::class);
 
@@ -124,7 +113,7 @@ it('forgets the attempt when nothing was sent because login failed', function ()
 
 it('does not guard the endpoints the rule does not cover, which Datadis answers every time', function (Closure $call, string $answer) {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::datadis($answer), Responses::datadis($answer));
+    $http->queue(Scenario::login($clock, 7 * 86400), Responses::datadis($answer), Responses::datadis($answer));
 
     $call($client);
     $call($client);
@@ -138,7 +127,7 @@ it('does not guard the endpoints the rule does not cover, which Datadis answers 
 
 it('does not record queries refused before sending', function () use ($maxPower) {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::datadis('{"maxPower":[]}'));
+    $http->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"maxPower":[]}'));
 
     expect(fn () => $client->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '', Month::of(2026, 1), Month::of(2026, 1)))
         ->toThrow(DatadisException::class);
@@ -162,8 +151,8 @@ it('remembers its own queries without a ledger, so one client never repeats one'
 it('sends nothing when the ledger store cannot be read or cannot record the attempt', function (QuirkyCache $store) use ($consumption) {
     $http = new FakeHttpClient;
     $clock = new FrozenClock;
-    $ledger = new RequestLedger($store, new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
-    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+    $ledger = new RequestLedger($store, new RequestFingerprinter(Scenario::SECRET), $clock);
+    $client = new DatadisClient(Scenario::config(), http: $http, clock: $clock, ledger: $ledger);
 
     try {
         $consumption($client);
@@ -183,16 +172,16 @@ it('sends nothing when the ledger store cannot be read or cannot record the atte
 
 it('does not keep a query blocked when the token store fails before sending', function () use ($consumption) {
     $http = new FakeHttpClient;
-    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
-    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $clock = Scenario::clock();
+    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter(Scenario::SECRET), $clock);
     $client = new DatadisClient(
-        new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'),
+        Scenario::config(),
         http: $http,
         tokenCache: new QuirkyCache(throwOnGet: true, throwOnSet: true),
         clock: $clock,
         ledger: $ledger,
     );
-    $http->queue(login($clock), Responses::datadis('{"timeCurve":[]}'));
+    $http->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"timeCurve":[]}'));
 
     $consumption($client);
 
@@ -202,8 +191,8 @@ it('does not keep a query blocked when the token store fails before sending', fu
 it('keeps the original failure when the ledger cannot forget an unsent query', function () use ($consumption) {
     $http = new FakeHttpClient;
     $clock = new FrozenClock;
-    $ledger = new RequestLedger(new QuirkyCache(throwOnDelete: true), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
-    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+    $ledger = new RequestLedger(new QuirkyCache(throwOnDelete: true), new RequestFingerprinter(Scenario::SECRET), $clock);
+    $client = new DatadisClient(Scenario::config(), http: $http, clock: $clock, ledger: $ledger);
     $http->queue(Responses::text('bad credentials', 401));
 
     expect(fn () => $consumption($client))->toThrow(AuthenticationException::class);
@@ -211,7 +200,7 @@ it('keeps the original failure when the ledger cannot forget an unsent query', f
 
 it('treats max power queries with and without authorizedNif as the same query, as the manual keys them', function () {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::datadis('{"maxPower":[]}'));
+    $http->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"maxPower":[]}'));
 
     $client->getMaxPower(Cups::fromString('ES0000000000000000AA0A'), '2', Month::of(2026, 1), Month::of(2026, 1), Nif::fromString('00000000T'));
 
@@ -221,7 +210,7 @@ it('treats max power queries with and without authorizedNif as the same query, a
 
 it('keeps consumption queries with and without authorizedNif apart, as the manual keys them', function () {
     [$client, $http, $clock] = guarded();
-    $http->queue(login($clock), Responses::datadis('{"timeCurve":[]}'), Responses::datadis('{"timeCurve":[]}'));
+    $http->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"timeCurve":[]}'), Responses::datadis('{"timeCurve":[]}'));
 
     $client->getConsumptionData(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 1), Month::of(2026, 1), authorizedNif: Nif::fromString('00000000T'));
     $client->getConsumptionData(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 1), Month::of(2026, 1));
@@ -231,8 +220,8 @@ it('keeps consumption queries with and without authorizedNif apart, as the manua
 
 it('does not keep a query blocked when its request could not even be built', function () use ($consumption) {
     $http = new FakeHttpClient;
-    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
-    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+    $clock = Scenario::clock();
+    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter(Scenario::SECRET), $clock);
     $failing = new class implements RequestFactoryInterface
     {
         public bool $fail = true;
@@ -246,8 +235,8 @@ it('does not keep a query blocked when its request could not even be built', fun
             return (new HttpFactory)->createRequest($method, $uri);
         }
     };
-    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, requestFactory: $failing, ledger: $ledger);
-    $http->queue(login($clock), Responses::datadis('{"timeCurve":[]}'));
+    $client = new DatadisClient(Scenario::config(), http: $http, clock: $clock, requestFactory: $failing, ledger: $ledger);
+    $http->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"timeCurve":[]}'));
 
     expect(fn () => $consumption($client))->toThrow(ConfigurationException::class);
 
@@ -258,21 +247,20 @@ it('does not keep a query blocked when its request could not even be built', fun
 });
 
 /** @return array{DatadisClient, FakeHttpClient} a worker of an application, on a store several workers share */
-function worker(AtomicCache $store, FrozenClock $clock, bool $atomic): array
+function sharedStoreWorker(AtomicCache $store, FrozenClock $clock, bool $atomic): array
 {
     $http = new FakeHttpClient;
-    $ledger = new RequestLedger($atomic ? $store : $store->withoutAdd(), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
 
-    return [new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger), $http];
+    return [Scenario::client($http, $clock, Scenario::ledger($clock, $atomic ? $store : $store->withoutAdd())), $http];
 }
 
 it('lets only one of two workers send the same query at once when the store adds atomically', function () use ($consumption) {
-    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $clock = Scenario::clock();
     // Each worker checks before the other has written: only an atomic add can tell them apart.
     $store = new AtomicCache(staleReads: true);
-    [$first, $firstHttp] = worker($store, $clock, atomic: true);
-    [$second, $secondHttp] = worker($store, $clock, atomic: true);
-    $firstHttp->queue(login($clock), Responses::datadis('{"timeCurve":[]}'));
+    [$first, $firstHttp] = sharedStoreWorker($store, $clock, atomic: true);
+    [$second, $secondHttp] = sharedStoreWorker($store, $clock, atomic: true);
+    $firstHttp->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"timeCurve":[]}'));
 
     $consumption($first);
 
@@ -281,12 +269,12 @@ it('lets only one of two workers send the same query at once when the store adds
 });
 
 it('sends the query from both workers in that race with a plain PSR-16 store, as documented', function () use ($consumption) {
-    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $clock = Scenario::clock();
     $store = new AtomicCache(staleReads: true);
-    [$first, $firstHttp] = worker($store, $clock, atomic: false);
-    [$second, $secondHttp] = worker($store, $clock, atomic: false);
-    $firstHttp->queue(login($clock), Responses::datadis('{"timeCurve":[]}'));
-    $secondHttp->queue(login($clock), Responses::datadis('{"timeCurve":[]}'));
+    [$first, $firstHttp] = sharedStoreWorker($store, $clock, atomic: false);
+    [$second, $secondHttp] = sharedStoreWorker($store, $clock, atomic: false);
+    $firstHttp->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"timeCurve":[]}'));
+    $secondHttp->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"timeCurve":[]}'));
 
     $consumption($first);
     $consumption($second);
@@ -295,10 +283,10 @@ it('sends the query from both workers in that race with a plain PSR-16 store, as
 });
 
 it('frees an unsent query again with an atomic store, and sends nothing when the store fails', function () use ($consumption) {
-    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $clock = Scenario::clock();
     $store = new AtomicCache;
-    [$client, $http] = worker($store, $clock, atomic: true);
-    $http->queue(Responses::text('bad credentials', 401), login($clock), Responses::datadis('{"timeCurve":[]}'));
+    [$client, $http] = sharedStoreWorker($store, $clock, atomic: true);
+    $http->queue(Responses::text('bad credentials', 401), Scenario::login($clock, 7 * 86400), Responses::datadis('{"timeCurve":[]}'));
 
     expect(fn () => $consumption($client))->toThrow(AuthenticationException::class);
 
@@ -313,10 +301,10 @@ it('frees an unsent query again with an atomic store, and sends nothing when the
 
 it('says when a query refused locally was last attempted and from when it is allowed again', function (?int $window) use ($consumption) {
     $http = new FakeHttpClient;
-    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
-    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock, windowSeconds: $window);
-    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
-    $http->queue(login($clock), Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+    $clock = Scenario::clock();
+    $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter(Scenario::SECRET), $clock, windowSeconds: $window);
+    $client = new DatadisClient(Scenario::config(), http: $http, clock: $clock, ledger: $ledger);
+    $http->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
     $sentAt = $clock->now()->getTimestamp();
 
     $consumption($client);
@@ -360,7 +348,7 @@ it('cannot say either for the 429 of Datadis itself', function () use ($consumpt
 
 it('says which months a refused query asked for, and keeps Datadis\'s own 429 as the cause', function () use ($consumption) {
     [$client, $http] = guarded();
-    $http->queue(login(new FrozenClock), Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+    $http->queue(Scenario::login(new FrozenClock, 7 * 86400), Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
     $consumption($client);
 
     try {
@@ -396,9 +384,9 @@ it('counts the window in elapsed seconds across a change of the clocks, whatever
     try {
         $http = new FakeHttpClient;
         $clock = new FrozenClock(new DateTimeImmutable($sentAt));
-        $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
-        $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
-        $http->queue(login($clock), Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+        $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter(Scenario::SECRET), $clock);
+        $client = new DatadisClient(Scenario::config(), http: $http, clock: $clock, ledger: $ledger);
+        $http->queue(Scenario::login($clock, 7 * 86400), Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
         $client->getConsumptionData(Cups::fromString('ES0000000000000000AA0A'), '2', 5, Month::of(2026, 3), Month::of(2026, 3));
         $clock->advance(3600);
 

@@ -14,34 +14,34 @@ use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Http\ResponseClassifier;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 
-const ENDPOINT = 'get-consumption-data-v2';
+const CLASSIFIED_ENDPOINT = 'get-consumption-data-v2';
 
 it('decodes a JSON object', function () {
-    $decoded = ResponseClassifier::decode(Responses::json('{"timeCurve":[{"a":1}],"distributorError":[]}'), ENDPOINT);
+    $decoded = ResponseClassifier::decode(Responses::json('{"timeCurve":[{"a":1}],"distributorError":[]}'), CLASSIFIED_ENDPOINT);
 
     expect($decoded)->toBe(['timeCurve' => [['a' => 1]], 'distributorError' => []]);
 });
 
 it('decodes a JSON list, including an empty one', function () {
-    expect(ResponseClassifier::decode(Responses::json('[]'), ENDPOINT))->toBe([])
-        ->and(ResponseClassifier::decode(Responses::json('[{"cups":"x"}]'), ENDPOINT))->toBe([['cups' => 'x']]);
+    expect(ResponseClassifier::decode(Responses::json('[]'), CLASSIFIED_ENDPOINT))->toBe([])
+        ->and(ResponseClassifier::decode(Responses::json('[{"cups":"x"}]'), CLASSIFIED_ENDPOINT))->toBe([['cups' => 'x']]);
 });
 
 it('tolerates a byte order mark and surrounding whitespace', function () {
-    expect(ResponseClassifier::decode(Responses::json("\xEF\xBB\xBF \n[1]\n"), ENDPOINT))->toBe([1]);
+    expect(ResponseClassifier::decode(Responses::json("\xEF\xBB\xBF \n[1]\n"), CLASSIFIED_ENDPOINT))->toBe([1]);
 });
 
 it('inflates a gzip body that is not labelled as gzip', function () {
-    expect(ResponseClassifier::decode(Responses::json((string) gzencode('{"a":1}')), ENDPOINT))->toBe(['a' => 1]);
+    expect(ResponseClassifier::decode(Responses::json((string) gzencode('{"a":1}')), CLASSIFIED_ENDPOINT))->toBe(['a' => 1]);
 });
 
 it('keeps a plain body whose bytes only look like a broken gzip header', function () {
-    expect(fn () => ResponseClassifier::decode(Responses::json("\x1f\x8bnot really gzip"), ENDPOINT))
+    expect(fn () => ResponseClassifier::decode(Responses::json("\x1f\x8bnot really gzip"), CLASSIFIED_ENDPOINT))
         ->toThrow(UninterpretableResponseException::class);
 });
 
 it('maps empty bodies and 204 to no data', function (Response $response) {
-    ResponseClassifier::decode($response, ENDPOINT);
+    ResponseClassifier::decode($response, CLASSIFIED_ENDPOINT);
 })->with([
     '200 empty' => fn () => Responses::empty(200),
     '200 blank' => fn () => Responses::text("  \n"),
@@ -49,7 +49,7 @@ it('maps empty bodies and 204 to no data', function (Response $response) {
 ])->throws(NoDataException::class);
 
 it('maps unusable 200 bodies to an uninterpretable response', function (Response $response) {
-    ResponseClassifier::decode($response, ENDPOINT);
+    ResponseClassifier::decode($response, CLASSIFIED_ENDPOINT);
 })->with([
     'html maintenance page' => fn () => Responses::text('<html><body>Mantenimiento</body></html>', 200, ['Content-Type' => 'text/html']),
     'json string' => fn () => Responses::datadis('"maintenance"'),
@@ -63,14 +63,14 @@ it('maps each error status to its exception', function (Response $response, stri
     $thrown = null;
 
     try {
-        ResponseClassifier::decode($response, ENDPOINT);
+        ResponseClassifier::decode($response, CLASSIFIED_ENDPOINT);
     } catch (Throwable $e) {
         $thrown = $e;
     }
 
     expect($thrown)->toBeInstanceOf($class)
         ->and($thrown->httpStatus)->toBe($response->getStatusCode())
-        ->and($thrown->endpoint)->toBe(ENDPOINT)
+        ->and($thrown->endpoint)->toBe(CLASSIFIED_ENDPOINT)
         ->and($thrown->requestSent)->toBeTrue();
 })->with([
     'rejected parameters' => [fn () => Responses::datadisError('MeasurementType incorrecto ', 400), RequestRejectedException::class],
@@ -87,7 +87,7 @@ it('maps each error status to its exception', function (Response $response, stri
 
 it('reads the message of the error bodies Datadis sends', function (Response $response, string $detail) {
     try {
-        ResponseClassifier::decode($response, ENDPOINT);
+        ResponseClassifier::decode($response, CLASSIFIED_ENDPOINT);
     } catch (DatadisException $e) {
         expect($e->detail)->toContain($detail);
 
@@ -103,7 +103,7 @@ it('reads the message of the error bodies Datadis sends', function (Response $re
 
 it('reads an empty 500 body without failing', function () {
     try {
-        ResponseClassifier::decode(Responses::empty(500), ENDPOINT);
+        ResponseClassifier::decode(Responses::empty(500), CLASSIFIED_ENDPOINT);
     } catch (ServiceUnavailableException $e) {
         expect($e->httpStatus)->toBe(500)->and($e->detail)->toBe('');
 
@@ -117,7 +117,7 @@ it('redacts identifiers Datadis echoes in error bodies', function () {
     $body = 'Invalid cups ES0000000000000000AA0A for authorizedNif A00000000';
 
     try {
-        ResponseClassifier::decode(Responses::text($body, 400), ENDPOINT);
+        ResponseClassifier::decode(Responses::text($body, 400), CLASSIFIED_ENDPOINT);
     } catch (RequestRejectedException $e) {
         expect($e->getMessage())->not->toContain('ES0000000000000000AA0A')->not->toContain('A00000000')
             ->and($e->detail)->not->toContain('ES0000000000000000AA0A')->not->toContain('A00000000');
@@ -130,7 +130,7 @@ it('redacts identifiers Datadis echoes in error bodies', function () {
 
 it('caps the detail excerpt', function () {
     try {
-        ResponseClassifier::decode(Responses::text(str_repeat('x', 5000), 500), ENDPOINT);
+        ResponseClassifier::decode(Responses::text(str_repeat('x', 5000), 500), CLASSIFIED_ENDPOINT);
     } catch (ServiceUnavailableException $e) {
         expect(mb_strlen($e->detail))->toBeLessThanOrEqual(300);
 
@@ -141,33 +141,33 @@ it('caps the detail excerpt', function () {
 });
 
 it('returns the text of a successful answer, empty or not', function () {
-    expect(ResponseClassifier::assertSuccessful(Responses::empty(200), ENDPOINT))->toBe('')
-        ->and(ResponseClassifier::assertSuccessful(Responses::empty(204), ENDPOINT))->toBe('')
-        ->and(ResponseClassifier::assertSuccessful(Responses::text('OK'), ENDPOINT))->toBe('OK');
+    expect(ResponseClassifier::assertSuccessful(Responses::empty(200), CLASSIFIED_ENDPOINT))->toBe('')
+        ->and(ResponseClassifier::assertSuccessful(Responses::empty(204), CLASSIFIED_ENDPOINT))->toBe('')
+        ->and(ResponseClassifier::assertSuccessful(Responses::text('OK'), CLASSIFIED_ENDPOINT))->toBe('OK');
 });
 
 it('fails an unsuccessful answer the same way decode does', function () {
-    ResponseClassifier::assertSuccessful(Responses::text('no', 403), ENDPOINT);
+    ResponseClassifier::assertSuccessful(Responses::text('no', 403), CLASSIFIED_ENDPOINT);
 })->throws(AuthorizationException::class);
 
 it('reads a body that is not UTF-8 as Windows-1252 instead of failing it', function () {
-    $decoded = ResponseClassifier::decode(Responses::json("[{\"distributor\":\"EDISTRIBUCI\xD3N\"}]"), ENDPOINT);
+    $decoded = ResponseClassifier::decode(Responses::json("[{\"distributor\":\"EDISTRIBUCI\xD3N\"}]"), CLASSIFIED_ENDPOINT);
 
     expect($decoded[0]['distributor'])->toBe('EDISTRIBUCIÓN');
 });
 
 it('leaves a valid UTF-8 body untouched', function () {
-    expect(ResponseClassifier::decode(Responses::json('[{"distributor":"EDISTRIBUCIÓN"}]'), ENDPOINT)[0]['distributor'])->toBe('EDISTRIBUCIÓN');
+    expect(ResponseClassifier::decode(Responses::json('[{"distributor":"EDISTRIBUCIÓN"}]'), CLASSIFIED_ENDPOINT)[0]['distributor'])->toBe('EDISTRIBUCIÓN');
 });
 
 it('writes the message with and without a detail', function () {
-    expect(fn () => ResponseClassifier::decode(Responses::empty(500), ENDPOINT))->toThrow(ServiceUnavailableException::class, ENDPOINT.': Datadis answered HTTP 500.')
-        ->and(fn () => ResponseClassifier::decode(Responses::text('boom', 500), ENDPOINT))->toThrow(ServiceUnavailableException::class, ENDPOINT.': Datadis answered HTTP 500 · boom');
+    expect(fn () => ResponseClassifier::decode(Responses::empty(500), CLASSIFIED_ENDPOINT))->toThrow(ServiceUnavailableException::class, CLASSIFIED_ENDPOINT.': Datadis answered HTTP 500.')
+        ->and(fn () => ResponseClassifier::decode(Responses::text('boom', 500), CLASSIFIED_ENDPOINT))->toThrow(ServiceUnavailableException::class, CLASSIFIED_ENDPOINT.': Datadis answered HTTP 500 · boom');
 });
 
 it('extracts the message of a JSON error body and keeps anything else as text', function (string $body, string $detail) {
     try {
-        ResponseClassifier::decode(Responses::text($body, 400), ENDPOINT);
+        ResponseClassifier::decode(Responses::text($body, 400), CLASSIFIED_ENDPOINT);
     } catch (RequestRejectedException $e) {
         expect($e->detail)->toBe($detail);
 
@@ -188,7 +188,7 @@ it('leaves no PHP error behind when a gzip-looking body is not gzip', function (
     error_clear_last();
 
     try {
-        ResponseClassifier::decode(Responses::json("\x1f\x8bnot really gzip"), ENDPOINT);
+        ResponseClassifier::decode(Responses::json("\x1f\x8bnot really gzip"), CLASSIFIED_ENDPOINT);
     } catch (UninterpretableResponseException) {
     }
 
@@ -197,7 +197,7 @@ it('leaves no PHP error behind when a gzip-looking body is not gzip', function (
 
 it('reads the real "not authorized" 400 as an authorization failure', function () {
     try {
-        ResponseClassifier::decode(Responses::text('No se encuentra autorizado el cups introducido', 400), ENDPOINT);
+        ResponseClassifier::decode(Responses::text('No se encuentra autorizado el cups introducido', 400), CLASSIFIED_ENDPOINT);
     } catch (AuthorizationException $e) {
         expect($e->httpStatus)->toBe(400);
 

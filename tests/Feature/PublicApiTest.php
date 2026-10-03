@@ -18,13 +18,14 @@ use Lenorix\DatadisClient\PublicApiClient;
 use Lenorix\DatadisClient\Tests\Support\AnswersLogin;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\Responses;
+use Lenorix\DatadisClient\Tests\Support\Scenario;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
 
 function publicApi(FakeHttpClient $http): PublicApiClient
 {
-    return new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), new AnswersLogin($http));
+    return new PublicApiClient(Scenario::config(), new AnswersLogin($http));
 }
 
 function searchQuery(): PublicSearchQuery
@@ -236,7 +237,7 @@ it('builds public requests with the PSR-17 factories it is given', function () {
     };
     $http = (new FakeHttpClient)->queue(Responses::json('[]'));
 
-    (new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), new AnswersLogin($http), $factory))->apiSearch(searchQuery());
+    (new PublicApiClient(Scenario::config(), new AnswersLogin($http), $factory))->apiSearch(searchQuery());
 
     expect($http->lastRequest()->getHeaderLine('X-Built-By'))->toBe('app');
 });
@@ -279,7 +280,7 @@ it('logs in and sends the token, which the public API requires (verified: 401 wi
         Responses::text(Tokens::jwt(['exp' => time() + 3600])),
         Responses::json(datadisFixture('public/search.json')),
     );
-    $api = new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), $http);
+    $api = new PublicApiClient(Scenario::config(), $http);
 
     $result = $api->apiSearch(searchQuery());
 

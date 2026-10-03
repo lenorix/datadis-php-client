@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use GuzzleHttp\Psr7\HttpFactory;
 use Lenorix\DatadisClient\DatadisClient;
-use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\Payloads;
@@ -128,7 +127,7 @@ it('builds requests with the PSR-17 factories it is given', function () {
         }
     };
     $http = (new FakeHttpClient)->queue(Responses::text(Tokens::datadis(time())), Responses::datadis('{"supplies":[]}'));
-    $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, requestFactory: $requests, streamFactory: $streams);
+    $client = new DatadisClient(Scenario::config(), http: $http, requestFactory: $requests, streamFactory: $streams);
 
     $client->getSupplies();
 

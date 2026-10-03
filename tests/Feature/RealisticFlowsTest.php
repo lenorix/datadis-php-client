@@ -12,16 +12,10 @@ use Lenorix\DatadisClient\Tests\Support\Scenario;
 use Lenorix\DatadisClient\Tests\Support\Tokens;
 use Lenorix\DatadisClient\Time\Month;
 use Lenorix\DatadisClient\Values\Cups;
-use Psr\Http\Message\ResponseInterface;
 
 /*
  * Whole flows an application goes through, with answers shaped like Datadis's.
  */
-
-function refusedTokenAnswer(): ResponseInterface
-{
-    return Responses::datadisError(datadisFixture('errors/401-spring.json'), 401);
-}
 
 it('finds a supply by the CUPS printed on an invoice and queries it with the CUPS Datadis listed', function () {
     [$client, $http, $clock] = flowClient(ApiVersion::V1);
@@ -73,7 +67,7 @@ it('does not send a guarded query again after a refused token, and counts it aga
     [$client, $http, $clock] = flowClient($version, ledger: true);
     $http->queue(
         Responses::text(Tokens::datadis($clock->now()->getTimestamp())),
-        refusedTokenAnswer(),
+        Scenario::refusedToken(),
     );
     $query = fn () => $client->getConsumptionData(Cups::fromString(Scenario::CUPS), '2', 5, Month::of(2026, 7));
 

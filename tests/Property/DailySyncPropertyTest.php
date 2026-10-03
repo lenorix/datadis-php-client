@@ -9,6 +9,7 @@ use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Support\InMemoryCache;
 use Lenorix\DatadisClient\Tests\Support\DatadisWithTheRule;
 use Lenorix\DatadisClient\Tests\Support\FrozenClock;
+use Lenorix\DatadisClient\Tests\Support\Scenario;
 
 /*
  * A sync that runs every day: wherever in the first hours of the day each run reaches Datadis,
@@ -29,7 +30,7 @@ it('brings the current month every day of a daily sync, however much earlier eac
             $zone = new DateTimeZone('Europe/Madrid');
             $clock = new FrozenClock(new DateTimeImmutable('2026-09-20', $zone));
             $datadis = new DatadisWithTheRule($clock, $skew);
-            $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
+            $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter(Scenario::SECRET), $clock);
             $start = $clock->now();
             $run = function () use ($shared, $datadis, $ledger): void {
                 $client = $datadis->client($shared ? $ledger : null);

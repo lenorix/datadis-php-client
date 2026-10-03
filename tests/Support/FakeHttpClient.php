@@ -74,6 +74,14 @@ final class FakeHttpClient implements ClientInterface
         return $this->requests;
     }
 
+    /** @return array<string, string|array<string>> the query of the n-th request (0 is the login) */
+    public function query(int $index = 1): array
+    {
+        parse_str($this->requests()[$index]->getUri()->getQuery(), $query);
+
+        return $query;
+    }
+
     public function lastRequest(): RequestInterface
     {
         return $this->requests[array_key_last($this->requests)]

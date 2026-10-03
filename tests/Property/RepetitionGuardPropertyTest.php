@@ -6,7 +6,6 @@ use Eris\Generators;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\Request;
 use Lenorix\DatadisClient\DatadisClient;
-use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
@@ -32,8 +31,8 @@ it('sends a guarded query only when the model says the window is free', function
         ->then(function (array $steps) {
             $clock = new FrozenClock(new DateTimeImmutable('2026-09-01 00:00:00', new DateTimeZone('Europe/Madrid')));
             $http = new FakeHttpClient;
-            $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
-            $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+            $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter(Scenario::SECRET), $clock);
+            $client = new DatadisClient(Scenario::config(), http: $http, clock: $clock, ledger: $ledger);
             $http->queue(Responses::text(Tokens::jwt(['exp' => $clock->now()->getTimestamp() + 365 * 86400])));
 
             $success = ['{"timeCurve":[],"distributorError":[]}', '{"maxPower":[],"distributorError":[]}', '{"reactiveEnergy":{},"distributorError":[]}', '{"maxPower":[],"distributorError":[]}'];
@@ -85,7 +84,7 @@ it('sends a guarded query only when the model says the window is free', function
 });
 
 it('gives a different fingerprint whenever any parameter differs, and the same one for the same values', function () {
-    $fingerprinter = new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!');
+    $fingerprinter = new RequestFingerprinter(Scenario::SECRET);
     $count = count(RequestFingerprinter::PARAMETERS);
     $values = Generators::oneOf(Generators::constant(null), Generators::string(), Generators::choose(0, 9));
 
@@ -127,10 +126,10 @@ it('refuses exactly the query that was remembered, built the same way as the cal
             Generators::tuple(Generators::choose(0, 2), Generators::choose(0, 1), Generators::choose(0, 2), Generators::choose(0, 1)),
         )
         ->then(function (string $rememberedKind, string $calledKind, array $remembered, array $called) {
-            $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+            $clock = Scenario::clock();
             $http = new FakeHttpClient;
-            $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter('a-secret-key-of-at-least-32-bytes!!'), $clock);
-            $client = new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $http, clock: $clock, ledger: $ledger);
+            $ledger = new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter(Scenario::SECRET), $clock);
+            $client = new DatadisClient(Scenario::config(), http: $http, clock: $clock, ledger: $ledger);
             // [months back of the start, a second month, holder (none, the account, a third party), quarter-hourly]
             $args = function (array $q) {
                 $start = Month::of(2026, 8)->addMonths(-$q[0]);

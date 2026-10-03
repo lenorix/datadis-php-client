@@ -7,7 +7,6 @@ namespace Lenorix\DatadisClient\Tests\Support;
 use DateTimeZone;
 use Lenorix\DatadisClient\Data\Supply;
 use Lenorix\DatadisClient\DatadisClient;
-use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use LogicException;
 use Psr\Http\Client\ClientInterface;
@@ -30,7 +29,7 @@ final class DatadisWithTheRule implements ClientInterface
     /** A client of this Datadis on the given clock: a new process each time, unless it shares a ledger. */
     public function client(?RequestLedger $ledger = null): DatadisClient
     {
-        return new DatadisClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), http: $this, clock: $this->clock, ledger: $ledger);
+        return new DatadisClient(Scenario::config(), http: $this, clock: $this->clock, ledger: $ledger);
     }
 
     public static function supply(string $validDateFrom = '2020/01/01', string $validDateTo = ''): Supply

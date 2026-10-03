@@ -76,7 +76,7 @@ it('fails instead of answering "no distributors" when not one code can be read',
 
 it('fails instead of answering "no data" when not one public record can be read', function (string $body) {
     $http = (new FakeHttpClient)->queue(Responses::json($body));
-    $api = new PublicApiClient(new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'), new AnswersLogin($http));
+    $api = new PublicApiClient(Scenario::config(), new AnswersLogin($http));
 
     expect(fn () => $api->apiSearch(new PublicSearchQuery(new DateTimeImmutable('2026-01-01'), new DateTimeImmutable('2026-01-31'), [Community::Madrid])))
         ->toThrow(UninterpretableResponseException::class);

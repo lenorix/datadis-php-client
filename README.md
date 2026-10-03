@@ -447,7 +447,7 @@ The client uses API v2 by default. Pass `version: ApiVersion::V1` for the older 
 
 ## Using it in a Laravel application
 
-The package does not depend on any framework, but it is ready to be configured from one: `DatadisClient::fromArray()` and `DatadisConfig::fromArray()` take the same array you keep in your configuration, with the values as the environment gives them (text such as `"120"` or `"v1"` is fine, empty values count as not given, and keys the package does not know are ignored, so your own Datadis settings can live next to them).
+This section is for Laravel 13 or later, on Guzzle 8 or later, as the package requires. The package does not depend on any framework, but it is ready to be configured from one: `DatadisClient::fromArray()` and `DatadisConfig::fromArray()` take the same array you keep in your configuration, with the values as the environment gives them (text such as `"120"` or `"v1"` is fine, empty values count as not given, and keys the package does not know are ignored, so your own Datadis settings can live next to them).
 
 Datadis is a third-party service, so its credentials go in `config/services.php`, like any other:
 

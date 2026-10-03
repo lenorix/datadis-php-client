@@ -3,11 +3,9 @@
 declare(strict_types=1);
 
 use Lenorix\DatadisClient\DatadisClient;
-use Lenorix\DatadisClient\DatadisConfig;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
-use Lenorix\DatadisClient\Tests\Support\FrozenClock;
 use Lenorix\DatadisClient\Tests\Support\QuirkyCache;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
@@ -66,10 +64,10 @@ it('takes a range Datadis serves', function () {
 });
 
 it('hands the token of a fresh check to every client sharing the token cache, without more logins', function () {
-    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $clock = Scenario::clock();
     $cache = new QuirkyCache;
     $http = new FakeHttpClient;
-    $config = new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test');
+    $config = Scenario::config();
     $checker = new DatadisClient($config, http: $http, tokenCache: $cache, clock: $clock);
     $worker = new DatadisClient($config, http: $http, tokenCache: $cache, clock: $clock);
     $http->queue(Responses::text(Tokens::datadis($clock->now()->getTimestamp())));
@@ -99,10 +97,10 @@ it('leaves the cached token in place when a fresh check fails, so the next call 
 });
 
 it('never uses again a token it dropped, even when the token cache cannot delete it', function (Closure $call, int $logins) {
-    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $clock = Scenario::clock();
     $http = new FakeHttpClient;
     $client = new DatadisClient(
-        new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'),
+        Scenario::config(),
         http: $http,
         tokenCache: new QuirkyCache(failDelete: true),
         clock: $clock,
@@ -133,10 +131,10 @@ it('never uses again a token it dropped, even when the token cache cannot delete
 ]);
 
 it('takes the same token back from a new login without logging in on every call', function (bool $deleteFails, Closure $renew) {
-    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $clock = Scenario::clock();
     $http = new FakeHttpClient;
     $client = new DatadisClient(
-        new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'),
+        Scenario::config(),
         http: $http,
         tokenCache: new QuirkyCache(failDelete: $deleteFails),
         clock: $clock,
