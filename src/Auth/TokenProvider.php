@@ -55,6 +55,12 @@ final class TokenProvider
 
     private readonly string $cacheKey;
 
+    /**
+     * A hash of the token this provider dropped last: a store whose delete() fails keeps handing
+     * it back, and a token Datadis rejected (or a check asked to ignore) must not be used again.
+     */
+    private ?string $dropped = null;
+
     public function __construct(
         private readonly DatadisConfig $config,
         private readonly RequestFactory $requests,
@@ -83,7 +89,7 @@ final class TokenProvider
 
         // The store's TTL is not trusted alone: a store that ignores it would hand back an expired
         // token, and every call would fail with a 401 until it went.
-        if (is_string($cached) && self::clean($cached) === $cached && ! $this->expired($cached)) {
+        if (is_string($cached) && self::clean($cached) === $cached && ! $this->expired($cached) && hash('sha256', $cached) !== $this->dropped) {
             return $cached;
         }
 
@@ -115,12 +121,26 @@ final class TokenProvider
         return $expiry !== null && $expiry - self::SKEW_SECONDS <= $this->clock->now()->getTimestamp();
     }
 
+    /**
+     * Drops the cached token, so the next token() logs in. The token is also remembered as
+     * dropped: a store that fails to delete it would otherwise hand it back.
+     */
     public function invalidate(): void
     {
         try {
+            $cached = ($this->cache)()->get($this->cacheKey);
+        } catch (Throwable) {
+            $cached = null;
+        }
+
+        if (is_string($cached)) {
+            $this->dropped = hash('sha256', $cached);
+        }
+
+        try {
             ($this->cache)()->delete($this->cacheKey);
         } catch (Throwable) {
-            // Nothing else to do: a stale token is detected by the 401 it causes.
+            // Nothing else to do: the token is remembered as dropped, and is not used again.
         }
     }
 

@@ -97,3 +97,37 @@ it('leaves the shared token cache empty when a fresh check fails, so the next ca
     expect(array_map(fn ($r) => $r->getUri()->getPath(), array_slice($s->http->requests(), 2)))
         ->toBe(['/nikola-auth/tokens/login', '/api-private/api/get-supplies-v2']);
 });
+
+it('never uses again a token it dropped, even when the token cache cannot delete it', function (Closure $call, int $logins) {
+    $clock = new FrozenClock(new DateTimeImmutable('2026-09-15 10:00:00', new DateTimeZone('Europe/Madrid')));
+    $http = new FakeHttpClient;
+    $client = new DatadisClient(
+        new DatadisConfig('A00000000', 'secret', baseUrl: 'https://datadis.test'),
+        http: $http,
+        tokenCache: new QuirkyCache(failDelete: true),
+        clock: $clock,
+    );
+    $first = Tokens::datadis($clock->now()->getTimestamp());
+    $http->queue(Responses::text($first));
+    $client->checkLogin();
+    $clock->advance(60);
+    $second = Tokens::datadis($clock->now()->getTimestamp());
+
+    $call($client, $http, $second);
+
+    $requests = $http->requests();
+    $data = array_values(array_filter($requests, fn ($r) => $r->getMethod() === 'GET'));
+
+    expect(array_filter($requests, fn ($r) => $r->getMethod() === 'POST'))->toHaveCount($logins)
+        ->and(array_map(fn ($r) => $r->getHeaderLine('Authorization'), array_slice($data, -1)))->toBe($data === [] ? [] : ['Bearer '.$second]);
+})->with([
+    'a fresh check logs in' => [function ($client, $http, $second) {
+        $http->queue(Responses::text($second));
+        $client->checkLogin(fresh: true);
+    }, 2],
+    'a rejected token is not sent again' => [function ($client, $http, $second) {
+        $http->queue(Responses::datadisError('{"status":401}', 401), Responses::text($second), Responses::datadis('{"supplies":[],"distributorError":[]}'), Responses::datadis('{"supplies":[],"distributorError":[]}'));
+        $client->getSupplies();
+        $client->getSupplies();
+    }, 2],
+]);
