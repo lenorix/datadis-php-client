@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-03
+
 ### Changed
 
 - **The supplies and distributors lists** throw `UninterpretableResponseException` (with `httpStatus` 404 and the `NoDataException` as previous) for a 404 other than Datadis's `No supplies`, instead of `NoDataException`, which an application treats as an empty result.
@@ -255,7 +257,8 @@ First public release.
 - Daylight saving change days placed on the right hours, in Madrid and the Canary Islands.
 - Helpers: month planning within the served window, access tariff recognition, the 2.0TD schedule, national holidays, territories, CUPS and NIF values (NIF control letter checked), personal data redaction.
 
-[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/lenorix/datadis-php-client/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/lenorix/datadis-php-client/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/lenorix/datadis-php-client/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/lenorix/datadis-php-client/compare/v0.6.1...v0.6.2
