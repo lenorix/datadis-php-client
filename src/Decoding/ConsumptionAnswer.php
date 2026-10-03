@@ -29,7 +29,7 @@ final class ConsumptionAnswer
 
         // Rows keep their order, so the n-th row with the same date and time is its n-th occurrence.
         $seen = [];
-        $decode = static function (array $row) use (&$seen, $zone, $measurementType, $quarters): ?ConsumptionReading {
+        $decode = static function (#[SensitiveParameter] array $row) use (&$seen, $zone, $measurementType, $quarters): ?ConsumptionReading {
             $key = json_encode([$row['date'] ?? null, $row['time'] ?? null]);
             $occurrence = $seen[$key] = ($seen[$key] ?? -1) + 1;
 

@@ -49,6 +49,7 @@ use Lenorix\DatadisClient\Time\MonthPlanner;
 use Lenorix\DatadisClient\Values\Cups;
 use Lenorix\DatadisClient\Values\MeasurementType;
 use Lenorix\DatadisClient\Values\Nif;
+use LogicException;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -190,7 +191,7 @@ final class DatadisClient
      * goes as `authorizedNif` on every supply and data call, so no call can forget it. It shares the
      * login, the connection and the 24 hour guard with this client, which stays as it was.
      */
-    public function forHolder(Nif $holder): self
+    public function forHolder(#[SensitiveParameter] Nif $holder): self
     {
         $client = clone $this;
         $client->queries = $this->queries->withHolder($holder);
@@ -207,7 +208,7 @@ final class DatadisClient
      * @throws InvalidRequestException when the distributor code or the holder is refused before sending
      * @throws DatadisException for a failure while talking to Datadis; check `requestSent`
      */
-    public function getSupplies(?Nif $authorizedNif = null, ?string $distributorCode = null): ApiResult
+    public function getSupplies(#[SensitiveParameter] ?Nif $authorizedNif = null, ?string $distributorCode = null): ApiResult
     {
         if ($distributorCode !== null) {
             $this->queries->assertDistributorCode($distributorCode);
@@ -215,7 +216,7 @@ final class DatadisClient
 
         $decoded = $this->fetchList(Endpoint::Supplies, ['authorizedNif' => $this->queries->authorized($authorizedNif), 'distributorCode' => $distributorCode]);
 
-        return Envelope::build($decoded, 'supplies', $this->name(Endpoint::Supplies), fn (array $row) => Supply::fromRow($row, $this->timeZone));
+        return Envelope::build($decoded, 'supplies', $this->name(Endpoint::Supplies), fn (#[SensitiveParameter] array $row) => Supply::fromRow($row, $this->timeZone));
     }
 
     /**
@@ -224,7 +225,7 @@ final class DatadisClient
      *
      * @throws DatadisException as getSupplies()
      */
-    public function findSupply(Cups $cups, ?Nif $authorizedNif = null): ?Supply
+    public function findSupply(#[SensitiveParameter] Cups $cups, #[SensitiveParameter] ?Nif $authorizedNif = null): ?Supply
     {
         $result = $this->getSupplies($authorizedNif);
         $supply = SupplyMatcher::pick($result->records, $cups);
@@ -248,7 +249,7 @@ final class DatadisClient
      * @throws InvalidRequestException when the holder is refused before sending
      * @throws DatadisException for a failure while talking to Datadis
      */
-    public function getDistributorsWithSupplies(?Nif $authorizedNif = null): ApiResult
+    public function getDistributorsWithSupplies(#[SensitiveParameter] ?Nif $authorizedNif = null): ApiResult
     {
         $decoded = $this->fetchList(Endpoint::Distributors, ['authorizedNif' => $this->queries->authorized($authorizedNif)]);
 
@@ -263,7 +264,7 @@ final class DatadisClient
      * @throws InvalidRequestException when the distributor code or the holder is refused before sending
      * @throws DatadisException for a failure while talking to Datadis
      */
-    public function getContractDetail(Cups $cups, string $distributorCode, ?Nif $authorizedNif = null): ApiResult
+    public function getContractDetail(#[SensitiveParameter] Cups $cups, string $distributorCode, #[SensitiveParameter] ?Nif $authorizedNif = null): ApiResult
     {
         $this->queries->assertDistributorCode($distributorCode);
 
@@ -273,7 +274,7 @@ final class DatadisClient
             'authorizedNif' => $this->queries->authorized($authorizedNif),
         ]);
 
-        return Envelope::build($decoded, 'contract', $this->name(Endpoint::ContractDetail), fn (array $row) => ContractDetail::fromRow($row, $this->timeZone));
+        return Envelope::build($decoded, 'contract', $this->name(Endpoint::ContractDetail), fn (#[SensitiveParameter] array $row) => ContractDetail::fromRow($row, $this->timeZone));
     }
 
     /**
@@ -290,13 +291,13 @@ final class DatadisClient
      * @throws DatadisException for any other failure; check `requestSent`
      */
     public function getConsumptionData(
-        Cups $cups,
+        #[SensitiveParameter] Cups $cups,
         string $distributorCode,
         int $pointType,
         Month $startDate,
         ?Month $endDate = null,
         MeasurementType $measurementType = MeasurementType::Hourly,
-        ?Nif $authorizedNif = null,
+        #[SensitiveParameter] ?Nif $authorizedNif = null,
     ): ApiResult {
         $decoded = $this->fetch(Endpoint::Consumption, $this->queries->consumption($cups, $distributorCode, $pointType, $startDate, $endDate, $measurementType, $authorizedNif));
 
@@ -313,11 +314,11 @@ final class DatadisClient
      * @throws LedgerUnavailableException when the ledger's store fails (nothing sent)
      * @throws DatadisException for any other failure; check `requestSent`
      */
-    public function getMaxPower(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
+    public function getMaxPower(#[SensitiveParameter] Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): ApiResult
     {
         $decoded = $this->fetch(Endpoint::MaxPower, $this->queries->power($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
 
-        return Envelope::build($decoded, 'maxPower', $this->name(Endpoint::MaxPower), fn (array $row) => MaxPowerReading::fromRow($row, $this->timeZone))->forMonths($startDate, $endDate ?? $startDate);
+        return Envelope::build($decoded, 'maxPower', $this->name(Endpoint::MaxPower), fn (#[SensitiveParameter] array $row) => MaxPowerReading::fromRow($row, $this->timeZone))->forMonths($startDate, $endDate ?? $startDate);
     }
 
     /**
@@ -332,7 +333,7 @@ final class DatadisClient
      * @throws DatadisException for any other failure; check `requestSent`
      * @throws UnsupportedOperationException on API v1 (nothing sent)
      */
-    public function getReactiveData(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
+    public function getReactiveData(#[SensitiveParameter] Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): ApiResult
     {
         $this->queries->assertReactive();
 
@@ -358,13 +359,13 @@ final class DatadisClient
      */
     public function rememberConsumptionData(
         DateTimeInterface $sentAt,
-        Cups $cups,
+        #[SensitiveParameter] Cups $cups,
         string $distributorCode,
         int $pointType,
         Month $startDate,
         ?Month $endDate = null,
         MeasurementType $measurementType = MeasurementType::Hourly,
-        ?Nif $authorizedNif = null,
+        #[SensitiveParameter] ?Nif $authorizedNif = null,
     ): bool {
         return $this->remember(Endpoint::Consumption, $this->queries->consumption($cups, $distributorCode, $pointType, $startDate, $endDate, $measurementType, $authorizedNif, served: false), $sentAt);
     }
@@ -379,7 +380,7 @@ final class DatadisClient
      * @throws InvalidRequestException when a value is not valid, the range is reversed or `$sentAt` is in the future
      * @throws LedgerUnavailableException when the ledger's store fails
      */
-    public function rememberMaxPower(DateTimeInterface $sentAt, Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): bool
+    public function rememberMaxPower(DateTimeInterface $sentAt, #[SensitiveParameter] Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): bool
     {
         return $this->remember(Endpoint::MaxPower, $this->queries->power($cups, $distributorCode, $startDate, $endDate, $authorizedNif, served: false), $sentAt);
     }
@@ -394,7 +395,7 @@ final class DatadisClient
      * @throws InvalidRequestException when a value is not valid, the range is reversed or `$sentAt` is in the future
      * @throws LedgerUnavailableException when the ledger's store fails
      */
-    public function rememberReactiveData(DateTimeInterface $sentAt, Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): bool
+    public function rememberReactiveData(DateTimeInterface $sentAt, #[SensitiveParameter] Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): bool
     {
         $this->queries->assertReactive();
 
@@ -414,7 +415,7 @@ final class DatadisClient
         Month $startDate,
         ?Month $endDate = null,
         MeasurementType $measurementType = MeasurementType::Hourly,
-        ?Nif $authorizedNif = null,
+        #[SensitiveParameter] ?Nif $authorizedNif = null,
     ): bool {
         [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
@@ -428,7 +429,7 @@ final class DatadisClient
      * @throws InvalidRequestException when the supply or the range cannot be queried, or `$sentAt` is in the future
      * @throws LedgerUnavailableException when the ledger's store fails
      */
-    public function rememberMaxPowerOf(DateTimeInterface $sentAt, #[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): bool
+    public function rememberMaxPowerOf(DateTimeInterface $sentAt, #[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): bool
     {
         [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
@@ -442,7 +443,7 @@ final class DatadisClient
      * @throws InvalidRequestException when the supply or the range cannot be queried, or `$sentAt` is in the future
      * @throws LedgerUnavailableException when the ledger's store fails
      */
-    public function rememberReactiveDataOf(DateTimeInterface $sentAt, #[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): bool
+    public function rememberReactiveDataOf(DateTimeInterface $sentAt, #[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): bool
     {
         [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
@@ -458,13 +459,13 @@ final class DatadisClient
      * @throws LedgerUnavailableException when the ledger's store cannot be read
      */
     public function consumptionDataBlockedUntil(
-        Cups $cups,
+        #[SensitiveParameter] Cups $cups,
         string $distributorCode,
         int $pointType,
         Month $startDate,
         ?Month $endDate = null,
         MeasurementType $measurementType = MeasurementType::Hourly,
-        ?Nif $authorizedNif = null,
+        #[SensitiveParameter] ?Nif $authorizedNif = null,
     ): ?DateTimeImmutable {
         return $this->guard->blockedUntil(Endpoint::Consumption, $this->queries->consumption($cups, $distributorCode, $pointType, $startDate, $endDate, $measurementType, $authorizedNif));
     }
@@ -475,7 +476,7 @@ final class DatadisClient
      * @throws InvalidRequestException when the query could not be sent anyway
      * @throws LedgerUnavailableException when the ledger's store cannot be read
      */
-    public function maxPowerBlockedUntil(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
+    public function maxPowerBlockedUntil(#[SensitiveParameter] Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): ?DateTimeImmutable
     {
         return $this->guard->blockedUntil(Endpoint::MaxPower, $this->queries->power($cups, $distributorCode, $startDate, $endDate, $authorizedNif));
     }
@@ -487,7 +488,7 @@ final class DatadisClient
      * @throws InvalidRequestException when the query could not be sent anyway
      * @throws LedgerUnavailableException when the ledger's store cannot be read
      */
-    public function reactiveDataBlockedUntil(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
+    public function reactiveDataBlockedUntil(#[SensitiveParameter] Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): ?DateTimeImmutable
     {
         $this->queries->assertReactive();
 
@@ -505,7 +506,7 @@ final class DatadisClient
         Month $startDate,
         ?Month $endDate = null,
         MeasurementType $measurementType = MeasurementType::Hourly,
-        ?Nif $authorizedNif = null,
+        #[SensitiveParameter] ?Nif $authorizedNif = null,
     ): ?DateTimeImmutable {
         [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
@@ -518,7 +519,7 @@ final class DatadisClient
      * @throws InvalidRequestException when the supply or the range cannot be queried
      * @throws LedgerUnavailableException when the ledger's store cannot be read
      */
-    public function maxPowerBlockedUntilOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
+    public function maxPowerBlockedUntilOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): ?DateTimeImmutable
     {
         [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
@@ -531,7 +532,7 @@ final class DatadisClient
      * @throws InvalidRequestException when the supply or the range cannot be queried
      * @throws LedgerUnavailableException when the ledger's store cannot be read
      */
-    public function reactiveDataBlockedUntilOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ?DateTimeImmutable
+    public function reactiveDataBlockedUntilOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): ?DateTimeImmutable
     {
         [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
@@ -557,7 +558,7 @@ final class DatadisClient
      * @throws InvalidRequestException when the supply was listed without a usable CUPS or distributor code
      * @throws DatadisException as getContractDetail()
      */
-    public function getContractDetailOf(#[SensitiveParameter] Supply $supply, ?Nif $authorizedNif = null): ApiResult
+    public function getContractDetailOf(#[SensitiveParameter] Supply $supply, #[SensitiveParameter] ?Nif $authorizedNif = null): ApiResult
     {
         [$cups, $code] = $this->queries->queryable($supply);
 
@@ -578,7 +579,7 @@ final class DatadisClient
         Month $startDate,
         ?Month $endDate = null,
         MeasurementType $measurementType = MeasurementType::Hourly,
-        ?Nif $authorizedNif = null,
+        #[SensitiveParameter] ?Nif $authorizedNif = null,
     ): ApiResult {
         [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
         $pointType = $this->queries->pointTypeOf($supply);
@@ -595,7 +596,7 @@ final class DatadisClient
      * @throws InvalidRequestException when the supply cannot be queried (nothing sent)
      * @throws DatadisException as getMaxPower()
      */
-    public function getMaxPowerOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
+    public function getMaxPowerOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): ApiResult
     {
         [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
@@ -611,7 +612,7 @@ final class DatadisClient
      * @throws InvalidRequestException when the supply cannot be queried (nothing sent)
      * @throws DatadisException as getReactiveData()
      */
-    public function getReactiveDataOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, ?Nif $authorizedNif = null): ApiResult
+    public function getReactiveDataOf(#[SensitiveParameter] Supply $supply, Month $startDate, ?Month $endDate = null, #[SensitiveParameter] ?Nif $authorizedNif = null): ApiResult
     {
         [$cups, $code] = $this->queries->queryable($supply, $startDate, $endDate);
 
@@ -635,7 +636,7 @@ final class DatadisClient
     public function getLatestConsumptionDataOf(
         #[SensitiveParameter] Supply $supply,
         MeasurementType $measurementType = MeasurementType::Hourly,
-        ?Nif $authorizedNif = null,
+        #[SensitiveParameter] ?Nif $authorizedNif = null,
     ): ApiResult {
         [$from, $to] = $this->latest($supply);
 
@@ -653,7 +654,7 @@ final class DatadisClient
      * @throws RepetitionWindowException when today's range was asked in the last 24 hours (its months in `startDate`, `endDate`)
      * @throws DatadisException as getMaxPowerOf()
      */
-    public function getLatestMaxPowerOf(#[SensitiveParameter] Supply $supply, ?Nif $authorizedNif = null): ApiResult
+    public function getLatestMaxPowerOf(#[SensitiveParameter] Supply $supply, #[SensitiveParameter] ?Nif $authorizedNif = null): ApiResult
     {
         [$from, $to] = $this->latest($supply);
 
@@ -678,10 +679,10 @@ final class DatadisClient
      * @throws DatadisException for a failure while talking to Datadis; check `requestSent` before making it again
      */
     public function newAuthorization(
-        Nif $authorizedNif,
+        #[SensitiveParameter] Nif $authorizedNif,
         ?DateTimeInterface $startDate = null,
         ?DateTimeInterface $endDate = null,
-        Cups ...$cups,
+        #[SensitiveParameter] Cups ...$cups,
     ): string {
         $this->queries->assertThirdParty($authorizedNif);
 
@@ -704,7 +705,7 @@ final class DatadisClient
      * @throws InvalidRequestException for the account itself or a CUPS listed twice (nothing sent)
      * @throws DatadisException for a failure while talking to Datadis; check `requestSent` before making it again
      */
-    public function cancelAuthorization(Nif $authorizedNif, Cups ...$cups): string
+    public function cancelAuthorization(#[SensitiveParameter] Nif $authorizedNif, #[SensitiveParameter] Cups ...$cups): string
     {
         $this->queries->assertThirdParty($authorizedNif);
 
@@ -719,11 +720,11 @@ final class DatadisClient
      *
      * @return ApiResult<Authorization>
      */
-    public function listAuthorization(?Nif $ownerNif = null): ApiResult
+    public function listAuthorization(#[SensitiveParameter] ?Nif $ownerNif = null): ApiResult
     {
         $decoded = $this->fetch(Endpoint::Authorizations, ['ownerNif' => $ownerNif?->value()]);
 
-        return Envelope::build($decoded, 'authorizations', $this->name(Endpoint::Authorizations), fn (array $row) => Authorization::fromRow($row, $this->timeZone));
+        return Envelope::build($decoded, 'authorizations', $this->name(Endpoint::Authorizations), fn (#[SensitiveParameter] array $row) => Authorization::fromRow($row, $this->timeZone));
     }
 
     /**
@@ -751,7 +752,7 @@ final class DatadisClient
             throw $e;
         }
 
-        return Envelope::build($decoded, 'groups', $this->name(Endpoint::Groups), static fn (array $row) => Group::fromRow($row));
+        return Envelope::build($decoded, 'groups', $this->name(Endpoint::Groups), static fn (#[SensitiveParameter] array $row) => Group::fromRow($row));
     }
 
     /**
@@ -764,14 +765,14 @@ final class DatadisClient
     {
         $decoded = $this->fetch(Endpoint::PartnerUsers, []);
 
-        return Envelope::build($decoded, 'users', $this->name(Endpoint::PartnerUsers), fn (array $row) => PartnerUser::fromRow($row, $this->timeZone));
+        return Envelope::build($decoded, 'users', $this->name(Endpoint::PartnerUsers), fn (#[SensitiveParameter] array $row) => PartnerUser::fromRow($row, $this->timeZone));
     }
 
     /**
      * Unlinks a user from the partner account. It changes data, so it is never retried
      * automatically. UNVERIFIED: returns the raw answer text.
      */
-    public function partnerDeleteUser(Nif $nif): string
+    public function partnerDeleteUser(#[SensitiveParameter] Nif $nif): string
     {
         return $this->fetchText(Endpoint::PartnerDeleteUser, ['nif' => $nif->value()]);
     }
@@ -781,7 +782,7 @@ final class DatadisClient
      * (`{"partnerAgreementDate": null}`, verified). The format of a date that is set has not been
      * seen. `$nif` is only for callers allowed to consult another partner.
      */
-    public function partnerAgreementDate(?Nif $nif = null): ?string
+    public function partnerAgreementDate(#[SensitiveParameter] ?Nif $nif = null): ?string
     {
         $decoded = $this->fetch(Endpoint::PartnerAgreementDate, ['nif' => $nif?->value()]);
 
@@ -832,5 +833,16 @@ final class DatadisClient
     private function name(Endpoint $endpoint): string
     {
         return $endpoint->name($this->version);
+    }
+
+    /**
+     * A client holds a live connection, the login and the account's credentials: build one where
+     * it is used (a queued job builds its own) instead of sending it along.
+     *
+     * @return array<string, mixed>
+     */
+    public function __serialize(): array
+    {
+        throw new LogicException('DatadisClient cannot be serialized: it holds the account\'s credentials and a live connection. Build one where it is used.');
     }
 }

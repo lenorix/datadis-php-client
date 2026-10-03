@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Data;
 
 use Lenorix\DatadisClient\Values\Cups;
+use SensitiveParameter;
 
 /**
  * Chooses the supply row that belongs to a CUPS.
@@ -16,7 +17,7 @@ use Lenorix\DatadisClient\Values\Cups;
 final readonly class SupplyMatcher
 {
     /** @param list<Supply> $supplies */
-    public static function pick(array $supplies, Cups $cups): ?Supply
+    public static function pick(array $supplies, #[SensitiveParameter] Cups $cups): ?Supply
     {
         $best = null;
 

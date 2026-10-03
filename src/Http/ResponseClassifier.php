@@ -57,7 +57,7 @@ final class ResponseClassifier
         $decoded = ExactJson::decode(trim($body));
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new UninterpretableResponseException("{$endpoint}: the answer is not valid JSON.", $status, self::detail($body), $endpoint);
+            throw new UninterpretableResponseException("{$endpoint}: the answer is not valid JSON.", $status, self::kindOf($body), $endpoint);
         }
 
         // An empty object decodes like an empty list, but it is never a valid answer: every object
@@ -70,7 +70,7 @@ final class ResponseClassifier
             throw new UninterpretableResponseException(
                 "{$endpoint}: the answer is not a JSON object or list.",
                 $status,
-                self::detail($body),
+                self::kindOf($body),
                 $endpoint,
             );
         }
@@ -98,7 +98,7 @@ final class ResponseClassifier
 
     private static function failure(int $status, #[SensitiveParameter] string $body, string $endpoint): DatadisException
     {
-        $detail = self::detail($body);
+        $detail = self::errorText($body);
         $message = "{$endpoint}: Datadis answered HTTP {$status}".($detail === '' ? '.' : " · {$detail}");
 
         return match (true) {
@@ -140,25 +140,45 @@ final class ResponseClassifier
     }
 
     /**
-     * Error bodies are `text/plain`, Spring style JSON (`{"timestamp","status","error","message","path"}`)
-     * or `{"message": "..."}`. Whatever it is, the result is a redacted single-line excerpt.
+     * Only Datadis's own words about the failure: error bodies are `text/plain`, Spring style JSON
+     * (`{"timestamp","status","error","message","path"}`) or `{"message": "..."}`. Of JSON, only the
+     * message (or the error) is kept, never the other fields, which may echo a name or an address
+     * no redaction can recognise; a list, an HTML page or any other JSON is described, not quoted.
+     * What is kept is redacted and cut to one line.
      */
-    private static function detail(#[SensitiveParameter] string $body): string
+    public static function errorText(#[SensitiveParameter] string $body): string
     {
         $text = trim($body);
 
-        if (str_starts_with($text, '{')) {
-            try {
-                $decoded = json_decode($text, true, 512, JSON_THROW_ON_ERROR);
-            } catch (JsonException) {
-                $decoded = null;
-            }
+        try {
+            $decoded = json_decode($text, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            $decoded = null;
+        }
 
-            if (is_array($decoded) && isset($decoded['message']) && is_string($decoded['message'])) {
-                $text = $decoded['message'];
+        foreach (['message', 'error'] as $key) {
+            if (is_array($decoded) && isset($decoded[$key]) && is_string($decoded[$key]) && trim($decoded[$key]) !== '') {
+                return PersonalDataRedactor::excerpt($decoded[$key]);
             }
         }
 
-        return PersonalDataRedactor::excerpt($text);
+        return self::kindOf($text);
+    }
+
+    /**
+     * Plain text is Datadis's own words (`No groups`, `No supplies`) and is quoted, redacted. JSON
+     * or HTML is described, not quoted: an answer that cannot be read may be a data answer cut
+     * short, with names, addresses and emails no redaction can recognise.
+     */
+    private static function kindOf(#[SensitiveParameter] string $body): string
+    {
+        $text = trim($body);
+
+        return match (true) {
+            $text === '' => '',
+            str_starts_with($text, '<') => '[an HTML page, not quoted]',
+            str_starts_with($text, '{'), str_starts_with($text, '[') => '[a JSON answer, not quoted]',
+            default => PersonalDataRedactor::excerpt($text),
+        };
     }
 }

@@ -32,6 +32,8 @@ function traceStrings(mixed $value): array
         is_string($value) => [$value],
         is_array($value) => array_merge([], ...array_map('traceStrings', array_values($value))),
         $value instanceof RequestInterface => [(string) $value->getUri(), (string) $value->getBody()],
+        // Error reporters (Ignition, Flare, Ray) render a Stringable argument as its text.
+        $value instanceof Stringable => [(string) $value, print_r($value, true), var_export($value, true)],
         is_object($value) => [print_r($value, true), var_export($value, true)],
         default => [],
     };
@@ -300,3 +302,26 @@ it('keeps an error body that echoes a NIF or a CUPS out of the traces', function
 
     expect($traces)->not->toContain('00000000T')->not->toContain('ES0000000000000000AA0A');
 })->with([400, 403, 500]);
+
+it('keeps a base URL or a user agent that holds credentials or a NIF out of the traces', function (array $settings, string $secret) {
+    expect(tracesOf(fn () => new DatadisConfig('00000000T', 'pw', ...$settings)))->not->toContain($secret)
+        ->and(tracesOf(fn () => DatadisClient::fromArray(['username' => '00000000T', 'password' => 'pw'] + array_combine(
+            array_map(fn (string $k) => $k === 'baseUrl' ? 'base_url' : 'user_agent', array_keys($settings)),
+            array_values($settings),
+        ))))->not->toContain($secret);
+})->with([
+    'credentials in the base URL' => [['baseUrl' => 'https://00000000T:Secr3tPw@datadis.es'], 'Secr3tPw'],
+    'a CUPS in the base URL' => [['baseUrl' => 'https://datadis.es/?cups='.Scenario::CUPS], Scenario::CUPS],
+    'a NIF in the user agent' => [['userAgent' => "app\x0100000001R"], '00000001R'],
+]);
+
+it('keeps what a recording HTTP client sent out of every dump of the client', function () {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis('{"supplies":[],"distributorError":[]}'));
+    $s->client->forHolder(Nif::fromString('00000001R'))->getSupplies();
+    $token = $s->http->requests()[1]->getHeaderLine('Authorization');
+
+    foreach ([print_r($s->client, true), var_export($s->client, true)] as $dump) {
+        expect($dump)->not->toContain(substr($token, 7))->not->toContain('00000001R');
+    }
+});

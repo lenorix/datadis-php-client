@@ -177,35 +177,6 @@ final class TokenProvider
         }
     }
 
-    /**
-     * The text with the password and the username removed: as they are, form encoded (`+` for a
-     * space), percent encoded (`%20`), escaped in JSON (with or without escaped slashes and
-     * non-ASCII characters) and escaped in HTML. Case is ignored, since
-     * percent encoding may use either case; removing too much is the safe side.
-     */
-    private function withoutCredentials(#[SensitiveParameter] string $text): string
-    {
-        $forms = [];
-
-        foreach ([$this->config->password(), $this->config->username()] as $secret) {
-            $html = htmlspecialchars($secret, ENT_QUOTES | ENT_HTML401);
-            // HTML escapes a quote as &apos; (HTML5), &#039; (PHP's default) or &#39;.
-            $forms = [...$forms, $secret, urlencode($secret), rawurlencode($secret), htmlspecialchars($secret, ENT_QUOTES | ENT_HTML5), $html, str_replace('&#039;', '&#39;', $html)];
-
-            // JSON, with and without escaped slashes and non-ASCII characters.
-            foreach ([0, JSON_UNESCAPED_SLASHES, JSON_UNESCAPED_UNICODE, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE] as $flags) {
-                $json = json_encode($secret, $flags);
-                $forms[] = $json === false ? $secret : substr($json, 1, -1);
-            }
-        }
-
-        // Longest first, so a form that contains another is removed whole.
-        $forms = array_values(array_unique(array_filter($forms, static fn (string $form): bool => $form !== '')));
-        usort($forms, static fn (string $a, string $b): int => strlen($b) <=> strlen($a));
-
-        return str_ireplace($forms, PersonalDataRedactor::PLACEHOLDER, $text);
-    }
-
     private function login(): string
     {
         $response = $this->transport->send($this->requests->login($this->config), self::ENDPOINT, preflight: true);
@@ -214,7 +185,7 @@ final class TokenProvider
         // The login body is where credentials were submitted, so an error body that echoes them must not
         // reach a message. The password cannot be recognised by shape, hence the exact match, in the
         // forms a server echoes a form field in.
-        $detail = PersonalDataRedactor::excerpt($this->withoutCredentials($text));
+        $detail = ResponseClassifier::errorText(PersonalDataRedactor::withoutSecrets($text, [$this->config->password(), $this->config->username()]));
         $message = self::ENDPOINT.": Datadis answered HTTP {$status}".($detail === '' ? '.' : " · {$detail}");
 
         if ($status === 401 || $status === 403) {
@@ -244,15 +215,22 @@ final class TokenProvider
         return $token;
     }
 
-    /** The bare token, or null when the body is not one (an HTML page, JSON, text with spaces). */
-    private static function clean(string $text): ?string
+    /**
+     * A JWT, as Datadis issues (verified): three base64url parts separated by dots, the last one
+     * possibly empty. A login that answers 200 with anything else (`null`, `OK`, an HTML page) has
+     * not handed over a token, and sending it would only cost a 401.
+     */
+    private const string JWT_PATTERN = '/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/D';
+
+    /** The bare token, or null when the body is not a JWT. */
+    private static function clean(#[SensitiveParameter] string $text): ?string
     {
         $token = trim($text);
         $token = trim($token, "\"'");
         $token = trim($token);
         $token = preg_replace('/^Bearer\s+/i', '', $token) ?? $token;
 
-        return preg_match(RequestFactory::TOKEN_PATTERN, $token) === 1 ? $token : null;
+        return preg_match(self::JWT_PATTERN, $token) === 1 ? $token : null;
     }
 
     /** @return array<string, mixed> */

@@ -33,17 +33,17 @@ final readonly class DataQueries
         private DatadisConfig $config,
         private ClockInterface $clock,
         private ApiVersion $version,
-        private ?Nif $holder = null,
+        #[SensitiveParameter] private ?Nif $holder = null,
     ) {}
 
     /** The same rules, for the client of a holder who authorized the account (see DatadisClient::forHolder()). */
-    public function withHolder(Nif $holder): self
+    public function withHolder(#[SensitiveParameter] Nif $holder): self
     {
         return new self($this->config, $this->clock, $this->version, $holder);
     }
 
     /** authorizedNif is only for a third party's supplies: for the account itself it must be omitted. */
-    public function authorized(?Nif $nif): ?string
+    public function authorized(#[SensitiveParameter] ?Nif $nif): ?string
     {
         if ($nif !== null && $this->holder !== null && ! $nif->equals($this->holder)) {
             throw new InvalidRequestException('This client reads the supplies of one holder; use forHolder() for another one.');
@@ -54,7 +54,7 @@ final readonly class DataQueries
         return $nif === null || $nif->value() === $this->config->username() ? null : $nif->value();
     }
 
-    public function assertThirdParty(Nif $nif): void
+    public function assertThirdParty(#[SensitiveParameter] Nif $nif): void
     {
         if ($nif->value() === $this->config->username()) {
             throw new InvalidRequestException('An authorization is for a third party, not for the account itself.');
@@ -65,9 +65,9 @@ final readonly class DataQueries
      * @param  array<Cups>  $cups
      * @return list<string>
      */
-    public function cupsList(array $cups): array
+    public function cupsList(#[SensitiveParameter] array $cups): array
     {
-        $values = array_values(array_map(static fn (Cups $c): string => $c->value(), $cups));
+        $values = array_values(array_map(static fn (#[SensitiveParameter] Cups $c): string => $c->value(), $cups));
 
         if (count(array_unique($values)) !== count($values)) {
             throw new InvalidRequestException('The same CUPS is listed more than once.');
@@ -125,13 +125,13 @@ final readonly class DataQueries
      * @return array<string, string|int|null>
      */
     public function consumption(
-        Cups $cups,
+        #[SensitiveParameter] Cups $cups,
         string $distributorCode,
         int $pointType,
         Month $startDate,
         ?Month $endDate,
         MeasurementType $measurementType,
-        ?Nif $authorizedNif,
+        #[SensitiveParameter] ?Nif $authorizedNif,
         bool $served = true,
     ): array {
         $query = $this->month($cups, $distributorCode, $startDate, $endDate, $served);
@@ -149,7 +149,7 @@ final readonly class DataQueries
      *
      * @return array<string, string|null>
      */
-    public function power(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate, ?Nif $authorizedNif, bool $served = true): array
+    public function power(#[SensitiveParameter] Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate, #[SensitiveParameter] ?Nif $authorizedNif, bool $served = true): array
     {
         return $this->month($cups, $distributorCode, $startDate, $endDate, $served) + ['authorizedNif' => $this->authorized($authorizedNif)];
     }
@@ -159,7 +159,7 @@ final readonly class DataQueries
      *
      * @return array{cups: string, distributorCode: string, startDate: string, endDate: string}
      */
-    private function month(Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate, bool $served = true): array
+    private function month(#[SensitiveParameter] Cups $cups, string $distributorCode, Month $startDate, ?Month $endDate, bool $served = true): array
     {
         $endDate ??= $startDate;
         $this->assertDistributorCode($distributorCode);

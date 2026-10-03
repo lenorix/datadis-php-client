@@ -57,10 +57,10 @@ final readonly class DatadisConfig
     public function __construct(
         #[SensitiveParameter] string $username,
         #[SensitiveParameter] string $password,
-        string $baseUrl = self::DEFAULT_BASE_URL,
+        #[SensitiveParameter] string $baseUrl = self::DEFAULT_BASE_URL,
         float $timeout = self::DEFAULT_TIMEOUT,
         float $connectTimeout = self::DEFAULT_CONNECT_TIMEOUT,
-        string $userAgent = self::DEFAULT_USER_AGENT,
+        #[SensitiveParameter] string $userAgent = self::DEFAULT_USER_AGENT,
         bool $checkUsernameControl = true,
     ) {
         $username = strtoupper(trim($username));

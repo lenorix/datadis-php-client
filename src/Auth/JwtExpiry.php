@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Auth;
 
 use JsonException;
+use SensitiveParameter;
 
 /**
  * Reads the `exp` claim of a JWT without verifying it. The signature is Datadis' business: the only
@@ -15,7 +16,7 @@ use JsonException;
 final class JwtExpiry
 {
     /** Unix timestamp of the expiry, or null when the token has no usable `exp`. */
-    public static function read(string $token): ?int
+    public static function read(#[SensitiveParameter] string $token): ?int
     {
         $parts = explode('.', $token);
 

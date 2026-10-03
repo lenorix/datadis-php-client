@@ -76,15 +76,15 @@ it('takes a token from a store that ignores the TTL while it is still valid', fu
 it('falls back to a conservative lifetime when the token has no exp', function () {
     $clock = new FrozenClock;
     $stack = new Stack(clock: $clock, cache: new InMemoryCache($clock));
-    $stack->http->queue(Responses::text('opaque-token-without-claims'), Responses::text('another-opaque-token'));
+    $stack->http->queue(Responses::text('opaque.without.claims'), Responses::text('another.opaque.token'));
 
-    expect($stack->tokens->token())->toBe('opaque-token-without-claims');
+    expect($stack->tokens->token())->toBe('opaque.without.claims');
 
     $clock->advance(TokenProvider::FALLBACK_TTL_SECONDS - TokenProvider::SKEW_SECONDS - 1);
-    expect($stack->tokens->token())->toBe('opaque-token-without-claims');
+    expect($stack->tokens->token())->toBe('opaque.without.claims');
 
     $clock->advance(2);
-    expect($stack->tokens->token())->toBe('another-opaque-token');
+    expect($stack->tokens->token())->toBe('another.opaque.token');
 });
 
 it('uses a token that is already expired once without caching it', function () {
@@ -351,7 +351,7 @@ it('removes a poisoned token from the store even if saving the new one fails', f
 });
 
 it('removes the password a login error echoes in any of the forms a server writes a form field in', function (Closure $echo) {
-    $password = 'review only-secret/ñ"\'&<1>';
+    $password = 'review only-secret/ñ*~"\'&<1>';
     $stack = new Stack(config: new DatadisConfig('A00000000', $password, baseUrl: 'https://datadis.test'));
     $stack->http->queue(Responses::text('bad login: '.$echo($password), 401));
 
@@ -375,7 +375,28 @@ it('removes the password a login error echoes in any of the forms a server write
     'in HTML' => [fn (string $p) => '<td>'.htmlspecialchars($p).'</td>'],
     'in HTML with &#39;' => [fn (string $p) => '<td>'.str_replace('&#039;', '&#39;', htmlspecialchars($p, ENT_QUOTES)).'</td>'],
     'in HTML with &apos;' => [fn (string $p) => '<td>'.htmlspecialchars($p, ENT_QUOTES | ENT_HTML5).'</td>'],
+    'as Java\'s URLEncoder writes it' => [fn (string $p) => 'password='.str_replace('%2A', '*', urlencode($p))],
+    'in HTML with named entities' => [fn (string $p) => '<td>'.htmlentities($p, ENT_QUOTES | ENT_HTML401).'</td>'],
+    'in HTML with decimal entities' => [fn (string $p) => '<td>'.mb_encode_numericentity($p, [0, 0x10FFFF, 0, 0x10FFFF], 'UTF-8').'</td>'],
+    'in HTML with hexadecimal entities' => [fn (string $p) => '<td>'.mb_encode_numericentity($p, [0, 0x10FFFF, 0, 0x10FFFF], 'UTF-8', true).'</td>'],
+    'as Latin-1 bytes' => [fn (string $p) => 'password='.mb_convert_encoding($p, 'ISO-8859-1', 'UTF-8')],
+    'as the message of a JSON error' => [fn (string $p) => json_encode(['message' => 'wrong password '.$p])],
 ]);
+
+it('quotes no field of a JSON login error but its message', function () {
+    $stack = new Stack;
+    $stack->http->queue(Responses::text('{"error":"Unauthorized","ownerName":"JUAN PEREZ"}', 401));
+
+    try {
+        $stack->tokens->token();
+    } catch (AuthenticationException $e) {
+        expect($e->detail)->toBe('Unauthorized')->and($e->getMessage())->not->toContain('PEREZ');
+
+        return;
+    }
+
+    throw new LogicException('Expected an AuthenticationException.');
+});
 
 it('scrubs an echoed username, also one whose control character was not checked', function () {
     $stack = new Stack(config: new DatadisConfig('00000000A', Stack::PASSWORD, baseUrl: 'https://datadis.test', checkUsernameControl: false));
@@ -441,3 +462,10 @@ it('drops the token without failing when the token store cannot be read', functi
 
     expect($stack->http->requests())->toHaveCount(2);
 });
+
+it('takes only a JWT from a login, never a word a 200 may carry', function (string $body) {
+    $stack = new Stack;
+    $stack->http->queue(Responses::text($body));
+
+    expect(fn () => $stack->tokens->token())->toThrow(UninterpretableResponseException::class, 'not a token');
+})->with(['null', 'OK', 'false', 'Unauthorized', 'two.parts', 'a.b.c.d', 'a.b/c.d']);

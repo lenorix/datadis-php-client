@@ -5,6 +5,7 @@ declare(strict_types=1);
 use GuzzleHttp\Psr7\Request;
 use Lenorix\DatadisClient\Auth\TokenProvider;
 use Lenorix\DatadisClient\Exceptions\NoDataException;
+use Lenorix\DatadisClient\Exceptions\ServiceUnavailableException;
 use Lenorix\DatadisClient\Exceptions\TransportException;
 use Lenorix\DatadisClient\Exceptions\UninterpretableResponseException;
 use Lenorix\DatadisClient\Tests\Support\Payloads;
@@ -58,7 +59,7 @@ it('keeps the token the request carried out of a transport failure, whatever its
     }
 
     throw new LogicException('Expected a TransportException.');
-})->with(['abc.def.ghi', 'opaque-token_0123/xyz=']);
+})->with(['abc.def.ghi', 'abc-0_1.d-e_f.g_h-i']);
 
 it('does not keep a token without exp past its assumed lifetime, even in a store that ignores the TTL', function () {
     $s = Scenario::make(login: false, tokenCache: new QuirkyCache /* keeps values past their TTL */);
@@ -142,3 +143,73 @@ it('still reads an answer that only reports failed distributors as their errors'
 
     expect($result->records)->toBe([])->and($result->isEmptyBecauseOfErrors())->toBeTrue();
 });
+
+it('never puts a data answer it cannot read in a failure, only what kind of answer it was', function (string $body) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis($body));
+
+    try {
+        $s->client->getSupplies();
+    } catch (UninterpretableResponseException $e) {
+        expect($e->getMessage().' '.$e->detail)->not->toContain('INVENTADA')->not->toContain('PEREZ')->not->toContain('28001')->not->toContain('example.com');
+
+        return;
+    }
+
+    throw new LogicException('Expected an UninterpretableResponseException.');
+})->with([
+    'a truncated answer' => ['{"supplies":[{"address":"CALLE INVENTADA 12","postalCode":"28001","ownerName":"JUAN PEREZ","email":"juan@example.com"'],
+    'a list of text' => ['["CALLE INVENTADA 12 JUAN PEREZ 28001 juan@example.com"]x'],
+]);
+
+it('keeps only Datadis\'s own text from an error body, with emails redacted', function (string $body, string $kept, array $gone) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::text($body, 500, ['Content-Type' => 'application/json']));
+
+    try {
+        $s->client->getContractDetail(Scenario::cups(), '2');
+    } catch (ServiceUnavailableException $e) {
+        $text = $e->getMessage().' '.$e->detail;
+        expect($text)->toContain($kept);
+        foreach ($gone as $g) {
+            expect($text)->not->toContain($g);
+        }
+
+        return;
+    }
+
+    throw new LogicException('Expected a ServiceUnavailableException.');
+})->with([
+    'the message of a JSON error, not its other fields' => ['{"message":"Fallo interno","ownerName":"JUAN PEREZ","address":"CALLE INVENTADA 12"}', 'Fallo interno', ['PEREZ', 'INVENTADA']],
+    'the error of a JSON error without a message' => ['{"error":"Internal Server Error","email":"juan@example.com","postalCode":"28001"}', 'Internal Server Error', ['example.com', '28001']],
+    'a JSON error with neither' => ['{"ownerName":"JUAN PEREZ"}', 'HTTP 500', ['PEREZ']],
+    'an email in the message' => ['{"message":"Contacte con juan.perez@example.com"}', 'Contacte con', ['juan.perez@example.com']],
+    'plain text' => ['Error interno distribuidora', 'Error interno distribuidora', []],
+]);
+
+it('keeps a token whose header is not the usual one out of a transport failure in every form a client prints it', function (Closure $print) {
+    $token = 'abc.def.ghi';
+    $s = Scenario::make(login: false);
+    $s->http->queue(Responses::text($token));
+    $s->http->queue(new class($print($token)) extends RuntimeException implements NetworkExceptionInterface
+    {
+        public function getRequest(): RequestInterface
+        {
+            return new Request('GET', 'https://datadis.test');
+        }
+    });
+
+    try {
+        $s->client->getSupplies();
+    } catch (TransportException $e) {
+        expect((string) $e->detail)->not->toContain('def')->not->toContain('abc');
+
+        return;
+    }
+
+    throw new LogicException('Expected a TransportException.');
+})->with([
+    'escaped in JSON' => [fn (string $t) => 'sent '.json_encode(['Authorization' => ["Bearer {$t}"]])],
+    'percent encoded' => [fn (string $t) => 'sent '.rawurlencode("Bearer {$t}")],
+    'form encoded' => [fn (string $t) => 'sent token='.urlencode($t)],
+]);

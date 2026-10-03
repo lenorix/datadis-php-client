@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Http;
 
+use Closure;
 use Lenorix\DatadisClient\Exceptions\TransportException;
 use Lenorix\DatadisClient\Support\PersonalDataRedactor;
 use Psr\Http\Client\ClientInterface;
@@ -27,10 +28,27 @@ use Throwable;
  */
 final class Transport
 {
+    /**
+     * The HTTP client is the application's, and one that records what it sent (a history
+     * middleware, a mock, a traceable client) holds the token and the identifiers in its requests.
+     * var_export cannot show what a closure holds, and __debugInfo leaves it out of var_dump and print_r.
+     *
+     * @var Closure(): ClientInterface
+     */
+    private readonly Closure $http;
+
     public function __construct(
-        private readonly ClientInterface $http,
+        ClientInterface $http,
         private readonly StreamFactoryInterface $streams,
-    ) {}
+    ) {
+        $this->http = static fn (): ClientInterface => $http;
+    }
+
+    /** @return array<string, mixed> */
+    public function __debugInfo(): array
+    {
+        return ['http' => '[hidden]'];
+    }
 
     /**
      * @param  bool  $preflight  true for calls made before the data request (login): a failure there
@@ -39,7 +57,7 @@ final class Transport
     public function send(#[SensitiveParameter] RequestInterface $request, string $endpoint, bool $preflight = false): ResponseInterface
     {
         try {
-            $response = $this->http->sendRequest($request);
+            $response = ($this->http)()->sendRequest($request);
             $body = $response->getBody();
 
             if ($body->isSeekable()) {
@@ -70,7 +88,7 @@ final class Transport
     {
         $header = $request->getHeaderLine('Authorization');
         $token = trim((string) preg_replace('/^Bearer\s+/i', '', $header));
-        $message = $header === '' ? $message : str_replace(array_filter([$header, $token], static fn (string $s): bool => $s !== ''), PersonalDataRedactor::PLACEHOLDER, $message);
+        $message = PersonalDataRedactor::withoutSecrets($message, array_values(array_filter([$header, $token], static fn (string $s): bool => $s !== '')));
 
         return (string) preg_replace('/\b(Authorization\s*[:=]\s*)\S+(?:\s+[A-Za-z0-9._~+\/=-]+)?|\bBearer\s+[A-Za-z0-9._~+\/=-]+/i', PersonalDataRedactor::PLACEHOLDER, $message);
     }

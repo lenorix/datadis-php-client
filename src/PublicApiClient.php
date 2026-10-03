@@ -16,6 +16,7 @@ use Lenorix\DatadisClient\PublicApi\PageWalk;
 use Lenorix\DatadisClient\PublicApi\PublicRecord;
 use Lenorix\DatadisClient\PublicApi\PublicSearchQuery;
 use Lenorix\DatadisClient\PublicApi\SelfConsumptionSearchQuery;
+use LogicException;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -218,5 +219,16 @@ final class PublicApiClient
         }
 
         return [$decoded];
+    }
+
+    /**
+     * A client holds a live connection, the login and the account's credentials: build one where
+     * it is used (a queued job builds its own) instead of sending it along.
+     *
+     * @return array<string, mixed>
+     */
+    public function __serialize(): array
+    {
+        throw new LogicException('PublicApiClient cannot be serialized: it holds the account\'s credentials and a live connection. Build one where it is used.');
     }
 }

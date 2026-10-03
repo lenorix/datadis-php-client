@@ -86,7 +86,7 @@ final readonly class Nif implements Stringable
     }
 
     /** @param  array<mixed>  $data */
-    public function __unserialize(array $data): void
+    public function __unserialize(#[SensitiveParameter] array $data): void
     {
         // Checked again: a stored value may have been tampered with or written by hand.
         $value = self::fromString(is_string($data['value'] ?? null) ? $data['value'] : '', false)->value();

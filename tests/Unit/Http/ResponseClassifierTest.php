@@ -165,7 +165,7 @@ it('writes the message with and without a detail', function () {
         ->and(fn () => ResponseClassifier::decode(Responses::text('boom', 500), CLASSIFIED_ENDPOINT))->toThrow(ServiceUnavailableException::class, CLASSIFIED_ENDPOINT.': Datadis answered HTTP 500 · boom');
 });
 
-it('extracts the message of a JSON error body and keeps anything else as text', function (string $body, string $detail) {
+it('keeps only the message or the error of a JSON error body, and describes any other JSON', function (string $body, string $detail) {
     try {
         ResponseClassifier::decode(Responses::text($body, 400), CLASSIFIED_ENDPOINT);
     } catch (RequestRejectedException $e) {
@@ -178,10 +178,13 @@ it('extracts the message of a JSON error body and keeps anything else as text', 
 })->with([
     'message' => ['{"message":"Date range not allowed"}', 'Date range not allowed'],
     'message with spaces around' => ["  {\"message\":\"m\"}\n", 'm'],
-    'message is not text' => ['{"message":5}', '{"message":5}'],
-    'no message' => ['{"error":"x"}', '{"error":"x"}'],
-    'broken JSON' => ['{"message":', '{"message":'],
-    'a list' => ['["message"]', '["message"]'],
+    'message is not text' => ['{"message":5}', '[a JSON answer, not quoted]'],
+    'no message, an error' => ['{"error":"x"}', 'x'],
+    'neither' => ['{"ownerName":"JUAN PEREZ"}', '[a JSON answer, not quoted]'],
+    'broken JSON' => ['{"message":', '[a JSON answer, not quoted]'],
+    'a list' => ['["message"]', '[a JSON answer, not quoted]'],
+    'an HTML page' => ['<html><body>JUAN PEREZ</body></html>', '[an HTML page, not quoted]'],
+    'plain text' => ['Fechas incorrectas', 'Fechas incorrectas'],
 ]);
 
 it('leaves no PHP error behind when a gzip-looking body is not gzip', function () {

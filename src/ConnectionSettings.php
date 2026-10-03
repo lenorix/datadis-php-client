@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient;
 
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
+use SensitiveParameter;
 
 /**
  * Where and how to connect, without the credentials, which DatadisConfig adds. Both APIs need the
@@ -19,10 +20,11 @@ final readonly class ConnectionSettings
      * @param  float  $timeout  seconds for a whole call. Datadis is slow (contract detail about 15 s, consumption tens of seconds).
      */
     public function __construct(
-        string $baseUrl = DatadisConfig::DEFAULT_BASE_URL,
+        // A misplaced setting may hold credentials or a NIF: kept out of traces like the others.
+        #[SensitiveParameter] string $baseUrl = DatadisConfig::DEFAULT_BASE_URL,
         public float $timeout = DatadisConfig::DEFAULT_TIMEOUT,
         public float $connectTimeout = DatadisConfig::DEFAULT_CONNECT_TIMEOUT,
-        public string $userAgent = DatadisConfig::DEFAULT_USER_AGENT,
+        #[SensitiveParameter] public string $userAgent = DatadisConfig::DEFAULT_USER_AGENT,
     ) {
         // Guzzle works in milliseconds: anything shorter becomes 0, which means "wait forever".
         if (! is_finite($timeout) || ! is_finite($connectTimeout) || $timeout < 0.001 || $connectTimeout < 0.001) {
@@ -36,7 +38,7 @@ final readonly class ConnectionSettings
         $this->baseUrl = self::normaliseBaseUrl($baseUrl);
     }
 
-    private static function normaliseBaseUrl(string $baseUrl): string
+    private static function normaliseBaseUrl(#[SensitiveParameter] string $baseUrl): string
     {
         $parts = parse_url(trim($baseUrl));
 
