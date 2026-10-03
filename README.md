@@ -403,7 +403,7 @@ A measurement that must send the same query twice on purpose, to see Datadis's o
 
 ### Share the login token
 
-The token lasts 24 hours. By default each client keeps its own; give a PSR-16 cache to share it between processes, and protect that cache like a password:
+The token lasts 24 hours. By default each client keeps its own; give a PSR-16 cache to share it between processes, and protect that cache like a password. Every worker then uses the same, newest token: one login for all of them, and a `checkLogin(fresh: true)` in one reaches the others.
 
 ```php
 $client = new DatadisClient($config, tokenCache: $psr16Cache);
