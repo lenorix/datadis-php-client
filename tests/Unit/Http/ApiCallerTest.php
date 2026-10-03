@@ -214,21 +214,21 @@ it('does not keep a token Datadis rejected on the second try, so the next call d
         ->and($requests[5]->getHeaderLine('Authorization'))->not->toBe($requests[3]->getHeaderLine('Authorization'));
 });
 
-it('reports a failure while logging in again as what it is, sent', function (mixed $loginAnswer, string $class) {
+it('reports a failure while logging in again as what it is, sent', function (mixed $loginAnswer, string $class, ?int $status) {
     $stack = new Stack;
     $stack->http->queue($stack->loginOk(), Scenario::refusedToken(), $loginAnswer);
 
     try {
         $stack->caller->get(CALLER_SUPPLIES_PATH, [], 'get-supplies-v2', sendAgainAfter401: true);
     } catch (DatadisException $e) {
-        expect($e)->toBeInstanceOf($class)->and($e->requestSent)->toBeTrue();
+        expect($e)->toBeInstanceOf($class)->and($e->requestSent)->toBeTrue()->and($e->httpStatus)->toBe($status);
 
         return;
     }
 
     throw new LogicException('Expected a DatadisException.');
 })->with([
-    'the service is down' => [fn () => Responses::text('', 503), ServiceUnavailableException::class],
-    'the network failed' => [fn () => new ConnectException('down', new Request('POST', 'https://datadis.test')), TransportException::class],
-    'the credentials were refused' => [fn () => Responses::text('bad credentials', 401), AuthenticationException::class],
+    'the service is down' => [fn () => Responses::text('', 503), ServiceUnavailableException::class, 503],
+    'the network failed' => [fn () => new ConnectException('down', new Request('POST', 'https://datadis.test')), TransportException::class, null],
+    'the credentials were refused' => [fn () => Responses::text('bad credentials', 401), AuthenticationException::class, 401],
 ]);

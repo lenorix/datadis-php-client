@@ -188,11 +188,10 @@ final class RequestLedger
         // Another worker holds the key. A held key always counts, even when its value cannot be read
         // yet or does not make sense: taking it back would be a delete and an add, two steps another
         // worker could slip between. The store's TTL frees it within the window.
-        $last = $this->heldAttempt($account, $query);
+        [$last, $stored] = $this->heldAttempt($account, $query);
 
-        // Unreadable or already outside the window: the key may have just expired, or a release left
-        // it a second to live. One more try, so the refusal does not block the query for a whole
-        // window when the key is free.
+        // Outside the window or unreadable: the key may have just expired, or a release that could
+        // not delete left it a second to live. One more try to take it.
         if ($last === null) {
             if ($this->add($account, $query, $now, $this->windowSeconds)) {
                 $this->tell(LedgerEventKind::Claimed, $account, $query, $now, $endpoint);
@@ -200,8 +199,10 @@ final class RequestLedger
                 return null;
             }
 
-            // Still held and still unreadable: without a time, it is now.
-            $last = $this->heldAttempt($account, $query) ?? (new DateTimeImmutable)->setTimestamp($now);
+            [$last, $stored] = $this->heldAttempt($account, $query);
+            // Still held. A time that can be read is used as it is, even outside the window, so the
+            // query is said to be free again now, as blockedUntil() says; without one, it is now.
+            $last ??= $stored ?? (new DateTimeImmutable)->setTimestamp($now);
         }
 
         $this->tell(LedgerEventKind::Refused, $account, $query, $now, $endpoint, $last);
@@ -210,19 +211,31 @@ final class RequestLedger
     }
 
     /**
-     * The attempt that holds a key another worker took, or null when its time cannot be read. A
+     * The attempt that holds a key another worker took, null when it does not count (its time
+     * cannot be read, or is outside the window), and the stored time when it is already past the
+     * window, as a release that could not delete leaves it. A
      * store that fails to read it answers like an unreadable one: either way the key is held, and
      * the refusal is the same, told to the history too.
      *
      * @param  array<string, string|int|list<string>|null>  $query
+     * @return array{?DateTimeImmutable, ?DateTimeImmutable}
      */
-    private function heldAttempt(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): ?DateTimeImmutable
+    private function heldAttempt(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): array
     {
         try {
-            return $this->lastAttempt($account, $query);
+            $value = $this->read($account, $query);
         } catch (LedgerUnavailableException) {
-            return null;
+            return [null, null];
         }
+
+        if (is_string($value) && preg_match('/^\d{1,19}$/D', $value) === 1) {
+            $value = (int) $value;
+        }
+
+        // A time in the future (a clock far behind) is not used: it would put availableAt days ahead.
+        $past = is_int($value) && $value > 0 && $value <= $this->clock->now()->getTimestamp() - $this->windowSeconds;
+
+        return [$this->attemptIn($value), $past ? (new DateTimeImmutable)->setTimestamp($value) : null];
     }
 
     /**

@@ -122,7 +122,10 @@ final class ApiCaller
                 ? $e::class
                 : AuthenticationException::class;
 
-            throw new $class($message, $e->httpStatus ?? 401, $e->detail, $endpoint, requestSent: true, previous: $e);
+            // The status of what failed: a network failure has none, and must not claim to be a 401.
+            $status = $class === AuthenticationException::class ? ($e->httpStatus ?? 401) : $e->httpStatus;
+
+            throw new $class($message, $status, $e->detail, $endpoint, requestSent: true, previous: $e);
         }
 
         $response = $this->transport->send($this->requests->get($path, $query, $token), $endpoint);

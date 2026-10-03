@@ -131,7 +131,7 @@ it('takes a time a little ahead as a recent attempt, but one far in the future a
     'ten days ahead' => [864000, false],
 ]);
 
-it('counts a key an atomic store holds even when its value does not, so no two workers can both take it', function (Closure $stored) use ($query) {
+it('counts a key an atomic store holds even when its value does not, so no two workers can both take it', function (Closure $stored, Closure $expected) use ($query) {
     $clock = new FrozenClock;
     $store = new AtomicCache;
     $ledger = new RequestLedger($store, new RequestFingerprinter(Scenario::SECRET), $clock);
@@ -140,11 +140,13 @@ it('counts a key an atomic store holds even when its value does not, so no two w
         $store->items[$key] = $stored($clock->now()->getTimestamp());
     }
 
-    expect($ledger->claim('A00000000', $query)?->getTimestamp())->toBe($clock->now()->getTimestamp());
+    // Refused either way; a time past the window says the query is free again now, anything else is now.
+    expect($ledger->claim('A00000000', $query)?->getTimestamp())->toBe($expected($clock->now()->getTimestamp()));
 })->with([
-    'older than the window' => [fn (int $now) => $now - RequestLedger::WINDOW_SECONDS],
-    'far in the future, as from a clock far behind' => [fn (int $now) => $now + 864000],
-    'not a time' => [fn () => 'yesterday'],
+    'older than the window' => [fn (int $now) => $now - RequestLedger::WINDOW_SECONDS, fn (int $now) => $now - RequestLedger::WINDOW_SECONDS],
+    'older than the window, kept as text' => [fn (int $now) => (string) ($now - RequestLedger::WINDOW_SECONDS), fn (int $now) => $now - RequestLedger::WINDOW_SECONDS],
+    'far in the future, as from a clock far behind' => [fn (int $now) => $now + 864000, fn (int $now) => $now],
+    'not a time' => [fn () => 'yesterday', fn (int $now) => $now],
 ]);
 
 it('answers a lost atomic claim with the time the other worker sent the query', function () use ($query) {
@@ -332,4 +334,18 @@ it('refuses a window longer than 30 days, a mistake in the settings', function (
     expect(fn () => new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter(Scenario::SECRET), $clock, PHP_INT_MAX))
         ->toThrow(ConfigurationException::class, 'at most')
         ->and(new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter(Scenario::SECRET), $clock, RequestLedger::MAX_WINDOW_SECONDS))->toBeInstanceOf(RequestLedger::class);
+});
+
+it('does not say a query is blocked for a whole window while a release that could not delete is expiring', function () use ($query) {
+    $clock = new FrozenClock;
+    $store = new AtomicCache;
+    $ledger = new RequestLedger($store, new RequestFingerprinter(Scenario::SECRET), $clock);
+    $ledger->claim('A00000000', $query);
+    // forget() on a store that cannot delete: a time already outside the window, living one second.
+    $store->items[array_key_first($store->items)] = $clock->now()->getTimestamp() - RequestLedger::WINDOW_SECONDS;
+
+    $last = $ledger->claim('A00000000', $query);
+
+    expect($ledger->lastAttempt('A00000000', $query))->toBeNull()
+        ->and($last === null || $last->getTimestamp() + RequestLedger::WINDOW_SECONDS <= $clock->now()->getTimestamp())->toBeTrue();
 });
