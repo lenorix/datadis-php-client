@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Lenorix\DatadisClient\Exceptions\ConfigurationException;
 use Lenorix\DatadisClient\Exceptions\InvalidRequestException;
 use Lenorix\DatadisClient\Exceptions\LedgerUnavailableException;
+use Lenorix\DatadisClient\Guard\AtomicLedgerStore;
+use Lenorix\DatadisClient\Guard\LedgerEventKind;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
 use Lenorix\DatadisClient\Guard\RequestLedger;
 use Lenorix\DatadisClient\Support\InMemoryCache;
@@ -209,13 +211,15 @@ it('replaces only an older attempt, also one held in an atomic store', function 
         ->and($ledger->lastAttempt('A00000000', $query)?->getTimestamp())->toBe($clock->now()->getTimestamp() - 600);
 });
 
-it('replaces a held key whose time cannot be read, since nothing newer is known', function () use ($query) {
+it('leaves a held key whose time cannot be read, since it may be a worker\'s claim just sent', function () use ($query) {
     $clock = new FrozenClock;
     $store = new AtomicCache(staleReads: true);
     $ledger = new RequestLedger($store, new RequestFingerprinter(Scenario::SECRET), $clock);
     $ledger->claim('A00000000', $query);
 
-    expect($ledger->rememberAt('A00000000', $query, $clock->now()->modify('-1 hour')))->toBeTrue();
+    // Shortening it to an attempt 23 hours old would free the query about 22 hours early.
+    expect($ledger->rememberAt('A00000000', $query, $clock->now()->modify('-23 hours')))->toBeFalse()
+        ->and(array_values($store->items))->toBe([$clock->now()->getTimestamp()]);
 });
 
 it('refuses an attempt further in the future than the clock tolerance, and takes one within it', function () use ($query) {
@@ -267,4 +271,65 @@ it('reports a store that can neither delete nor overwrite the key', function () 
 
     expect(fn () => $ledger->forget('A00000000', $query))->toThrow(LedgerUnavailableException::class, 'could not free the query')
         ->and($ledger->lastAttempt('A00000000', $query))->not->toBeNull();
+});
+
+it('takes a key that frees itself while being refused, instead of blocking it for a whole window', function () use ($query) {
+    $clock = new FrozenClock;
+    $store = new AtomicCache;
+    $ledger = new RequestLedger($store, new RequestFingerprinter(Scenario::SECRET), $clock);
+    $ledger->claim('A00000000', $query);
+    // A release that could not delete leaves the key held, with a time already outside the window,
+    // until it expires a second later: here, between the first add and the second.
+    $key = array_key_first($store->items);
+    $store->items[$key] = $clock->now()->getTimestamp() - RequestLedger::WINDOW_SECONDS;
+    $adds = 0;
+    $store->beforeAdd = function (AtomicCache $s) use (&$adds, $key) {
+        if (++$adds === 2) {
+            unset($s->items[$key]);
+        }
+    };
+
+    expect($ledger->claim('A00000000', $query))->toBeNull()
+        ->and($store->items[$key])->toBe($clock->now()->getTimestamp());
+});
+
+it('refuses and tells of it when another worker holds the key and the store cannot read it', function () use ($query) {
+    $clock = new FrozenClock;
+    $kinds = [];
+    $store = new class implements AtomicLedgerStore
+    {
+        public function add(string $key, int $value, int $ttlSeconds): bool
+        {
+            return false;
+        }
+
+        public function get(string $key): mixed
+        {
+            throw new RuntimeException('read timed out');
+        }
+
+        public function set(string $key, int $value, int $ttlSeconds): bool
+        {
+            return true;
+        }
+
+        public function delete(string $key): bool
+        {
+            return true;
+        }
+    };
+    $ledger = new RequestLedger($store, new RequestFingerprinter(Scenario::SECRET), $clock, onChange: function ($e) use (&$kinds) {
+        $kinds[] = $e->kind;
+    });
+
+    expect($ledger->claim('A00000000', $query)?->getTimestamp())->toBe($clock->now()->getTimestamp())
+        ->and($kinds)->toBe([LedgerEventKind::Refused]);
+});
+
+it('refuses a window longer than 30 days, a mistake in the settings', function () {
+    $clock = new FrozenClock;
+
+    expect(fn () => new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter(Scenario::SECRET), $clock, PHP_INT_MAX))
+        ->toThrow(ConfigurationException::class, 'at most')
+        ->and(new RequestLedger(new InMemoryCache($clock), new RequestFingerprinter(Scenario::SECRET), $clock, RequestLedger::MAX_WINDOW_SECONDS))->toBeInstanceOf(RequestLedger::class);
 });

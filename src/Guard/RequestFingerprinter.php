@@ -34,7 +34,11 @@ final readonly class RequestFingerprinter
         $this->key = static fn (): string => $key;
     }
 
-    /** @param array<string, string|int|list<string>|null> $query the query as sent, null for omitted parameters */
+    /**
+     * @param  array<string, string|int|list<string>|null>  $query  the query as the guard keys it
+     *
+     * @internal the ledger's: a key built outside the client could drift from what it sends
+     */
     public function fingerprint(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): string
     {
         $values = [];

@@ -33,6 +33,9 @@ final class RequestLedger
     /** Datadis's own window: a shorter one would let through queries Datadis refuses and counts. */
     public const int MIN_WINDOW_SECONDS = 86400;
 
+    /** The longest window taken: anything longer is a mistake in the settings, not a stricter rule. */
+    public const int MAX_WINDOW_SECONDS = 30 * 86400;
+
     /**
      * How far ahead of this clock a stored time may be and still count: another worker's clock can
      * run a little fast. A time further ahead is corrupt and would block the query for longer than
@@ -82,6 +85,10 @@ final class RequestLedger
         $this->onChange = $onChange;
         if ($windowSeconds !== null && $windowSeconds < self::MIN_WINDOW_SECONDS) {
             throw new ConfigurationException('The repetition window must be at least '.self::MIN_WINDOW_SECONDS." seconds (24 hours), {$windowSeconds} given: Datadis refuses a repeat within 24 hours and counts it.");
+        }
+
+        if ($windowSeconds !== null && $windowSeconds > self::MAX_WINDOW_SECONDS) {
+            throw new ConfigurationException('The repetition window must be at most '.self::MAX_WINDOW_SECONDS." seconds (30 days), {$windowSeconds} given.");
         }
 
         $this->windowSeconds = $windowSeconds ?? self::WINDOW_SECONDS;
@@ -180,14 +187,49 @@ final class RequestLedger
 
         // Another worker holds the key. A held key always counts, even when its value cannot be read
         // yet or does not make sense: taking it back would be a delete and an add, two steps another
-        // worker could slip between. The store's TTL frees it within the window. Without a time, it is now.
-        $last = $this->lastAttempt($account, $query) ?? (new DateTimeImmutable)->setTimestamp($now);
+        // worker could slip between. The store's TTL frees it within the window.
+        $last = $this->heldAttempt($account, $query);
+
+        // Unreadable or already outside the window: the key may have just expired, or a release left
+        // it a second to live. One more try, so the refusal does not block the query for a whole
+        // window when the key is free.
+        if ($last === null) {
+            if ($this->add($account, $query, $now, $this->windowSeconds)) {
+                $this->tell(LedgerEventKind::Claimed, $account, $query, $now, $endpoint);
+
+                return null;
+            }
+
+            // Still held and still unreadable: without a time, it is now.
+            $last = $this->heldAttempt($account, $query) ?? (new DateTimeImmutable)->setTimestamp($now);
+        }
+
         $this->tell(LedgerEventKind::Refused, $account, $query, $now, $endpoint, $last);
 
         return $last;
     }
 
-    /** @param  array<string, string|int|list<string>|null>  $query */
+    /**
+     * The attempt that holds a key another worker took, or null when its time cannot be read. A
+     * store that fails to read it answers like an unreadable one: either way the key is held, and
+     * the refusal is the same, told to the history too.
+     *
+     * @param  array<string, string|int|list<string>|null>  $query
+     */
+    private function heldAttempt(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): ?DateTimeImmutable
+    {
+        try {
+            return $this->lastAttempt($account, $query);
+        } catch (LedgerUnavailableException) {
+            return null;
+        }
+    }
+
+    /**
+     * @param  array<string, string|int|list<string>|null>  $query
+     *
+     * @phpstan-impure it writes the store: the same call may answer differently a moment later
+     */
     private function add(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, int $at, int $ttl): bool
     {
         $store = ($this->store)();
@@ -240,6 +282,9 @@ final class RequestLedger
      *
      * @throws InvalidRequestException when the attempt is further in the future than the clock tolerance
      * @throws LedgerUnavailableException when the store cannot be read or written
+     *
+     * @internal the guard's: it takes the query as the guard keys it, which the client builds. Use
+     *           the client's remember...() methods, which build it the same way as the calls.
      */
     public function rememberAt(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, DateTimeInterface $sentAt, ?string $endpoint = null): bool
     {
@@ -269,8 +314,15 @@ final class RequestLedger
                 return true;
             }
 
-            // Held by an older attempt, or taken just now by a worker that sent: only an older one is replaced.
+            // Held by an older attempt, or taken just now by a worker that sent: only an older one is
+            // replaced. A held key whose time cannot be read may be that worker's claim, which must
+            // not be shortened to this older time, so it is left as it is.
+            $held = $last !== null;
             $last = $this->lastAttempt($account, $query);
+
+            if ($last === null && ! $held) {
+                return false;
+            }
 
             if ($last !== null && $last->getTimestamp() >= $at) {
                 return false;
