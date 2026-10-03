@@ -77,7 +77,7 @@ final class ApiCaller
      * @param  array<string, string|int|list<string>|null>  $query
      * @return array<array-key, mixed> the decoded JSON
      */
-    public function get(string $path, #[SensitiveParameter] array $query, string $endpoint, bool $sendAgainAfter401 = true): array
+    public function get(string $path, #[SensitiveParameter] array $query, string $endpoint, bool $sendAgainAfter401): array
     {
         return ResponseClassifier::decode($this->send($path, $query, $endpoint, $sendAgainAfter401), $endpoint);
     }
@@ -87,13 +87,13 @@ final class ApiCaller
      *
      * @param  array<string, string|int|list<string>|null>  $query
      */
-    public function getText(string $path, #[SensitiveParameter] array $query, string $endpoint, bool $sendAgainAfter401 = true): string
+    public function getText(string $path, #[SensitiveParameter] array $query, string $endpoint, bool $sendAgainAfter401): string
     {
         return ResponseClassifier::assertSuccessful($this->send($path, $query, $endpoint, $sendAgainAfter401), $endpoint);
     }
 
     /** @param  array<string, string|int|list<string>|null>  $query */
-    private function send(string $path, #[SensitiveParameter] array $query, string $endpoint, bool $sendAgainAfter401 = true): ResponseInterface
+    private function send(string $path, #[SensitiveParameter] array $query, string $endpoint, bool $sendAgainAfter401): ResponseInterface
     {
         $response = $this->transport->send($this->requests->get($path, $query, $this->tokens->token()), $endpoint);
 

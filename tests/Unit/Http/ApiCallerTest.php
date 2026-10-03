@@ -24,7 +24,7 @@ it('logs in, calls the endpoint with the bearer token and returns decoded JSON',
     $stack = new Stack;
     $stack->http->queue($stack->loginOk(), Responses::datadis('{"supplies":[],"distributorError":[]}'));
 
-    $decoded = $stack->caller->get(SUPPLIES, ['authorizedNif' => null], 'get-supplies-v2');
+    $decoded = $stack->caller->get(SUPPLIES, ['authorizedNif' => null], 'get-supplies-v2', sendAgainAfter401: true);
 
     expect($decoded)->toBe(['supplies' => [], 'distributorError' => []])
         ->and($stack->http->requests())->toHaveCount(2)
@@ -40,7 +40,7 @@ it('re-logs in exactly once when the token is rejected and retries the call', fu
         Responses::datadis('[{"cups":"x"}]'),
     );
 
-    $decoded = $stack->caller->get(SUPPLIES, [], 'get-supplies-v2');
+    $decoded = $stack->caller->get(SUPPLIES, [], 'get-supplies-v2', sendAgainAfter401: true);
 
     $requests = $stack->http->requests();
     $tokenOf = fn (int $i) => $requests[$i]->getHeaderLine('Authorization');
@@ -55,7 +55,7 @@ it('gives up after a second 401 and does not loop', function () {
     $stack->http->queue($stack->loginOk(), refusedToken(), $stack->loginOk(), refusedToken());
 
     try {
-        $stack->caller->get(SUPPLIES, [], 'get-supplies-v2');
+        $stack->caller->get(SUPPLIES, [], 'get-supplies-v2', sendAgainAfter401: true);
     } catch (AuthenticationException $e) {
         expect($e->requestSent)->toBeTrue()->and($stack->http->requests())->toHaveCount(4);
 
@@ -70,7 +70,7 @@ it('does not send the data request when login fails, and says so', function () {
     $stack->http->queue(Responses::text('bad credentials', 401));
 
     try {
-        $stack->caller->get(SUPPLIES, [], 'get-supplies-v2');
+        $stack->caller->get(SUPPLIES, [], 'get-supplies-v2', sendAgainAfter401: true);
     } catch (AuthenticationException $e) {
         expect($e->requestSent)->toBeFalse()->and($stack->http->requests())->toHaveCount(1);
 
@@ -85,7 +85,7 @@ it('treats a network failure on a data call as possibly sent and does not retry'
     $stack->http->queue($stack->loginOk(), new ConnectException('cURL error 28: Operation timed out', new Request('GET', 'https://datadis.test')));
 
     try {
-        $stack->caller->get(CONSUMPTION, [], 'get-consumption-data-v2');
+        $stack->caller->get(CONSUMPTION, [], 'get-consumption-data-v2', sendAgainAfter401: true);
     } catch (TransportException $e) {
         expect($e->requestSent)->toBeTrue()
             ->and($e->endpoint)->toBe('get-consumption-data-v2')
@@ -103,7 +103,7 @@ it('does not leak query identifiers through a transport failure', function () {
     $stack->http->queue($stack->loginOk(), new ConnectException("cURL error 28 for {$uri}", new Request('GET', $uri)));
 
     try {
-        $stack->caller->get(CONSUMPTION, [], 'get-consumption-data-v2');
+        $stack->caller->get(CONSUMPTION, [], 'get-consumption-data-v2', sendAgainAfter401: true);
     } catch (TransportException $e) {
         expect($e->getMessage())->not->toContain('ES0000000000000000AA0A')->not->toContain('A00000000')
             ->and((string) $e->detail)->not->toContain('ES0000000000000000AA0A')->not->toContain('A00000000')
@@ -119,7 +119,7 @@ it('passes classification failures through untouched', function () {
     $stack = new Stack;
     $stack->http->queue($stack->loginOk(), Responses::text('Data not found', 404));
 
-    $stack->caller->get(SUPPLIES, [], 'get-supplies-v2');
+    $stack->caller->get(SUPPLIES, [], 'get-supplies-v2', sendAgainAfter401: true);
 })->throws(NoDataException::class);
 
 it('never lets the password or the token reach an exception message', function () {
@@ -128,7 +128,7 @@ it('never lets the password or the token reach an exception message', function (
     $stack->http->queue(Responses::text($token), Responses::text("boom {$token}", 500));
 
     try {
-        $stack->caller->get(SUPPLIES, [], 'get-supplies-v2');
+        $stack->caller->get(SUPPLIES, [], 'get-supplies-v2', sendAgainAfter401: true);
     } catch (Throwable $e) {
         expect($e->getMessage())->not->toContain(Stack::PASSWORD)->not->toContain($token)
             ->and((string) $e->detail)->not->toContain($token);
@@ -143,7 +143,7 @@ it('returns the raw text of an answer that is allowed to be empty', function () 
     $stack = new Stack;
     $stack->http->queue($stack->loginOk(), refusedToken(), $stack->loginOk(), Responses::empty(200));
 
-    expect($stack->caller->getText('/api-private/api/cancel-authorization', [], 'cancel-authorization'))->toBe('')
+    expect($stack->caller->getText('/api-private/api/cancel-authorization', [], 'cancel-authorization', sendAgainAfter401: true))->toBe('')
         ->and($stack->http->requests())->toHaveCount(4);
 });
 
@@ -152,7 +152,7 @@ it('reports the call as sent when logging in again after a 401 fails', function 
     $stack->http->queue($stack->loginOk(), refusedToken(), Responses::text('bad credentials', 401));
 
     try {
-        $stack->caller->get(CONSUMPTION, [], 'get-consumption-data-v2');
+        $stack->caller->get(CONSUMPTION, [], 'get-consumption-data-v2', sendAgainAfter401: true);
     } catch (AuthenticationException $e) {
         expect($e->requestSent)->toBeTrue()
             ->and($e->httpStatus)->toBe(401)
@@ -170,7 +170,7 @@ it('reports the call as sent when the network fails while logging in again', fun
     $stack->http->queue($stack->loginOk(), refusedToken(), new ConnectException('down', new Request('POST', 'https://datadis.test')));
 
     try {
-        $stack->caller->get(CONSUMPTION, [], 'get-consumption-data-v2');
+        $stack->caller->get(CONSUMPTION, [], 'get-consumption-data-v2', sendAgainAfter401: true);
     } catch (DatadisException $e) {
         expect($e->requestSent)->toBeTrue();
 

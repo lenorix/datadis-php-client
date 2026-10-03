@@ -35,4 +35,14 @@ final class RepetitionWindowException extends DatadisException
     ) {
         parent::__construct($message, $httpStatus, $detail, $endpoint, $requestSent, $previous);
     }
+
+    /**
+     * The same refusal, saying which months the refused query asked for; the original is its cause.
+     *
+     * @internal
+     */
+    public function withMonths(?Month $startDate, ?Month $endDate): self
+    {
+        return new self($this->getMessage(), $this->httpStatus, $this->detail, $this->endpoint, $this->requestSent, $this, $this->lastAttemptAt, $this->availableAt, $startDate, $endDate);
+    }
 }

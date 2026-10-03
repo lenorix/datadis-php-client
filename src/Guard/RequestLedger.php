@@ -106,6 +106,8 @@ final class RequestLedger
      * @param  array<string, string|int|list<string>|null>  $query
      *
      * @throws LedgerUnavailableException when the store cannot be read
+     *
+     * @internal the guard's: it takes the query as the guard keys it, which the client builds
      */
     public function lastAttempt(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): ?DateTimeImmutable
     {
@@ -149,21 +151,23 @@ final class RequestLedger
      * @param  array<string, string|int|list<string>|null>  $query
      *
      * @throws LedgerUnavailableException when the store cannot be read or written
+     *
+     * @internal the guard's: it takes the query as the guard keys it, which the client builds
      */
     public function claim(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, ?string $endpoint = null): ?DateTimeImmutable
     {
+        $now = $this->clock->now()->getTimestamp();
+
         if (! $this->atomic) {
             $last = $this->lastAttempt($account, $query);
 
             if ($last === null) {
-                $this->record($account, $query);
-                $this->tell(LedgerEventKind::Claimed, $account, $query, $this->clock->now()->getTimestamp(), $endpoint);
+                $this->store($account, $query, $now, $this->windowSeconds);
+                $this->tell(LedgerEventKind::Claimed, $account, $query, $now, $endpoint);
             }
 
             return $last;
         }
-
-        $now = $this->clock->now()->getTimestamp();
 
         if ($this->add($account, $query, $now, $this->windowSeconds)) {
             $this->tell(LedgerEventKind::Claimed, $account, $query, $now, $endpoint);
@@ -194,6 +198,8 @@ final class RequestLedger
      * @param  array<string, string|int|list<string>|null>  $query
      *
      * @throws LedgerUnavailableException when the store cannot keep the record
+     *
+     * @internal the guard's: it takes the query as the guard keys it, which the client builds
      */
     public function record(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query): void
     {
@@ -250,17 +256,19 @@ final class RequestLedger
             return false;
         }
 
-        if ($last === null && $this->atomic && $this->add($account, $query, $at, $ttl)) {
-            $this->tell(LedgerEventKind::Remembered, $account, $query, $at, $endpoint);
+        if ($this->atomic) {
+            if ($last === null && $this->add($account, $query, $at, $ttl)) {
+                $this->tell(LedgerEventKind::Remembered, $account, $query, $at, $endpoint);
 
-            return true;
-        }
+                return true;
+            }
 
-        // Held by an older attempt, or taken just now by a worker that sent: only an older one is replaced.
-        $last = $this->lastAttempt($account, $query);
+            // Held by an older attempt, or taken just now by a worker that sent: only an older one is replaced.
+            $last = $this->lastAttempt($account, $query);
 
-        if ($last !== null && $last->getTimestamp() >= $at) {
-            return false;
+            if ($last !== null && $last->getTimestamp() >= $at) {
+                return false;
+            }
         }
 
         $this->store($account, $query, $at, $ttl);
@@ -273,6 +281,8 @@ final class RequestLedger
      * @param  array<string, string|int|list<string>|null>  $query
      *
      * @throws LedgerUnavailableException when the store cannot remove the record
+     *
+     * @internal the guard's: it takes the query as the guard keys it, which the client builds
      */
     public function forget(#[SensitiveParameter] string $account, #[SensitiveParameter] array $query, ?string $endpoint = null): void
     {

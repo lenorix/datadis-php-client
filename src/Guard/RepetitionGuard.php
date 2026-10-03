@@ -85,18 +85,7 @@ final readonly class RepetitionGuard
 
             // Datadis's own 429 says nothing of the query: give it the months it asked for.
             if ($e instanceof RepetitionWindowException && $e->startDate === null) {
-                throw new RepetitionWindowException(
-                    $e->getMessage(),
-                    $e->httpStatus,
-                    $e->detail,
-                    $e->endpoint,
-                    $e->requestSent,
-                    $e,
-                    $e->lastAttemptAt,
-                    $e->availableAt,
-                    self::month($query, 'startDate'),
-                    self::month($query, 'endDate'),
-                );
+                throw $e->withMonths(self::month($query, 'startDate'), self::month($query, 'endDate'));
             }
 
             throw $e;

@@ -163,7 +163,8 @@ final class PublicApiClient
     private function call(string $endpoint, array $query): ApiResult
     {
         try {
-            $decoded = $this->caller->get(self::PATH.$endpoint, $query, $endpoint);
+            // The public searches change nothing and are not guarded: safe to send again after a new login.
+            $decoded = $this->caller->get(self::PATH.$endpoint, $query, $endpoint, sendAgainAfter401: true);
         } catch (NoDataException $e) {
             // A 404 is a failure of the public API; a 2xx without a body is an empty page.
             if ($e->httpStatus === 404) {

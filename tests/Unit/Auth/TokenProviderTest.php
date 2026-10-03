@@ -428,3 +428,14 @@ it('cleans a quoted token followed by a newline', function () {
 
     expect($stack->tokens->token())->toBe('abc.def.ghi');
 });
+
+it('drops the token without failing when the token store cannot be read', function () {
+    $stack = new Stack(cache: new QuirkyCache(throwOnGet: true));
+    $stack->http->queue($stack->loginOk(), $stack->loginOk());
+    $stack->tokens->token();
+
+    $stack->tokens->invalidate();
+    $stack->tokens->token();
+
+    expect($stack->http->requests())->toHaveCount(2);
+});
