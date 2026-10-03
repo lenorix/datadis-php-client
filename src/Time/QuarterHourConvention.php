@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Time;
 
 /**
- * How a quarter-hourly answer labels its quarters. UNVERIFIED: no quarter-hourly answer of a point
- * type 1, 2 or 3 supply has been captured, so both possible conventions are understood.
+ * How a quarter-hourly answer labels its quarters. No quarter-hourly answer of a point type 1, 2 or 3
+ * supply has been captured. Datadis's own portal places quarter-hourly readings on the labels
+ * `00:15` to `24:00`, the end of each quarter, so that is the convention taken when an answer does
+ * not tell; the other one, which one implementation in production assumes, is still recognised.
  */
 enum QuarterHourConvention
 {
@@ -22,8 +24,9 @@ enum QuarterHourConvention
 
     /**
      * The convention of an answer, from the labels only one of them has: hour `00` (`00:15` to
-     * `00:45`) only at the end of a quarter, and `24:15` to `24:45` only in the other. Null when
-     * the labels have neither, or both.
+     * `00:45`) only at the end of a quarter, and `24:15` to `24:45` only in the other. With neither,
+     * the end of the quarter, as Datadis's portal reads them. Null only when the labels have both,
+     * which no single convention explains.
      *
      * @param  iterable<string>  $labels
      */
@@ -40,7 +43,8 @@ enum QuarterHourConvention
         return match (true) {
             $quarterEnd && ! $hourEnding => self::QuarterEnd,
             $hourEnding && ! $quarterEnd => self::HourEndingWithStartMinute,
-            default => null,
+            $quarterEnd => null,
+            default => self::QuarterEnd,
         };
     }
 }

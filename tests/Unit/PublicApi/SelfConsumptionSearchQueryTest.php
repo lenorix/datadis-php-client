@@ -28,8 +28,8 @@ it('builds the self-consumption query without a measurement type', function () u
 it('refuses unknown self-consumption types and malformed province', function (Closure $build) use ($from, $to) {
     $build($from, $to);
 })->with([
-    'type 30' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], selfConsumption: ['30'])],
-    'type 75' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], selfConsumption: ['75'])],
+    'type of one digit' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], selfConsumption: ['3'])],
+    'type in words' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], selfConsumption: ['con excedentes'])],
     'province 3 digits' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, [Community::Madrid], province: ['035'])],
     'a community code instead of the enum' => [fn ($f, $t) => new SelfConsumptionSearchQuery($f, $t, ['13'])],
 ])->throws(InvalidRequestException::class);
@@ -50,4 +50,8 @@ it('leaves paging and sorting out of the sum query', function () use ($from, $to
     $query = new SelfConsumptionSearchQuery($from, $to, [Community::Madrid], page: 2, sort: ['-sumPower']);
 
     expect($query->toSumQuery())->toBe(['startDate' => '2026/01/01', 'endDate' => '2026/01/31', 'community' => '13']);
+});
+
+it('lets through a self-consumption type Datadis may add later', function () use ($from, $to) {
+    expect((new SelfConsumptionSearchQuery($from, $to, [Community::Madrid], selfConsumption: ['75']))->toQuery()['selfConsumption'])->toBe('75');
 });

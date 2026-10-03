@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `TariffResolver`, to read the tariff of a contract your own way: `ContractDetail::tariff($resolver)`. `StandardTariffResolver` is the package's reading, with a table of `codeFare` codes you can extend or replace; `PatternTariffResolver` applies regular expressions of your own to the fields you choose; `ChainTariffResolver` asks several in order. `accessFare` and `codeFare` always keep the text as received.
+
+### Changed
+
+- `tariff()` also reads `codeFare` (`2T`, the CNMC codes `018`..`023`, or the tariff itself) and tells 2.0TD from two contracted powers, the only tariff with two; signals that disagree still give null.
+- A quarter-hourly answer that does not tell its convention is read as the end of each quarter, as Datadis's own portal reads it, instead of getting no intervals. Only labels of both conventions leave the rows without them.
+- The filters of the public API and a distributor code are checked by shape only, so a code Datadis adds later still goes through: two digits for a measurement type or self-consumption type, a letter and digits for tension and time discrimination, a field name for sorting, and a distributor code of up to 20 characters without spaces.
+
 ### Fixed
 
 - A new login that handed back the token the client had dropped (Datadis may return the same token while it is valid) was still treated as dropped, so the client logged in again on every call. Forcing a login and remembering a rejected token are now apart: a login that succeeds with the dropped token makes it good again.

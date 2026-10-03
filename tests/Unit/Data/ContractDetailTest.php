@@ -77,11 +77,13 @@ it('resolves the access tariff when the description and the number of powers agr
     '2.0TD band with 6 powers' => ['BAJA TENSION y POTENCIA <= 15 kW', [1, 1, 1, 1, 1, 1], null],
     '3.0TD with 2 powers' => ['BAJA TENSION Y POTENCIA > 15 kW', [20, 20], null],
     'no powers' => ['BAJA TENSION y POTENCIA <= 15 kW', [], null],
-    'unknown description' => ['TARIFA RARA', [4.6, 4.6], null],
+    'unknown description, 2 powers: only 2.0TD has two' => ['TARIFA RARA', [4.6, 4.6], AccessTariff::T20TD],
+    'unknown description, 6 powers' => ['TARIFA RARA', [1, 1, 1, 1, 1, 1], null],
 ]);
 
-it('has no tariff without a description', function () use ($zone) {
-    expect(ContractDetail::fromRow(['cups' => 'ES0000000000000000AA', 'contractedPowerkW' => [4.6, 4.6]], $zone)->tariff())->toBeNull();
+it('tells 2.0TD from two contracted powers alone, and nothing from six', function () use ($zone) {
+    expect(ContractDetail::fromRow(['cups' => 'ES0000000000000000AA', 'contractedPowerkW' => [4.6, 4.6]], $zone)->tariff())->toBe(AccessTariff::T20TD)
+        ->and(ContractDetail::fromRow(['cups' => 'ES0000000000000000AA', 'contractedPowerkW' => [9, 9, 9, 9, 9, 9]], $zone)->tariff())->toBeNull();
 });
 
 it('reads powers sent as an object, an empty power as missing', function () use ($zone) {

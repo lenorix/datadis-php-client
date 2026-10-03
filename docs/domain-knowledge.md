@@ -16,7 +16,7 @@ Only what a Datadis client needs to interpret data. Regulatory sources: Circular
 - `accessFare` in contract detail is free text describing the band, not a code. Real strings seen: `BAJA TENSION y POTENCIA <= 15 kW`, `2.0TD PEAJE ATR`, `BAJA TENSION Y POTENCIA  > 15 kW` (double space). Exact-string matching failed twice in production. Parse by **shape**: replace `≤` with `<=` and `≥` with `>=` first (ASCII transliteration drops them and loses the only signal that separates 2.0TD from 3.0TD), normalise (ASCII, lowercase, collapse whitespace), band by low-voltage 15 kW threshold or by kV lower bound (decimal comma or dot), cross-check with an alias like `2.0TD`, and return null when band and alias disagree. Never guess.
 - Cross-check with `contractedPowerkW`: 2 values for 2.0TD, 6 for every other tariff. If they disagree, keep the contract and mark the tariff unresolved instead of throwing.
 - Contracted power in 6-period tariffs is non-decreasing (P1 <= ... <= P6). 2.0TD has no ordering rule. Real payloads have violated it, so the client must not enforce it.
-- `codeFare` is the CNMC code (`2T`...), separate from `accessFare`.
+- `codeFare` is free text too, not one code list: `2T` in real answers, the CNMC codes `018`..`023` in others, even `2.0TD`. `StandardTariffResolver` maps the known ones; an application adds its own with a `TariffResolver`.
 
 ## Periods (informational; consumers decide whether to use them)
 

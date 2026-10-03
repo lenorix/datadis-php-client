@@ -13,7 +13,10 @@ use DateTimeInterface;
  */
 final readonly class SelfConsumptionSearchQuery
 {
-    /** Self-consumption modality codes of the public code list. */
+    /**
+     * Self-consumption modality codes of the public code list (October 2026). Only their shape (two
+     * digits) is checked: a code Datadis adds later still goes through.
+     */
     public const array SELF_CONSUMPTION_TYPES = [
         '31', '32', '33', '41', '42', '43', '51', '52', '53', '54', '55', '56', '57', '58',
         '61', '62', '63', '64', '71', '72', '73', '74', '77',
@@ -50,8 +53,6 @@ final readonly class SelfConsumptionSearchQuery
         QueryRules::dates($this->startDate, $this->endDate);
         QueryRules::paging($page, $pageSize);
 
-        $types = '/^('.implode('|', self::SELF_CONSUMPTION_TYPES).')$/D';
-
         $this->query = array_filter([
             'startDate' => $this->startDate->format('Y/m/d'),
             'endDate' => $this->endDate->format('Y/m/d'),
@@ -59,7 +60,7 @@ final readonly class SelfConsumptionSearchQuery
             'pageSize' => $pageSize,
             'community' => QueryRules::communities($community),
             'distributor' => QueryRules::list('distributor', $distributor, '/^[A-Za-z0-9]{1,10}$/D'),
-            'selfConsumption' => QueryRules::list('self-consumption type', $selfConsumption, $types),
+            'selfConsumption' => QueryRules::list('self-consumption type', $selfConsumption, '/^\d{2}$/D'),
             'province' => QueryRules::list('province', $province, '/^\d{2}$/D'),
             'sort' => QueryRules::sort($sort),
         ], static fn (string|int|null $value): bool => $value !== null);

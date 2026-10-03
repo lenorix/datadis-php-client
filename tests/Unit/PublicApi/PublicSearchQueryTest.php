@@ -67,17 +67,19 @@ it('refuses invalid queries', function (Closure $build) use ($from, $to) {
     'repeated community' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid, Community::Madrid], ['05'])],
     'a community code instead of the enum' => [fn ($f, $t) => new PublicSearchQuery($f, $t, ['13'], ['05'])],
     'null as a community' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid, null], ['05'])],
-    'measurement type 06' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['06'])],
-    'measurement type 5' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['5'])],
+    'measurement type of one digit' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['5'])],
+    'measurement type not a number' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['0A'])],
     'reversed dates' => [fn ($f, $t) => new PublicSearchQuery($t, $f, [Community::Madrid], ['05'])],
     'negative page' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['05'], page: -1)],
     'page size 0' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['05'], pageSize: 0)],
     'page size 2001' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['05'], pageSize: 2001)],
-    'economic sector 5' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['05'], economicSector: ['5'])],
-    'tension E7' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['05'], tension: ['E7'])],
+    'economic sector not a number' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['05'], economicSector: ['A'])],
+    'tension without its letter' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['05'], tension: ['7'])],
+    'time discrimination in words' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['05'], timeDiscrimination: ['tres periodos'])],
     'comma inside a value' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['05'], postalCode: ['18817,18800'])],
     'empty value' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['05'], fare: [''])],
-    'unknown sort field' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['05'], sort: ['cups'])],
+    'a sort that is not a field name' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['05'], sort: ['cups;x'])],
+    'a sort with two dashes' => [fn ($f, $t) => new PublicSearchQuery($f, $t, [Community::Madrid], ['05'], sort: ['--cups'])],
 ])->throws(InvalidRequestException::class);
 
 it('uses the date of the given instant, whatever its time and zone', function () {
@@ -130,3 +132,9 @@ it('keeps the dates it sends even if the caller changes its DateTime afterwards'
     'search' => [fn ($s, $e) => new PublicSearchQuery($s, $e, [Community::Madrid])],
     'self-consumption search' => [fn ($s, $e) => new SelfConsumptionSearchQuery($s, $e, [Community::Madrid])],
 ]);
+
+it('lets through codes Datadis may add later, checking only their shape', function () use ($from, $to) {
+    $query = new PublicSearchQuery($from, $to, [Community::Madrid], ['06'], economicSector: ['5'], tension: ['E7'], timeDiscrimination: ['E4'], sort: ['newField']);
+
+    expect($query->toQuery())->toMatchArray(['measurementType' => '06', 'economicSector' => '5', 'tension' => 'E7', 'timeDiscrimination' => 'E4', 'sort' => 'newField']);
+});

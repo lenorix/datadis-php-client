@@ -60,7 +60,7 @@ it('refuses malformed arguments of the calls that take them before sending', fun
     'reactive distributor code' => [fn ($c) => $c->getReactiveData(Cups::fromString(Scenario::CUPS), '', Month::of(2026, 1), Month::of(2026, 1))],
     'reactive range' => [fn ($c) => $c->getReactiveData(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 2), Month::of(2026, 1))],
     'max power distributor code' => [fn ($c) => $c->getMaxPower(Cups::fromString(Scenario::CUPS), 'x y', Month::of(2026, 1), Month::of(2026, 1))],
-    'contract distributor code too long' => [fn ($c) => $c->getContractDetail(Cups::fromString(Scenario::CUPS), '12345678901')],
+    'contract distributor code too long' => [fn ($c) => $c->getContractDetail(Cups::fromString(Scenario::CUPS), str_repeat('1', 21))],
 ]);
 
 it('accepts a one day authorization and one with only a start or an end', function (?string $from, ?string $to, string $query) {

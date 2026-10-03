@@ -8,8 +8,9 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Lenorix\DatadisClient\Decoding\Fields;
 use Lenorix\DatadisClient\Support\Decimal;
-use Lenorix\DatadisClient\Tariff\AccessFareParser;
 use Lenorix\DatadisClient\Tariff\AccessTariff;
+use Lenorix\DatadisClient\Tariff\StandardTariffResolver;
+use Lenorix\DatadisClient\Tariff\TariffResolver;
 use Lenorix\DatadisClient\Time\DatadisDate;
 use SensitiveParameter;
 
@@ -107,14 +108,13 @@ final readonly class ContractDetail
     }
 
     /**
-     * The access tariff, when the `accessFare` description and the number of contracted powers agree
-     * (2 for 2.0TD, 6 for the others). Null means it could not be told apart safely.
+     * The access tariff, read by a TariffResolver: the package's StandardTariffResolver unless you
+     * give your own. Null when the contract does not tell it for sure. `accessFare` and `codeFare`
+     * always keep the text as received, for a reading of your own.
      */
-    public function tariff(): ?AccessTariff
+    public function tariff(?TariffResolver $resolver = null): ?AccessTariff
     {
-        $tariff = $this->accessFare === null ? null : AccessFareParser::parse($this->accessFare);
-
-        return $tariff !== null && count($this->contractedPowerkW) === $tariff->powerPeriods() ? $tariff : null;
+        return ($resolver ?? new StandardTariffResolver)->resolve($this);
     }
 
     /** `endDate` was empty or null: the contract has no end. */

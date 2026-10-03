@@ -1009,7 +1009,7 @@ final class DatadisClient
     private function assertDistributorCode(string $code): void
     {
         if (! Supply::isValidDistributorCode($code)) {
-            throw new InvalidRequestException('The distributor code must be 1 to 10 letters, digits, dashes or underscores.');
+            throw new InvalidRequestException('The distributor code must be 1 to 20 characters, without spaces or control characters.');
         }
     }
 

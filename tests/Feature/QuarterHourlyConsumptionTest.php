@@ -75,10 +75,17 @@ it('places every quarter of a day in either convention, change days included', f
     'hour ending, the 23 hour day' => ['2026-03-29', true, 92],
 ]);
 
-it('keeps the rows without an interval when an answer cannot tell the convention', function () {
+it('places an answer that does not tell its convention as Datadis\'s portal does: at the end of each quarter', function () {
     $readings = readQuarterDay('2025/11/04', ['10:00', '10:15', '10:30', '10:45']);
 
-    expect($readings)->toHaveCount(4)
+    expect(array_map(fn ($r) => $r->start?->format('H:i').'-'.$r->end?->format('H:i'), $readings))
+        ->toBe(['09:45-10:00', '10:00-10:15', '10:15-10:30', '10:30-10:45']);
+});
+
+it('keeps the rows without an interval when the labels fit no single convention', function () {
+    $readings = readQuarterDay('2025/11/04', ['00:15', '24:45']);
+
+    expect($readings)->toHaveCount(2)
         ->and(array_filter($readings, fn ($r) => $r->hasValidTime()))->toBe([])
         ->and($readings[1]->consumptionKWh)->not->toBeNull();
 });

@@ -49,7 +49,7 @@ The v1 equivalents drop the `-v2` suffix and return bare JSON arrays with no `di
 
 - `startDate` / `endDate`: **`YYYY/MM`** (zero-padded month, slashes), inclusive, whole months only. Day granularity is not supported on the private API (VERIFIED by several implementations; `YYYY/MM/DD` belongs to the public API).
 - Window: the last **24 months**. The boundary month (exactly two years back) is refused ("la fecha inicio no puede ser superior a dos años"). Future months are refused ("las fechas deben ser anteriores o iguales al mes actual").
-- `measurementType`: `0` hourly, `1` quarter-hourly (SPEC). Quarter-hourly is only offered for point types 1 and 2 (and 3 for one distributor). The quarter-hour `time` format is undocumented anywhere.
+- `measurementType`: `0` hourly, `1` quarter-hourly (SPEC). Quarter-hourly is only offered for point types 1 and 2, and 3 for E-distribución (official web documentation). The API documents `time` only as `hh:mm`, with hourly samples; Datadis's own portal places quarter-hourly readings on the labels `00:15`..`24:00`, which the client takes as the convention when an answer does not tell.
 - `pointType` (int 1-5) and `distributorCode` (string, `"1"`-`"8"`) come only from `get-supplies-v2`. Send them as they came.
 - `distributorCode` on `get-supplies` is optional: "si se pone este parámetro, se irá directo contra la distribuidora" (official manual).
 - A NIF without its final letter is reported to give 401, not 400 (third-party note).
@@ -91,7 +91,7 @@ The official documentation spells two keys `accesFare` and `installedCapacityKW`
 
 ### reactive (`reactiveEnergy`)
 
-`{cups, energy:[{date, energy_p1..energy_p6}], code, codeDescription}` (VERIFIED key; the manual says `code_desc`, which is read too), `date` documented as `YYYY/MM`. A period without data comes as an object whose every field is null plus a distributor error with code `8` (VERIFIED). An answer with data has not been captured yet (it needs a 3.0TD or larger supply).
+`{cups, energy:[{date, energy_p1..energy_p6}], code, codeDescription}` (VERIFIED key; the official web documentation says `code_desc`, which is read too), `date` documented as `YYYY/MM`; the web documentation's sample has the `energy_p*` values as numbers, one of them negative, and `code` `001` with `Correcto`, a status rather than only an error (the PDF manual has no reactive section). A period without data comes as an object whose every field is null plus a distributor error with code `8` (VERIFIED). An answer with data has not been captured yet (it needs a 3.0TD or larger supply).
 
 ### distributors
 

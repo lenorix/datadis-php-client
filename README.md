@@ -89,7 +89,20 @@ $contract?->contractedPowerkW;     // ['3.45', '3.45'], one per power period
 $contract?->isOpenEnded();         // true while the contract is running
 ```
 
-`tariff()` reads the free-text `accessFare` ("BAJA TENSION y POTENCIA <= 15 kW") and checks it against the number of contracted powers. It answers `null` rather than guess.
+Datadis has no tariff field. `accessFare` and `codeFare` are text each company writes its own way (`BAJA TENSION y POTENCIA <= 15 kW`, `2.0TD (Peaje de acceso 2.0TD)`, `2T`, `018`...), and the contract keeps both exactly as received. `tariff()` reads them with every signal it has: the band or alias in `accessFare`, a table of known `codeFare` codes, and the number of contracted powers, which must match (and alone tells 2.0TD, the only tariff with two). Signals that disagree give `null`, never a guess.
+
+The reading is yours to change. Pass a `TariffResolver` to `tariff()`: your own patterns, kept in your configuration, the package's reading with codes of your own added, or both in order:
+
+```php
+use Lenorix\DatadisClient\Tariff\{AccessTariff, ChainTariffResolver, PatternTariffResolver, StandardTariffResolver};
+
+$resolver = new ChainTariffResolver(
+    new PatternTariffResolver(['/peaje\s*tres\s*periodos/i' => AccessTariff::T30TD], fields: ['accessFare', 'codeFare']),
+    new StandardTariffResolver(['PEAJE-3' => AccessTariff::T30TD] + StandardTariffResolver::CODES),
+);
+
+$contract->tariff($resolver);
+```
 
 ### Add up the energy of a month
 
@@ -531,7 +544,7 @@ The same works in any framework: read the settings however it does, pass them to
 
 - **Send the CUPS exactly as the supplies list returns it.** Datadis refuses the same CUPS in lowercase or without its last two characters as "not authorized". `findSupply()` accepts either form and gives you back the right one.
 - **An empty answer is not always "no data yet".** A wrong distributor code that happens to exist also gives an empty answer. Always take the codes from the supplies list.
-- **Quarter-hourly labels come in one of two conventions, and which one is not verified.** It may be the end of each quarter (`00:15` to `24:00`, like the hourly labels) or the hour that ends followed by the minute the quarter starts (`01:00` is 00:00-00:15, `24:45` is 23:45-24:00). The client recognises which one each answer uses from the labels only one of them has, and places every quarter on its real time, daylight saving days included. If an answer cannot tell (a partial day without hour `00` or `24:15` to `24:45`), its rows come without `start` and `end` rather than with a guess.
+- **Quarter-hourly labels are not verified against a real answer.** Datadis's own portal reads them as the end of each quarter (`00:15` to `24:00`, like the hourly labels), so the client does too. It also recognises the other convention one implementation assumes, the hour that ends followed by the minute the quarter starts (`01:00` is 00:00-00:15, `24:45` is 23:45-24:00), from the labels only it has (`24:15` to `24:45`), and places every quarter on its real time, daylight saving days included. An answer with the labels of both gets no `start` and `end`.
 - **Rows can lack a valid time.** Some distributors send an extra `00:00` row on normal days. It is kept, with `hasValidTime()` returning `false` and no `start`, `end` or `index`. Decide what to do with it before adding up energy.
 - **Store what you receive.** You cannot ask again for 24 hours, so keep `raw` if you might want to reinterpret the data later.
 - **Nothing for the current day, little for the last two.** Distributors publish with a delay; a month can keep changing for some days after it ends.

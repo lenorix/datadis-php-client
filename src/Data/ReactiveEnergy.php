@@ -8,8 +8,11 @@ use Lenorix\DatadisClient\Decoding\Fields;
 use SensitiveParameter;
 
 /**
- * The reactive energy answer (v2 only). Least verified response of the API: the field names come
- * from the manual and no real success body has been captured. It is usually empty for domestic supplies.
+ * The reactive energy answer (v2 only). The shape comes from the official web documentation (the
+ * PDF manual has no reactive section): `energy` entries with `date` (`YYYY/MM`) and `energy_p1` to
+ * `energy_p6`, as numbers that may be negative, and `code` with its description, a status such as
+ * `001` / `Correcto`. The real answer was captured only without data, which verified the
+ * `codeDescription` key. It is usually empty for domestic supplies.
  */
 final readonly class ReactiveEnergy
 {

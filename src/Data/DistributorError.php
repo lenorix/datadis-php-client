@@ -41,7 +41,8 @@ final readonly class DistributorError
 
     /**
      * Error code 8, "No existen datos en el periodo solicitado": the distributor has no data for
-     * that period, which is an answer and not a failure (seen once, October 2026).
+     * that period, which is an answer and not a failure (seen once, October 2026, for one
+     * distributor). Codes are each distributor's: the code and its description are kept as sent.
      */
     public function isNoData(): bool
     {

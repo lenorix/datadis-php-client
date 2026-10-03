@@ -95,8 +95,9 @@ final class QueryRules
         $checked = [];
 
         foreach ($fields as $field) {
-            if (! is_string($field) || ! in_array(ltrim($field, '-'), self::SORT_FIELDS, true) || str_starts_with($field, '--')) {
-                throw new InvalidRequestException('Unknown sort field.');
+            // Only the shape: a field Datadis adds later still goes through (SORT_FIELDS lists today's).
+            if (! is_string($field) || preg_match('/^-?[A-Za-z][A-Za-z0-9]*$/D', $field) !== 1) {
+                throw new InvalidRequestException('A sort field is a field name, with a leading - to sort descending.');
             }
 
             $checked[] = $field;

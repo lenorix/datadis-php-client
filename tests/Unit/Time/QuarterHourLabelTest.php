@@ -57,10 +57,10 @@ it('tells the convention of an answer from the labels only one of them has', fun
 })->with([
     'end of the quarter: hour 00 appears' => [['00:15', '00:30', '00:45', '01:00', '24:00'], QuarterHourConvention::QuarterEnd],
     'hour ending: 24:15 to 24:45 appear' => [['01:00', '01:15', '24:30', '24:45'], QuarterHourConvention::HourEndingWithStartMinute],
-    'neither, as in a partial day' => [['10:00', '10:15', '10:30'], null],
-    'both, which no answer should have' => [['00:15', '24:45'], null],
-    'no labels' => [[], null],
-    'only labels that merely contain them' => [['100:15', '00:150', "00:15\n", '124:30', '24:300', "24:45\n"], null],
+    'neither, as in a partial day: the portal\'s end of the quarter' => [['10:00', '10:15', '10:30'], QuarterHourConvention::QuarterEnd],
+    'both, which no single convention explains' => [['00:15', '24:45'], null],
+    'no labels' => [[], QuarterHourConvention::QuarterEnd],
+    'only labels that merely contain them' => [['100:15', '00:150', "00:15\n", '124:30', '24:300', "24:45\n"], QuarterHourConvention::QuarterEnd],
 ]);
 
 it('refuses a negative occurrence instead of answering as if the quarter never happened', function () {
