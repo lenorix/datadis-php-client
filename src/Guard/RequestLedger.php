@@ -63,7 +63,7 @@ final class RequestLedger
      *                                             wrapped in Psr16LedgerStore. An AtomicLedgerStore makes
      *                                             checking and recording one step, so concurrent workers
      *                                             cannot both send
-     * @param  (Closure(LedgerEvent): void)|null  $onChange  told of every query claimed, released or remembered, to keep a
+     * @param  (Closure(LedgerEvent): void)|null  $onChange  told of every query claimed, refused, released or remembered, to keep a
      *                                                       history; what it throws is ignored, so it never decides whether
      *                                                       a query goes
      * @param  int|null  $windowSeconds  how long an attempt blocks the same query, at least 24 hours;
@@ -165,6 +165,8 @@ final class RequestLedger
             if ($last === null) {
                 $this->store($account, $query, $now, $this->windowSeconds);
                 $this->tell(LedgerEventKind::Claimed, $account, $query, $now, $endpoint);
+            } else {
+                $this->tell(LedgerEventKind::Refused, $account, $query, $now, $endpoint, $last);
             }
 
             return $last;
@@ -179,7 +181,10 @@ final class RequestLedger
         // Another worker holds the key. A held key always counts, even when its value cannot be read
         // yet or does not make sense: taking it back would be a delete and an add, two steps another
         // worker could slip between. The store's TTL frees it within the window. Without a time, it is now.
-        return $this->lastAttempt($account, $query) ?? (new DateTimeImmutable)->setTimestamp($now);
+        $last = $this->lastAttempt($account, $query) ?? (new DateTimeImmutable)->setTimestamp($now);
+        $this->tell(LedgerEventKind::Refused, $account, $query, $now, $endpoint, $last);
+
+        return $last;
     }
 
     /** @param  array<string, string|int|list<string>|null>  $query */
@@ -307,14 +312,17 @@ final class RequestLedger
     }
 
     /** @param  array<string, string|int|list<string>|null>  $query */
-    private function tell(LedgerEventKind $kind, #[SensitiveParameter] string $account, #[SensitiveParameter] array $query, int $at, ?string $endpoint): void
+    private function tell(LedgerEventKind $kind, #[SensitiveParameter] string $account, #[SensitiveParameter] array $query, int $at, ?string $endpoint, ?DateTimeImmutable $last = null): void
     {
         if ($this->onChange === null) {
             return;
         }
 
+        // The same arithmetic as the refusal's availableAt: elapsed seconds, not the wall clock.
+        $available = $last?->setTimestamp($last->getTimestamp() + $this->windowSeconds);
+
         try {
-            ($this->onChange)(new LedgerEvent($kind, $this->key($account, $query), (new DateTimeImmutable)->setTimestamp($at), $endpoint));
+            ($this->onChange)(new LedgerEvent($kind, $this->key($account, $query), (new DateTimeImmutable)->setTimestamp($at), $endpoint, $last, $available));
         } catch (Throwable) {
             // A history that fails must not decide whether a query goes, nor hide why it did not.
         }

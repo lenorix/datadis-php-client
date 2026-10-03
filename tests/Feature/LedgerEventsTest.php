@@ -7,6 +7,7 @@ use GuzzleHttp\Psr7\Request;
 use Lenorix\DatadisClient\DatadisClient;
 use Lenorix\DatadisClient\Exceptions\AuthenticationException;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
+use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
 use Lenorix\DatadisClient\Guard\LedgerEvent;
 use Lenorix\DatadisClient\Guard\LedgerEventKind;
 use Lenorix\DatadisClient\Guard\RequestFingerprinter;
@@ -114,5 +115,41 @@ it('does not tell it freed a query the store could not free, and keeps the origi
     $http->queue(Responses::datadisError('bad credentials', 401));
 
     expect(fn () => $client->getMaxPower(Cups::fromString(Scenario::CUPS), '2', Month::of(2026, 8)))->toThrow(AuthenticationException::class)
+        ->and(array_map(fn (LedgerEvent $e) => $e->kind, $events->getArrayCopy()))->toBe([LedgerEventKind::Claimed]);
+});
+
+it('tells of a query the guard refused, with the attempt that holds it and when it may go', function (bool $atomic) {
+    [$client, $http, $clock, $events] = historyClient($atomic);
+    $cups = Cups::fromString(Scenario::CUPS);
+    $http->queue(Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+    $client->getMaxPower($cups, '2', Month::of(2026, 8));
+    $sentAt = $clock->now()->getTimestamp();
+    $clock->advance(3600);
+
+    try {
+        $client->getMaxPower($cups, '2', Month::of(2026, 8));
+    } catch (RepetitionWindowException $refusal) {
+    }
+
+    $refused = $events[1];
+
+    expect(array_map(fn (LedgerEvent $e) => $e->kind, $events->getArrayCopy()))->toBe([LedgerEventKind::Claimed, LedgerEventKind::Refused])
+        ->and($refused->key)->toBe($events[0]->key)
+        ->and($refused->endpoint)->toBe('get-max-power-v2')
+        ->and($refused->at->getTimestamp())->toBe($sentAt + 3600)
+        ->and($refused->lastAttemptAt?->getTimestamp())->toBe($sentAt)
+        ->and($refused->availableAt?->getTimestamp())->toBe($refusal->availableAt->getTimestamp())
+        ->and($events[0]->lastAttemptAt)->toBeNull()
+        ->and($events[0]->availableAt)->toBeNull()
+        ->and($http->requests())->toHaveCount(2);
+})->with(['a plain store' => [false], 'an atomic store' => [true]]);
+
+it('does not tell of a refusal when a lookup only reads the ledger', function () {
+    [$client, $http, $clock, $events] = historyClient(false);
+    $cups = Cups::fromString(Scenario::CUPS);
+    $http->queue(Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+    $client->getMaxPower($cups, '2', Month::of(2026, 8));
+
+    expect($client->maxPowerBlockedUntil($cups, '2', Month::of(2026, 8)))->not->toBeNull()
         ->and(array_map(fn (LedgerEvent $e) => $e->kind, $events->getArrayCopy()))->toBe([LedgerEventKind::Claimed]);
 });

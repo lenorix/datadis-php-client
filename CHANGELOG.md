@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `LedgerEventKind::Refused`: the ledger's `onChange` is told of a query the guard refused because an attempt within the window holds it, with `lastAttemptAt` and `availableAt` on the `LedgerEvent` (the same as the `RepetitionWindowException`'s), so a history can audit refusals and not only what was sent. A listener that matches every kind exhaustively must handle the new one.
+
 ## [0.7.0] - 2026-10-03
 
 ### Added
