@@ -154,7 +154,9 @@ final class DatadisClient
     /**
      * Logs in, or takes the cached token, and tells until when the token lasts (null when Datadis
      * does not say): a check of the credentials that reads no data. `fresh` ignores a cached token,
-     * so the username and password are tried now.
+     * so the username and password are tried now; the new token replaces the cached one, so clients
+     * sharing the token cache use it without logging in. Only when that login fails is the cache
+     * left empty, and the next call logs in.
      *
      * @throws AuthenticationException when Datadis refuses the credentials
      * @throws DatadisException when the login fails otherwise; nothing is sent besides it
