@@ -29,7 +29,8 @@ final class DistributorCodes
             array_is_list($decoded) => self::fromList($decoded, $endpoint),
             array_key_exists('distExistenceUser', $decoded) => [self::codesOf($decoded['distExistenceUser'], $endpoint)],
             array_key_exists('distributorCodes', $decoded) => [$decoded['distributorCodes'] ?? []],
-            array_key_exists('distributorError', $decoded) => [],
+            // Only failed distributors may leave the codes out; without errors it is another answer.
+            Envelope::distributorErrors($decoded) !== [] => [],
             default => throw new UninterpretableResponseException("{$endpoint}: the answer has no distributor codes.", endpoint: $endpoint),
         };
 

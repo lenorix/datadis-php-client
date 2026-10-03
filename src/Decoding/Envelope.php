@@ -108,7 +108,9 @@ final class Envelope
             return [self::listAt($decoded, $key, $endpoint), $errors];
         }
 
-        if (array_key_exists('distributorError', $decoded)) {
+        // A distributor that failed may leave the list out: the errors are the answer. Without
+        // errors, an answer missing its list is another endpoint's or a changed one, not "no data".
+        if ($errors !== []) {
             return [[], $errors];
         }
 

@@ -121,7 +121,7 @@ it('does not tell it freed a query the store could not free, and keeps the origi
 it('tells of a query the guard refused, with the attempt that holds it and when it may go', function (bool $atomic) {
     [$client, $http, $clock, $events] = historyClient($atomic);
     $cups = Cups::fromString(Scenario::CUPS);
-    $http->queue(Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+    $http->queue(Responses::datadis('{"maxPower":[],"distributorError":[]}'));
     $client->getMaxPower($cups, '2', Month::of(2026, 8));
     $sentAt = $clock->now()->getTimestamp();
     $clock->advance(3600);
@@ -147,7 +147,7 @@ it('tells of a query the guard refused, with the attempt that holds it and when 
 it('does not tell of a refusal when a lookup only reads the ledger', function () {
     [$client, $http, $clock, $events] = historyClient(false);
     $cups = Cups::fromString(Scenario::CUPS);
-    $http->queue(Responses::datadis('{"timeCurve":[],"distributorError":[]}'));
+    $http->queue(Responses::datadis('{"maxPower":[],"distributorError":[]}'));
     $client->getMaxPower($cups, '2', Month::of(2026, 8));
 
     expect($client->maxPowerBlockedUntil($cups, '2', Month::of(2026, 8)))->not->toBeNull()

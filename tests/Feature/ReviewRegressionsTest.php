@@ -120,3 +120,25 @@ it('does not take a period as covered by a last row with surplus but no consumpt
         ->and($period->totalKWh($result->records))->toBe('0.200')
         ->and($result->skippedRows)->toBe(1);
 });
+
+it('does not read another endpoint\'s envelope as an empty answer', function (string $body, Closure $call) {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis($body));
+
+    expect(fn () => $call($s->client))->toThrow(UninterpretableResponseException::class);
+})->with([
+    'consumption for max power' => ['{"timeCurve":[],"distributorError":[]}', fn ($c) => $c->getMaxPower(Scenario::cups(), '2', Month::of(2026, 1))],
+    'max power for consumption' => ['{"maxPower":[],"distributorError":[]}', fn ($c) => $c->getConsumptionData(Scenario::cups(), '2', 5, Month::of(2026, 1))],
+    'supplies for contract detail' => ['{"supplies":[],"distributorError":[]}', fn ($c) => $c->getContractDetail(Scenario::cups(), '2')],
+    'consumption for reactive' => ['{"timeCurve":[],"distributorError":[]}', fn ($c) => $c->getReactiveData(Scenario::cups(), '2', Month::of(2026, 1))],
+    'supplies for distributors' => ['{"supplies":[],"distributorError":[]}', fn ($c) => $c->getDistributorsWithSupplies()],
+]);
+
+it('still reads an answer that only reports failed distributors as their errors', function () {
+    $s = Scenario::make();
+    $s->http->queue(Responses::datadis('{"distributorError":[{"distributorCode":"2","distributorName":"X","errorCode":"15","errorDescription":"Error interno distribuidora"}]}'));
+
+    $result = $s->client->getMaxPower(Scenario::cups(), '2', Month::of(2026, 1));
+
+    expect($result->records)->toBe([])->and($result->isEmptyBecauseOfErrors())->toBeTrue();
+});

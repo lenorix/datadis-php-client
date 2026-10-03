@@ -35,8 +35,15 @@ it('treats an empty list, an empty envelope and a null list as an empty success'
     'empty list' => [[]],
     'empty list in envelope' => [['timeCurve' => [], 'distributorError' => []]],
     'null list' => [['timeCurve' => null, 'distributorError' => []]],
-    'only errors key' => [['distributorError' => []]],
 ]);
+
+it('reads an answer without its list as failed distributors only when they reported errors', function () use ($decoder) {
+    $failed = Envelope::build(['distributorError' => [['distributorCode' => '2', 'errorCode' => '15', 'errorDescription' => 'Error interno distribuidora']]], 'timeCurve', 'endpoint', $decoder);
+
+    expect($failed->isEmpty())->toBeTrue()->and($failed->distributorErrors)->toHaveCount(1)
+        ->and(fn () => Envelope::build(['distributorError' => []], 'timeCurve', 'endpoint', $decoder))
+        ->toThrow(UninterpretableResponseException::class, 'the answer has no "timeCurve" list');
+});
 
 it('tells "empty because a distributor failed" apart from plain empty', function () use ($decoder) {
     $failed = Envelope::build(json_decode((string) file_get_contents(__DIR__.'/../../Fixtures/v2/distributor-error-only.json'), true), 'timeCurve', 'endpoint', $decoder);

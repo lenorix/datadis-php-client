@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- An answer without the endpoint's own list (`maxPower`, `timeCurve`, `reactiveEnergy`, the distributor codes...) was read as "no data" whenever it had a `distributorError` key, even an empty one, so another endpoint's envelope or a changed API passed as an empty result. It is uninterpretable now unless a distributor reported an error, which is still read as that failure.
+
 ## [0.8.0] - 2026-10-03
 
 ### Added
