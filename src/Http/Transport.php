@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lenorix\DatadisClient\Http;
 
 use Lenorix\DatadisClient\Exceptions\TransportException;
+use Lenorix\DatadisClient\Support\PersonalDataRedactor;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -54,10 +55,23 @@ final class Transport
             // message is kept for it; the redaction of the others removes identifiers and tokens.
             throw new TransportException(
                 "{$endpoint}: the HTTP client failed before a whole answer arrived (".$e::class.').',
-                detail: $preflight ? null : $e->getMessage(),
+                detail: $preflight ? null : self::withoutToken($e->getMessage(), $request),
                 endpoint: $endpoint,
                 requestSent: ! $preflight,
             );
         }
+    }
+
+    /**
+     * The message without the token the request carried, whatever its shape: the redaction of
+     * the exception only knows the usual JWT, and a client may print the headers it was sending.
+     */
+    private static function withoutToken(#[SensitiveParameter] string $message, #[SensitiveParameter] RequestInterface $request): string
+    {
+        $header = $request->getHeaderLine('Authorization');
+        $token = trim((string) preg_replace('/^Bearer\s+/i', '', $header));
+        $message = $header === '' ? $message : str_replace(array_filter([$header, $token], static fn (string $s): bool => $s !== ''), PersonalDataRedactor::PLACEHOLDER, $message);
+
+        return (string) preg_replace('/\b(Authorization\s*[:=]\s*)\S+(?:\s+[A-Za-z0-9._~+\/=-]+)?|\bBearer\s+[A-Za-z0-9._~+\/=-]+/i', PersonalDataRedactor::PLACEHOLDER, $message);
     }
 }

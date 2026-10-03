@@ -91,8 +91,10 @@ final class TokenProvider
 
         // The store's TTL is not trusted alone: a store that ignores it would hand back an expired
         // token, and every call would fail with a 401 until it went.
-        if (is_string($cached) && self::clean($cached) === $cached && ! $this->expired($cached) && hash('sha256', $cached) !== $this->dropped) {
-            return $cached;
+        [$usable, $expiry] = is_string($cached) ? self::unpack($cached) : [null, null];
+
+        if ($usable !== null && $expiry !== null && $expiry - self::SKEW_SECONDS > $this->clock->now()->getTimestamp() && hash('sha256', $usable) !== $this->dropped) {
+            return $usable;
         }
 
         if ($cached !== null) {
@@ -107,12 +109,15 @@ final class TokenProvider
             $this->dropped = null;
         }
 
-        $expiry = JwtExpiry::read($token) ?? $this->clock->now()->getTimestamp() + self::FALLBACK_TTL_SECONDS;
+        $claimed = JwtExpiry::read($token);
+        $expiry = $claimed ?? $this->clock->now()->getTimestamp() + self::FALLBACK_TTL_SECONDS;
         $ttl = $expiry - $this->clock->now()->getTimestamp() - self::SKEW_SECONDS;
 
         if ($ttl > 0) {
             try {
-                ($this->cache)()->set($this->cacheKey, $token, $ttl);
+                // A token without `exp` is stored with the expiry assumed for it, so that a store
+                // ignoring the TTL cannot keep it past that time.
+                ($this->cache)()->set($this->cacheKey, $claimed === null ? $expiry.':'.$token : $token, $ttl);
             } catch (Throwable) {
                 // Not cached: the next call logs in again.
             }
@@ -121,12 +126,23 @@ final class TokenProvider
         return $token;
     }
 
-    /** Past its `exp`, less the skew; a token without one is trusted to the TTL it was stored with. */
-    private function expired(#[SensitiveParameter] string $token): bool
+    /**
+     * What the store holds: a token with its `exp`, or `expiry:token` for one without. Anything
+     * else (a token without `exp` stored bare, junk) has no expiry known, and is not used.
+     *
+     * @return array{?string, ?int} the token and its expiry
+     */
+    private static function unpack(#[SensitiveParameter] string $cached): array
     {
-        $expiry = JwtExpiry::read($token);
+        if (preg_match('/^(\d{1,12}):(.+)$/sD', $cached, $parts) === 1) {
+            $token = self::clean($parts[2]) === $parts[2] ? $parts[2] : null;
 
-        return $expiry !== null && $expiry - self::SKEW_SECONDS <= $this->clock->now()->getTimestamp();
+            return [$token, $token === null || JwtExpiry::read($token) !== null ? null : (int) $parts[1]];
+        }
+
+        $token = self::clean($cached) === $cached ? $cached : null;
+
+        return [$token, $token === null ? null : JwtExpiry::read($token)];
     }
 
     /**
@@ -143,13 +159,14 @@ final class TokenProvider
             $cached = null;
         }
 
-        $rejected ??= is_string($cached) ? $cached : null;
+        $held = is_string($cached) ? self::unpack($cached)[0] ?? $cached : null;
+        $rejected ??= $held;
 
         if ($rejected !== null) {
             $this->dropped = hash('sha256', $rejected);
         }
 
-        if ($cached === null || (is_string($cached) && $rejected !== null && ! hash_equals($rejected, $cached))) {
+        if ($cached === null || ($held !== null && $rejected !== null && ! hash_equals($rejected, $held))) {
             return;
         }
 

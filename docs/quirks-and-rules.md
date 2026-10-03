@@ -61,7 +61,7 @@ A 2.0TD supply of point type 5, read with `authorizedNif`, on an account with th
 | `get-supplies-v2` without `authorizedNif`, for an account without own supplies | 404 | `application/json;charset=UTF-8` | `No supplies` |
 | `get-distributors-with-supplies-v2` | 200 | `application/json` | `{"distributorError":[...],"distExistenceUser":{"distributorCodes":[...]}}`; without `authorizedNif` both distributors failed with `errorCode` `15`, `Error interno distribuidora` |
 | `get-groups-v2` without groups | 200 | `application/json` | `No groups` (plain text): an empty result |
-| `get-reactive-data-v2` for a period without data | 200 | `text/plain` | `reactiveEnergy` with every field `null` and `energy: []`, and a distributor error `errorCode` `8`, `No existen datos en el periodo solicitado`: no data, not a failure. The description key is `codeDescription` (the web documentation says `code_desc`) |
+| `get-reactive-data-v2` for a period without data | 200 | `text/plain` | `reactiveEnergy` with every field `null` and `energy: []`, and a distributor error `errorCode` `8`, `No existen datos en el periodo solicitado`: no data, not a failure, recognised only as that code with that description (codes are each distributor's, and this was seen for one). The description key is `codeDescription` (the web documentation says `code_desc`) |
 | Quarter-hourly consumption (`measurementType=1`) of a point type 5 supply | 200 | `text/plain` | `{"timeCurve":[],"distributorError":[]}` |
 | The same consumption query again | 429 | `application/json;charset=UTF-8` | `Consulta ya realizada en las últimas 24 horas. ` (trailing space), no `Retry-After` |
 | Reactive data with the parameters of a maximum power query made just before | 429 | `application/json;charset=UTF-8` | the same: maximum power and reactive data share the 24 hour key. Consumption and reactive data for the same month did not collide |
@@ -86,7 +86,7 @@ A 2.0TD supply of point type 5, read with `authorizedNif`, on an account with th
 | 400 | Rejected parameters (malformed CUPS or `distributorCode`, a `startDate` month before the month of the supply's `validDateFrom`, boundary month, missing `Accept`). Permanent: never resend the identical call. Body is `text/plain`, not JSON. |
 | 401 | Token missing or expired. Re-login once and repeat, except a guarded query: whether the rejected one counted is unknown, so it is not sent again. |
 | 403 | The `authorizedNif` has no authorized supplies, or a stale `distributorCode`/`pointType`. Also seen for blocked User-Agents and for unknown paths. Contract detail and consumption report a missing consent with a 400 instead. |
-| 404 | "No data": `No supplies` for an account without supplies (verified), "Data not found" reported for data calls. Map to a no-data condition, not a fatal error. |
+| 404 | "No data": `No supplies` for an account without supplies (verified), "Data not found" reported for data calls. Only the body `No supplies` makes an empty list of supplies or distributors; any other 404 is raised as a `NoDataException`, since it may be a broken path or a changed API. |
 | 429 | Repetition window. Never retry. |
 | 500/502/503/504 | Datadis or distributor failure. An empty 500 is also the answer to a missing required parameter (verified), so a 500 is never retried. |
 

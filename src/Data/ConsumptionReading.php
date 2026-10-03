@@ -101,9 +101,9 @@ final readonly class ConsumptionReading
     }
 
     /**
-     * Whether the row holds no reading: its consumption absent or null, as Datadis sends a month
-     * the distributor has not read yet. That is not a fault; a value that is there but cannot be
-     * read is, and makes the row unusable.
+     * Whether the row holds no reading: a readable date and time with the consumption absent or
+     * null, as Datadis sends a month the distributor has not read yet. That is not a fault; a value
+     * that is there but cannot be read is, and so is a row without its date or time (`{}`).
      *
      * @internal public only to be passed as a callable while decoding
      *
@@ -111,7 +111,7 @@ final readonly class ConsumptionReading
      */
     public static function lacksReading(#[SensitiveParameter] array $row): bool
     {
-        return ($row['consumptionKWh'] ?? null) === null;
+        return ($row['consumptionKWh'] ?? null) === null && Fields::text($row, 'date') !== null && Fields::text($row, 'time') !== null;
     }
 
     public function hasValidTime(): bool

@@ -147,6 +147,11 @@ final class Envelope
      */
     public static function isBlank(#[SensitiveParameter] array $row): bool
     {
+        // The blank row Datadis sends has its fields, all empty; a row with no field at all is not it.
+        if ($row === []) {
+            return false;
+        }
+
         foreach ($row as $value) {
             if (! ($value === null || $value === [] || (is_string($value) && trim($value) === ''))) {
                 return false;

@@ -53,7 +53,7 @@ Also decided: a client per holder (`forHolder()`).
 
 Done since: the decoding helpers moved out of `Data` into the internal `Decoding` namespace.
 
-Decided: the constructor and `fromArray()` stay as two ways in (plain code and application settings); their parameter names are final for 1.0. The wiring both APIs need is shared in the internal `Http\Connection`.
+Decided: the constructor and `fromArray()` stay as two ways in (plain code and application settings); their parameter names are final for 1.0. The wiring both APIs need is shared in `ConnectionSettings`.
 
 Decided: the public API client is `PublicApiClient`, at the root next to `DatadisClient`; its queries and records stay in `PublicApi`.
 

@@ -40,12 +40,16 @@ final readonly class DistributorError
     }
 
     /**
-     * Error code 8, "No existen datos en el periodo solicitado": the distributor has no data for
-     * that period, which is an answer and not a failure (seen once, October 2026, for one
-     * distributor). Codes are each distributor's: the code and its description are kept as sent.
+     * Error code 8 with "No existen datos en el periodo solicitado": the distributor has no data
+     * for that period, which is an answer and not a failure (seen once, October 2026, for one
+     * distributor). Codes are each distributor's, so the code alone is not enough: only that code
+     * with that description is recognised, and anything else is a failure until an answer shows
+     * otherwise. The code and its description are kept as sent, for an application to read its own way.
      */
     public function isNoData(): bool
     {
-        return $this->errorCode !== null && ltrim(trim($this->errorCode), '0') === '8';
+        return $this->errorCode !== null
+            && ltrim(trim($this->errorCode), '0') === '8'
+            && preg_match('/^\s*no\s+existen\s+datos\b/iu', $this->errorDescription ?? '') === 1;
     }
 }

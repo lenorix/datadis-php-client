@@ -20,6 +20,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Any 404 of the supplies or distributors lists was an empty list; only the verified `No supplies` is now, and any other 404 (an unknown path, a changed API) is raised.
+- A transport failure whose message printed the request's headers kept a token not shaped like the usual JWT in its detail; the request's own token, and any `Authorization` or `Bearer` value, are removed.
+- A token without `exp` in a store that ignores TTLs was used past its assumed lifetime; that lifetime is stored with it now.
+- Error code 8 meant "no data" for any distributor; only with the description it was seen with (`No existen datos…`), since codes are each distributor's.
+- A row with no field at all (`{}`) counted as the blank row of a CUPS Datadis cannot see; it is an unusable row.
+- Planning December 9999 failed.
+
 - A quarter-hourly answer with only whole hours (an hourly answer to a quarter-hourly query) was read as quarters, putting an hour of energy on 15 minutes; its rows get no interval.
 - `StandardTariffResolver` failed with a `TypeError` on a numeric code added to its table (`'62'`, an integer key in PHP).
 - `PatternTariffResolver` took an unknown tariff, an unknown field or a misspelt one, and failed later or answered null; it refuses them at once, takes tariffs by name (`'3.0TD'`) from a configuration file, and says so when a pattern fails on a text instead of answering null.

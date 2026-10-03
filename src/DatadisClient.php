@@ -790,7 +790,8 @@ final class DatadisClient
 
     /**
      * For the account lists: an account without supplies gets a 404 "No supplies" (verified), which
-     * is an empty list, not a failure.
+     * is an empty list, not a failure. Any other 404 (an unknown path, a changed API) is not that
+     * answer, and is raised as it came.
      *
      * @param  array<string, string|int|list<string>|null>  $query
      * @return array<array-key, mixed>
@@ -800,7 +801,7 @@ final class DatadisClient
         try {
             return $this->fetch($endpoint, $query);
         } catch (NoDataException $e) {
-            if ($e->httpStatus === 404) {
+            if ($e->httpStatus === 404 && strcasecmp(trim($e->detail ?? ''), 'No supplies') === 0) {
                 return [];
             }
 

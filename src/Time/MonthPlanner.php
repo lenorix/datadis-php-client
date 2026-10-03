@@ -50,8 +50,11 @@ final class MonthPlanner
         }
 
         $ranges = [];
-        for ($start = $first; ! $start->isAfter($last); $start = $start->addMonths($monthsPerRequest)) {
-            $ranges[] = [$start, self::earliest($start->addMonths($monthsPerRequest - 1), $last)];
+
+        // Counted in months, not stepped past $last: the month after December 9999 does not exist.
+        for ($offset = 0; $offset <= $last->diffInMonths($first); $offset += $monthsPerRequest) {
+            $start = $first->addMonths($offset);
+            $ranges[] = [$start, $first->addMonths(min($offset + $monthsPerRequest - 1, $last->diffInMonths($first)))];
         }
 
         return $ranges;
