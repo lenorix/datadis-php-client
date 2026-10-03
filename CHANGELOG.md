@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- A token the client dropped (rejected with a 401, or ignored by `checkLogin(fresh: true)`) was used again when the token cache could not delete it: the fresh check did not log in, and the rejected token was sent again. The client never uses a dropped token again.
+- An error body that echoed a NIF or a CUPS was redacted in the message but passed whole as an argument recorded in stack traces.
+- `availableAt` and the `...BlockedUntil()` lookups counted the window on the wall clock of the default zone: with `Europe/Madrid`, an hour late the night the clocks go back and an hour early the night they go forward.
+- `rememberReactiveData()` and `reactiveDataBlockedUntil()` (and their `...Of()` twins) refuse API v1 like `getReactiveData()`; reactive data shares its key with maximum power, so they blocked or reported a maximum power query.
+- `BillingCycle::periodsBetween()` took a reversed span inside one period.
+- An integer field sent as a JSON number with an exponent (`1e2`), and an exponent with leading zeros (`1.5E+0010`), read as null.
+- A login error that escaped a quote of the password as `&#39;` or `&#039;` kept it.
+
+### Changed
+
+- The documented exceptions of the public calls are complete, and the docs no longer say that a 401 repeats any call or that the guard is optional.
+
 ## [0.6.1] - 2026-10-03
 
 ### Documentation
