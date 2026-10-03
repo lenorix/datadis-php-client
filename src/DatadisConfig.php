@@ -157,8 +157,13 @@ final readonly class DatadisConfig
     {
         $password = $settings['password'] ?? null;
 
-        if (! is_string($password) || $password === '') {
+        if ($password === null || $password === '') {
             throw new ConfigurationException('The Datadis setting "password" is missing.');
+        }
+
+        // A number is not taken as text: it may have lost a leading zero or a digit on the way.
+        if (! is_string($password)) {
+            throw new ConfigurationException('The Datadis setting "password" must be text; quote it in the configuration.');
         }
 
         return $password;
@@ -168,6 +173,8 @@ final readonly class DatadisConfig
     private static function seconds(#[SensitiveParameter] array $settings, string $key, float $default): float
     {
         $value = self::raw($settings, $key);
+        // Empty values, spaces only included, count as not given.
+        $value = is_string($value) ? trim($value) : $value;
 
         if ($value === null || $value === '') {
             return $default;
@@ -184,6 +191,8 @@ final readonly class DatadisConfig
     private static function flag(#[SensitiveParameter] array $settings, string $key, bool $default): bool
     {
         $value = self::raw($settings, $key);
+        // Empty values, spaces only included, count as not given: filter_var() reads " " as false.
+        $value = is_string($value) ? trim($value) : $value;
 
         if ($value === null || $value === '') {
             return $default;

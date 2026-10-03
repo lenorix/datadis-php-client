@@ -76,7 +76,7 @@ it('resolves the access tariff when the description and the number of powers agr
     '3.0TD with 6 powers' => ['BAJA TENSION Y POTENCIA  > 15 kW', [20, 20, 20, 20, 20, 25], AccessTariff::T30TD],
     '2.0TD band with 6 powers' => ['BAJA TENSION y POTENCIA <= 15 kW', [1, 1, 1, 1, 1, 1], null],
     '3.0TD with 2 powers' => ['BAJA TENSION Y POTENCIA > 15 kW', [20, 20], null],
-    'no powers' => ['BAJA TENSION y POTENCIA <= 15 kW', [], null],
+    'no powers: nothing against the text' => ['BAJA TENSION y POTENCIA <= 15 kW', [], AccessTariff::T20TD],
     'unknown description, 2 powers: only 2.0TD has two' => ['TARIFA RARA', [4.6, 4.6], AccessTariff::T20TD],
     'unknown description, 6 powers' => ['TARIFA RARA', [1, 1, 1, 1, 1, 1], null],
 ]);

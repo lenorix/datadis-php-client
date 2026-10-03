@@ -26,7 +26,7 @@ final readonly class PatternTariffResolver implements TariffResolver
     private array $fields;
 
     /**
-     * @param  array<string, AccessTariff|string>  $patterns  regular expression => tariff (or its name, `3.0TD`, as a configuration file has it), in order
+     * @param  array<string, mixed>  $patterns  regular expression => tariff (or its name, `3.0TD`, as a configuration file has it), in order
      * @param  list<string>  $fields  the fields to try them on, in order: any of FIELDS
      *
      * @throws InvalidArgumentException when a pattern does not compile, a tariff or a field is unknown
@@ -39,7 +39,7 @@ final readonly class PatternTariffResolver implements TariffResolver
             $pattern = (string) $pattern;
             self::compiles($pattern) || throw new InvalidArgumentException("Not a valid regular expression: {$pattern}");
             $checked[$pattern] = $tariff instanceof AccessTariff ? $tariff
-                : (AccessTariff::tryFrom($tariff) ?? throw new InvalidArgumentException("Not an access tariff: {$tariff}"));
+                : ((is_string($tariff) ? AccessTariff::tryFrom($tariff) : null) ?? throw new InvalidArgumentException('Not an access tariff: '.(is_string($tariff) ? $tariff : get_debug_type($tariff))));
         }
 
         foreach ($fields as $field) {

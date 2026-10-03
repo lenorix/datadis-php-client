@@ -6,6 +6,9 @@ use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\Request;
 use Lenorix\DatadisClient\Exceptions\DatadisException;
 use Lenorix\DatadisClient\Exceptions\RepetitionWindowException;
+use Lenorix\DatadisClient\Exceptions\TransportException;
+use Lenorix\DatadisClient\PublicApiClient;
+use Lenorix\DatadisClient\Tests\Support\FakeHttpClient;
 use Lenorix\DatadisClient\Tests\Support\Responses;
 use Lenorix\DatadisClient\Tests\Support\Scenario;
 use Lenorix\DatadisClient\Time\Month;
@@ -88,4 +91,28 @@ it('keeps the fields of its own kind when a failure is unserialized', function (
 
 it('says plainly that a client cannot be serialized', function () {
     expect(fn () => serialize(Scenario::make()->client))->toThrow(LogicException::class, 'cannot be serialized');
+});
+
+it('keeps the failure of this package a failure chains, and never another library\'s', function () {
+    $s = Scenario::make(ledger: fn ($clock) => Scenario::ledger($clock));
+    $s->http->queue(Responses::text('Too many requests', 429));
+    $e = thrownBy(fn () => $s->client->getMaxPower(Scenario::cups(), '2', Month::of(2026, 1)));
+
+    $copy = unserialize(serialize($e));
+
+    expect($e->getPrevious())->toBeInstanceOf(RepetitionWindowException::class)
+        ->and($copy->getPrevious())->toBeInstanceOf(RepetitionWindowException::class)
+        ->and($copy->getPrevious()?->getMessage())->toBe($e->getPrevious()?->getMessage());
+});
+
+it('ignores what does not belong to a failure when unserializing one', function () {
+    $e = (new ReflectionClass(TransportException::class))->newInstanceWithoutConstructor();
+    $e->__unserialize(['message' => 'm', 'fields' => ['NotAClass' => ['x' => 1], stdClass::class => ['y' => 2], DatadisException::class => 'no'], 'previous' => new RuntimeException('other')]);
+
+    expect($e->getMessage())->toBe('m')->and($e->getPrevious())->toBeNull();
+});
+
+it('says plainly that a public client cannot be serialized', function () {
+    expect(fn () => serialize(new PublicApiClient(Scenario::config(), http: new FakeHttpClient)))
+        ->toThrow(LogicException::class, 'cannot be serialized');
 });

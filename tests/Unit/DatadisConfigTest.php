@@ -89,3 +89,16 @@ it('keeps the account NIF out of var_dump and print_r', function () {
 
     expect((string) ob_get_clean().print_r($config, true))->not->toContain('A00000000');
 });
+
+it('takes settings of only spaces as not given', function () {
+    // Read as false, spaces turned the check of the username's control letter off.
+    expect(fn () => DatadisConfig::fromArray(['username' => '00000000A', 'password' => 'pw', 'check_username_control' => " \t"]))
+        ->toThrow(ConfigurationException::class)
+        ->and(DatadisConfig::fromArray(['username' => '00000000T', 'password' => 'pw', 'timeout' => ' ', 'connect_timeout' => "\t"])->connection()->timeout)
+        ->toBe(DatadisConfig::DEFAULT_TIMEOUT);
+});
+
+it('says a password that is a number must be written as text', function () {
+    expect(fn () => DatadisConfig::fromArray(['username' => '00000000T', 'password' => 123456]))
+        ->toThrow(ConfigurationException::class, 'must be text');
+});

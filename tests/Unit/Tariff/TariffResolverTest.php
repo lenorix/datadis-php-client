@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Lenorix\DatadisClient\Data\ContractDetail;
+use Lenorix\DatadisClient\Support\Decimal;
+use Lenorix\DatadisClient\Tariff\AccessFareParser;
 use Lenorix\DatadisClient\Tariff\AccessTariff;
 use Lenorix\DatadisClient\Tariff\ChainTariffResolver;
 use Lenorix\DatadisClient\Tariff\PatternTariffResolver;
@@ -110,4 +112,37 @@ it('says so when a pattern fails on a text instead of answering null', function 
     } finally {
         ini_set('pcre.backtrack_limit', (string) $limit);
     }
+});
+
+it('takes tariffs by name in the code table too, and refuses an unknown one when built', function () {
+    $resolver = new StandardTariffResolver(['3T' => '3.0TD'] + StandardTariffResolver::CODES);
+
+    expect(contractOf(['codeFare' => '3T'], 6)->tariff($resolver))->toBe(AccessTariff::T30TD)
+        ->and(fn () => new StandardTariffResolver(['3T' => '9.9TD']))->toThrow(InvalidArgumentException::class, 'Not an access tariff')
+        ->and(fn () => new StandardTariffResolver(['3T' => null]))->toThrow(InvalidArgumentException::class, 'Not an access tariff');
+});
+
+it('refuses a tariff of a pattern that is not text, as a YAML null or a number', function (mixed $tariff) {
+    expect(fn () => new PatternTariffResolver(['/x/' => $tariff]))->toThrow(InvalidArgumentException::class, 'Not an access tariff');
+})->with([[null], [20]]);
+
+it('reads a CNMC code sent as a number, without its leading zero', function () {
+    expect(contractOf(['codeFare' => 19], 6)->tariff())->toBe(AccessTariff::T30TD);
+});
+
+it('does not read a tariff inside a longer number, and takes a decimal comma', function (string $fare, ?AccessTariff $tariff) {
+    expect(AccessFareParser::parse($fare))->toBe($tariff);
+})->with([
+    '12.0TD' => ['12.0TD', null],
+    '16.1TD' => ['16.1TD', null],
+    '2,0TD' => ['2,0TD', AccessTariff::T20TD],
+    '6,1 TD' => ['6,1 TD', AccessTariff::T61TD],
+]);
+
+it('takes the misspelt key when the right one is empty', function () {
+    expect(contractOf(['accessFare' => '', 'accesFare' => '3.0TD'], 6)->accessFare)->toBe('3.0TD');
+});
+
+it('reads numbers with spaces around them, as whole numbers are read', function () {
+    expect(Decimal::tryOf(' 5.5 ', 3))->toBe('5.500');
 });

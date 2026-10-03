@@ -82,7 +82,8 @@ final readonly class ContractDetail
             Fields::text($row, 'distributor'),
             Fields::text($row, 'marketer'),
             Fields::text($row, 'tension'),
-            Fields::text($row, 'accessFare', 'accesFare'),
+            // The misspelt key is used when the right one is missing or empty.
+            Fields::nonEmptyText($row, 'accessFare') ?? Fields::nonEmptyText($row, 'accesFare') ?? Fields::text($row, 'accessFare', 'accesFare'),
             Fields::text($row, 'province'),
             Fields::text($row, 'municipality'),
             Fields::text($row, 'postalCode'),

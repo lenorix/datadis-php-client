@@ -99,7 +99,7 @@ final readonly class Nif implements Stringable
         $first = $value[0];
 
         // NIF and NIE: the number (an NIE's X, Y, Z standing for 0, 1, 2) modulo 23 picks the letter.
-        if (ctype_digit($first) || str_contains('XYZ', $first)) {
+        if (preg_match('/^\d$/', $first) === 1 || str_contains('XYZ', $first)) {
             $number = (int) strtr(substr($value, 0, 8), ['X' => '0', 'Y' => '1', 'Z' => '2']);
 
             return $value[8] === self::LETTERS[$number % 23];

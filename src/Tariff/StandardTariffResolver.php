@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lenorix\DatadisClient\Tariff;
 
+use InvalidArgumentException;
 use Lenorix\DatadisClient\Data\ContractDetail;
 
 /**
@@ -37,15 +38,20 @@ final readonly class StandardTariffResolver implements TariffResolver
     private array $codes;
 
     /**
-     * @param  array<array-key, AccessTariff>  $codes  codeFare (any case) => tariff; a numeric code such
-     *                                                 as `62` becomes an integer key in PHP, and is fine
+     * @param  array<array-key, mixed>  $codes  codeFare (any case) => tariff, or its name
+     *                                          (`3.0TD`) as a configuration file has it; a
+     *                                          numeric code such as `62` becomes an integer
+     *                                          key in PHP, and is fine
+     *
+     * @throws InvalidArgumentException when a tariff is unknown
      */
     public function __construct(array $codes = self::CODES)
     {
         $normalised = [];
 
         foreach ($codes as $code => $tariff) {
-            $normalised[strtoupper(trim((string) $code))] = $tariff;
+            $normalised[strtoupper(trim((string) $code))] = $tariff instanceof AccessTariff ? $tariff
+                : ((is_string($tariff) ? AccessTariff::tryFrom($tariff) : null) ?? throw new InvalidArgumentException('Not an access tariff: '.(is_string($tariff) ? $tariff : get_debug_type($tariff))));
         }
 
         $this->codes = $normalised;
@@ -65,14 +71,18 @@ final readonly class StandardTariffResolver implements TariffResolver
 
         $tariff = $signals[0] ?? ($powers === AccessTariff::T20TD->powerPeriods() ? AccessTariff::T20TD : null);
 
-        return $tariff !== null && $tariff->powerPeriods() === $powers ? $tariff : null;
+        // The powers check the text when there are any; a contract that lists none says nothing
+        // against it.
+        return $tariff !== null && ($powers === 0 || $tariff->powerPeriods() === $powers) ? $tariff : null;
     }
 
     private function byCode(string $code): ?AccessTariff
     {
         $key = strtoupper(trim($code));
+        // The CNMC codes are written with three digits (`019`); one sent as a number loses them.
+        $padded = preg_match('/^\d+$/D', $key) === 1 ? str_pad($key, 3, '0', STR_PAD_LEFT) : $key;
 
         // Some companies write the tariff itself as its code (`2.0TD`).
-        return $this->codes[$key] ?? ($key === '' ? null : AccessFareParser::parse($code));
+        return $this->codes[$key] ?? $this->codes[$padded] ?? ($key === '' ? null : AccessFareParser::parse($code));
     }
 }

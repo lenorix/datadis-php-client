@@ -70,7 +70,8 @@ final class AccessFareParser
 
     private static function alias(string $text): ?AccessTariff
     {
-        if (preg_match('/([0-9])\.([0-9])\s*td/', $text, $m) !== 1) {
+        // Not part of a longer number (`12.0TD`); a decimal comma as well as a dot.
+        if (preg_match('/(?<![0-9.,])([0-9])[.,]([0-9])\s*td/', $text, $m) !== 1) {
             return null;
         }
 
