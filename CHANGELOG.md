@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-03
+
 ### Added
 
 - `LedgerEventKind::Refused`: the ledger's `onChange` is told of a query the guard refused because an attempt within the window holds it, with `lastAttemptAt` and `availableAt` on the `LedgerEvent` (the same as the `RepetitionWindowException`'s), so a history can audit refusals and not only what was sent. A listener that matches every kind exhaustively must handle the new one.
@@ -210,7 +212,8 @@ First public release.
 - Daylight saving change days placed on the right hours, in Madrid and the Canary Islands.
 - Helpers: month planning within the served window, access tariff recognition, the 2.0TD schedule, national holidays, territories, CUPS and NIF values (NIF control letter checked), personal data redaction.
 
-[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/lenorix/datadis-php-client/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/lenorix/datadis-php-client/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/lenorix/datadis-php-client/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/lenorix/datadis-php-client/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/lenorix/datadis-php-client/compare/v0.6.0...v0.6.1
